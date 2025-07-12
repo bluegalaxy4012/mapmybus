@@ -1,0 +1,1352 @@
+[
+  {
+    "agency_id": "2",
+    "route_id": 1,
+    "route_short_name": "1",
+    "route_long_name": "Str. Bucium - P-ta 1 Mai",
+    "route_color": "#f3513c",
+    "route_type": 11,
+    "route_desc": "Str. Bucium - P-ta 1 Mai"
+  },
+  {
+    "agency_id": "2",
+    "route_id": 2,
+    "route_short_name": "100",
+    "route_long_name": "P-ta Garii - B-dul Muncii",
+    "route_color": "#f3513c",
+    "route_type": 0,
+    "route_desc": "P-ta Garii - B-dul Muncii"
+  },
+  {
+    "agency_id": "2",
+    "route_id": 3,
+    "route_short_name": "101",
+    "route_long_name": "Str. Bucium - P-ta Garii",
+    "route_color": "#f3513c",
+    "route_type": 0,
+    "route_desc": "Str. Bucium - P-ta Garii"
+  },
+  {
+    "agency_id": "2",
+    "route_id": 4,
+    "route_short_name": "102",
+    "route_long_name": "Str. Bucium - B-dul Muncii",
+    "route_color": "#f3513c",
+    "route_type": 0,
+    "route_desc": "Str. Bucium - B-dul Muncii"
+  },
+  {
+    "agency_id": "2",
+    "route_id": 5,
+    "route_short_name": "102L",
+    "route_long_name": "Str. Bucium - DEPOU",
+    "route_color": "#f3513c",
+    "route_type": 0,
+    "route_desc": "Str. Bucium - DEPOU"
+  },
+  {
+    "agency_id": "2",
+    "route_id": 6,
+    "route_short_name": "19",
+    "route_long_name": "P-ta M. Viteazul - Str. E. Quinet",
+    "route_color": "#f3513c",
+    "route_type": 3,
+    "route_desc": "P-ta M. Viteazul - Str. E. Quinet"
+  },
+  {
+    "agency_id": "2",
+    "route_id": 7,
+    "route_short_name": "20",
+    "route_long_name": "Col. Borhanci - P-ta Stefan cel Mare",
+    "route_color": "#f3513c",
+    "route_type": 3,
+    "route_desc": "Col. Borhanci - P-ta Stefan cel Mare"
+  },
+  {
+    "agency_id": "2",
+    "route_id": 8,
+    "route_short_name": "21",
+    "route_long_name": "P-ta M. Viteazul - Cart. Buna Ziua",
+    "route_color": "#f3513c",
+    "route_type": 3,
+    "route_desc": "P-ta M. Viteazul - Cart. Buna Ziua"
+  },
+  {
+    "agency_id": "2",
+    "route_id": 9,
+    "route_short_name": "22",
+    "route_long_name": "P-ta Garii - Str. I. Moldovan",
+    "route_color": "#f3513c",
+    "route_type": 3,
+    "route_desc": "P-ta Garii - Str. I. Moldovan"
+  },
+  {
+    "agency_id": "2",
+    "route_id": 10,
+    "route_short_name": "23",
+    "route_long_name": "P-ta M. Viteazul - C.U.G",
+    "route_color": "#f3513c",
+    "route_type": 11,
+    "route_desc": "P-ta M. Viteazul - EMERSON"
+  },
+  {
+    "agency_id": "2",
+    "route_id": 12,
+    "route_short_name": "24",
+    "route_long_name": "Str. Unirii - Str. Bucium",
+    "route_color": "#f3513c",
+    "route_type": 3,
+    "route_desc": "Str. Unirii - Str. Bucium"
+  },
+  {
+    "agency_id": "2",
+    "route_id": 13,
+    "route_short_name": "24B",
+    "route_long_name": "Str. Unirii - Vivo Center",
+    "route_color": "#f3513c",
+    "route_type": 3,
+    "route_desc": "Str. Unirii - Vivo Center"
+  },
+  {
+    "agency_id": "2",
+    "route_id": 14,
+    "route_short_name": "25",
+    "route_long_name": "Str. Bucium - Str. Unirii",
+    "route_color": "#f3513c",
+    "route_type": 11,
+    "route_desc": "Str. Bucium - Str. Unirii"
+  },
+  {
+    "agency_id": "2",
+    "route_id": 15,
+    "route_short_name": "25N",
+    "route_long_name": "Str. Bucium - Str. Unirii",
+    "route_color": "#00ff2f",
+    "route_type": 11,
+    "route_desc": "Str. Bucium - Str. Unirii"
+  },
+  {
+    "agency_id": "2",
+    "route_id": 16,
+    "route_short_name": "26",
+    "route_long_name": "Cart. Grigorescu - B-dul Muncii",
+    "route_color": "#f3513c",
+    "route_type": 3,
+    "route_desc": "Cart. Grigorescu - B-dul Muncii"
+  },
+  {
+    "agency_id": "2",
+    "route_id": 17,
+    "route_short_name": "26L",
+    "route_long_name": "Cart. Grigorescu - Str. Emerson",
+    "route_color": "#f3513c",
+    "route_type": 3,
+    "route_desc": "Cart. Grigorescu - Str. Emerson"
+  },
+  {
+    "agency_id": "2",
+    "route_id": 18,
+    "route_short_name": "27",
+    "route_long_name": "Cart. Grigorescu - P-ta Garii",
+    "route_color": "#f3513c",
+    "route_type": 3,
+    "route_desc": "Cart. Grigorescu - P-ta Garii"
+  },
+  {
+    "agency_id": "2",
+    "route_id": 19,
+    "route_short_name": "28",
+    "route_long_name": "Cart. Grigorescu - P-ta M. Viteazul",
+    "route_color": "#f3513c",
+    "route_type": 3,
+    "route_desc": "Cart. Grigorescu - P-ta M. Viteazul"
+  },
+  {
+    "agency_id": "2",
+    "route_id": 20,
+    "route_short_name": "28B",
+    "route_long_name": "Polus Center - P-ta M. Viteazul",
+    "route_color": "#f3513c",
+    "route_type": 3,
+    "route_desc": "Polus Center - P-ta M. Viteazul"
+  },
+  {
+    "agency_id": "2",
+    "route_id": 21,
+    "route_short_name": "29",
+    "route_long_name": "Roata Faget - Str. Henri Barbusse",
+    "route_color": "#693cf3",
+    "route_type": 3,
+    "route_desc": "Roata Faget - Str. Henri Barbusse"
+  },
+  {
+    "agency_id": "2",
+    "route_id": 22,
+    "route_short_name": "3",
+    "route_long_name": "Str. Unirii - P-ta Garii",
+    "route_color": "#f3513c",
+    "route_type": 11,
+    "route_desc": "Str. Unirii - P-ta Garii"
+  },
+  {
+    "agency_id": "2",
+    "route_id": 23,
+    "route_short_name": "30",
+    "route_long_name": "Cart. Grigorescu - Str. Aurel Vlaicu",
+    "route_color": "#f3513c",
+    "route_type": 3,
+    "route_desc": "Cart. Grigorescu - Str. Aurel Vlaicu"
+  },
+  {
+    "agency_id": "2",
+    "route_id": 24,
+    "route_short_name": "31",
+    "route_long_name": "P-ta M. Viteazul - Calea Baciului",
+    "route_color": "#f3513c",
+    "route_type": 3,
+    "route_desc": "P-ta M. Viteazul - Calea Baciului"
+  },
+  {
+    "agency_id": "2",
+    "route_id": 25,
+    "route_short_name": "32",
+    "route_long_name": "Str. C. Brancusi - P-ta M. Viteazul",
+    "route_color": "#f3513c",
+    "route_type": 3,
+    "route_desc": "Str. C. Brancusi - P-ta M. Viteazul"
+  },
+  {
+    "agency_id": "2",
+    "route_id": 26,
+    "route_short_name": "32B",
+    "route_long_name": "Str. C. Brancusi - P-ta Garii",
+    "route_color": "#f3513c",
+    "route_type": 3,
+    "route_desc": "Str. C. Brancusi - P-ta Garii"
+  },
+  {
+    "agency_id": "2",
+    "route_id": 27,
+    "route_short_name": "33",
+    "route_long_name": "Aleea Baisoara - P-ta M. Viteazul",
+    "route_color": "#f3513c",
+    "route_type": 3,
+    "route_desc": "Aleea Baisoara - P-ta M. Viteazul"
+  },
+  {
+    "agency_id": "2",
+    "route_id": 28,
+    "route_short_name": "34",
+    "route_long_name": "Aleea Baisoara - P-ta Garii",
+    "route_color": "#f3513c",
+    "route_type": 3,
+    "route_desc": "Aleea Baisoara - P-ta Garii"
+  },
+  {
+    "agency_id": "2",
+    "route_id": 29,
+    "route_short_name": "35",
+    "route_long_name": "Cart. Zorilor - P-ta Garii",
+    "route_color": "#f3513c",
+    "route_type": 3,
+    "route_desc": "Cart. Zorilor - P-ta Garii"
+  },
+  {
+    "agency_id": "2",
+    "route_id": 30,
+    "route_short_name": "36B",
+    "route_long_name": "P-ta M. Viteazul - Str. Ion Ionescu de la Brad",
+    "route_color": "#f3513c",
+    "route_type": 3,
+    "route_desc": "P-ta M. Viteazul - Str. Ion Ionescu de la Brad"
+  },
+  {
+    "agency_id": "2",
+    "route_id": 31,
+    "route_short_name": "36L",
+    "route_long_name": "P-ta M. Viteazul - Str. Emerson",
+    "route_color": "#f3513c",
+    "route_type": 3,
+    "route_desc": "P-ta M. Viteazul - Str. Emerson"
+  },
+  {
+    "agency_id": "2",
+    "route_id": 32,
+    "route_short_name": "37",
+    "route_long_name": "P-ta M. Viteazul - Str. Romulus Vuia",
+    "route_color": "#f3513c",
+    "route_type": 3,
+    "route_desc": "P-ta M. Viteazul - Str. Romulus Vuia"
+  },
+  {
+    "agency_id": "2",
+    "route_id": 33,
+    "route_short_name": "38",
+    "route_long_name": "P-ta M. Viteazul - Str. Vanatorului",
+    "route_color": "#f3513c",
+    "route_type": 3,
+    "route_desc": "P-ta M. Viteazul - Str. Vanatorului"
+  },
+  {
+    "agency_id": "2",
+    "route_id": 34,
+    "route_short_name": "39",
+    "route_long_name": "P-ta M. Viteazul - Valea Chintaului",
+    "route_color": "#f3513c",
+    "route_type": 3,
+    "route_desc": "P-ta M. Viteazul - Valea Chintaului"
+  },
+  {
+    "agency_id": "2",
+    "route_id": 35,
+    "route_short_name": "39L",
+    "route_long_name": "P-ta M. Viteazul - Catun",
+    "route_color": "#f3513c",
+    "route_type": 3,
+    "route_desc": "P-ta M. Viteazul - Catun"
+  },
+  {
+    "agency_id": "2",
+    "route_id": 36,
+    "route_short_name": "4",
+    "route_long_name": "Str. Aurel Vlaicu - P-ta Garii",
+    "route_color": "#f3513c",
+    "route_type": 11,
+    "route_desc": "Str. Aurel Vlaicu - P-ta M. Garii"
+  },
+  {
+    "agency_id": "2",
+    "route_id": 37,
+    "route_short_name": "40",
+    "route_long_name": "P-ta Stefan cel Mare - Colonia Faget",
+    "route_color": "#f3513c",
+    "route_type": 3,
+    "route_desc": "P-ta Stefan cel Mare - Colonia Faget"
+  },
+  {
+    "agency_id": "2",
+    "route_id": 38,
+    "route_short_name": "40S",
+    "route_long_name": "P-ta Stefan cel Mare - Calea Turzii",
+    "route_color": "#f3513c",
+    "route_type": 3,
+    "route_desc": "P-ta Stefan cel Mare - Calea Turzii"
+  },
+  {
+    "agency_id": "2",
+    "route_id": 39,
+    "route_short_name": "41",
+    "route_long_name": "Cart. Grigorescu - P-ta 1 Mai",
+    "route_color": "#f3513c",
+    "route_type": 3,
+    "route_desc": "Cart. Grigorescu - P-ta 1 Mai"
+  },
+  {
+    "agency_id": "2",
+    "route_id": 40,
+    "route_short_name": "42",
+    "route_long_name": "P-ta M. Viteazul - Str. Campului",
+    "route_color": "#f3513c",
+    "route_type": 3,
+    "route_desc": "P-ta M. Viteazul - Str. Campului"
+  },
+  {
+    "agency_id": "2",
+    "route_id": 41,
+    "route_short_name": "43",
+    "route_long_name": "Cart. Grigorescu - Cart. Zorilor",
+    "route_color": "#f3513c",
+    "route_type": 3,
+    "route_desc": "Cart. Grigorescu - Cart. Zorilor"
+  },
+  {
+    "agency_id": "2",
+    "route_id": 42,
+    "route_short_name": "43B",
+    "route_long_name": "Cart. Grigorescu - Calea Turzii",
+    "route_color": "#f3513c",
+    "route_type": 3,
+    "route_desc": "Cart. Grigorescu - Calea Turzii"
+  },
+  {
+    "agency_id": "2",
+    "route_id": 43,
+    "route_short_name": "43P",
+    "route_long_name": "Polus Center - Cart. Zorilor",
+    "route_color": "#f3513c",
+    "route_type": 3,
+    "route_desc": "Polus Center - Cart. Zorilor"
+  },
+  {
+    "agency_id": "2",
+    "route_id": 44,
+    "route_short_name": "46",
+    "route_long_name": "Str. Eugen Ionesco - P-ta Stefan cel Mare",
+    "route_color": "#f3513c",
+    "route_type": 3,
+    "route_desc": "Str. Eugen Ionesco - P-ta Stefan cel Mare"
+  },
+  {
+    "agency_id": "2",
+    "route_id": 45,
+    "route_short_name": "46B",
+    "route_long_name": "Cart. Zorilor - Str. Aurel Vlaicu",
+    "route_color": "#f3513c",
+    "route_type": 3,
+    "route_desc": "Cart. Zorilor - Str. Aurel Vlaicu"
+  },
+  {
+    "agency_id": "2",
+    "route_id": 46,
+    "route_short_name": "47",
+    "route_long_name": "P-ta M. Viteazul - Str. Harghitei",
+    "route_color": "#f3513c",
+    "route_type": 3,
+    "route_desc": "P-ta M. Viteazul - Str. Harghitei"
+  },
+  {
+    "agency_id": "2",
+    "route_id": 47,
+    "route_short_name": "48",
+    "route_long_name": "Aleea Baisoara - B-dul Muncii",
+    "route_color": "#f3513c",
+    "route_type": 3,
+    "route_desc": "Aleea Baisoara - B-dul Muncii"
+  },
+  {
+    "agency_id": "2",
+    "route_id": 48,
+    "route_short_name": "48L",
+    "route_long_name": "Aleea Baisoara - Str. Emerson",
+    "route_color": "#f3513c",
+    "route_type": 3,
+    "route_desc": "Aleea Baisoara - Str. Emerson"
+  },
+  {
+    "agency_id": "2",
+    "route_id": 49,
+    "route_short_name": "5",
+    "route_long_name": "P-ta Garii - str. Traian Vuia",
+    "route_color": "#f3513c",
+    "route_type": 11,
+    "route_desc": "P-ta Garii - str. Traian Vuia"
+  },
+  {
+    "agency_id": "2",
+    "route_id": 50,
+    "route_short_name": "50",
+    "route_long_name": "Cart. Zorilor - B-dul Muncii",
+    "route_color": "#f3513c",
+    "route_type": 3,
+    "route_desc": "Cart. Zorilor - B-dul Muncii"
+  },
+  {
+    "agency_id": "2",
+    "route_id": 51,
+    "route_short_name": "50L",
+    "route_long_name": "Cart. Zorilor - Str. Emerson",
+    "route_color": "#f3513c",
+    "route_type": 3,
+    "route_desc": "Cart. Zorilor - Str. Emerson"
+  },
+  {
+    "agency_id": "2",
+    "route_id": 52,
+    "route_short_name": "52",
+    "route_long_name": "Str. Bucium - Str. Plevnei",
+    "route_color": "#f3513c",
+    "route_type": 3,
+    "route_desc": "Str. Bucium - Str. Plevnei"
+  },
+  {
+    "agency_id": "2",
+    "route_id": 53,
+    "route_short_name": "6",
+    "route_long_name": "Str. Bucium - Str. Aurel Vlaicu",
+    "route_color": "#f3513c",
+    "route_type": 11,
+    "route_desc": "Str. Bucium - Str. Aurel Vlaicu"
+  },
+  {
+    "agency_id": "2",
+    "route_id": 54,
+    "route_short_name": "7",
+    "route_long_name": "Str. Aurel Vlaicu - Str. Izlazului",
+    "route_color": "#f3513c",
+    "route_type": 11,
+    "route_desc": "Str. Aurel Vlaicu - Str. Izlazului"
+  },
+  {
+    "agency_id": "2",
+    "route_id": 55,
+    "route_short_name": "8",
+    "route_long_name": "P-ta M. Viteazul - Str. Traian Vuia",
+    "route_color": "#f3513c",
+    "route_type": 11,
+    "route_desc": "P-ta M. Viteazul - Str. Traian Vuia"
+  },
+  {
+    "agency_id": "2",
+    "route_id": 56,
+    "route_short_name": "8L",
+    "route_long_name": "Maresal C-tin Prezan - AGRO TRANSILVANIA",
+    "route_color": "#f3513c",
+    "route_type": 3,
+    "route_desc": "Maresal C-tin Prezan - AGRO TRANSILVANIA"
+  },
+  {
+    "agency_id": "2",
+    "route_id": 57,
+    "route_short_name": "87B",
+    "route_long_name": "Str. Bucium - Polus Center",
+    "route_color": "#f3513c",
+    "route_type": 3,
+    "route_desc": "Str. Bucium - Polus Center"
+  },
+  {
+    "agency_id": "2",
+    "route_id": 58,
+    "route_short_name": "9",
+    "route_long_name": "Str. Bucium - P-ta Garii",
+    "route_color": "#f3513c",
+    "route_type": 3,
+    "route_desc": "Str. Bucium - P-ta Garii"
+  },
+  {
+    "agency_id": "2",
+    "route_id": 59,
+    "route_short_name": "M11",
+    "route_long_name": "P-ta Cipariu - Feleacu",
+    "route_color": "#f3513c",
+    "route_type": 3,
+    "route_desc": "P-ta Cipariu - Feleacu"
+  },
+  {
+    "agency_id": "2",
+    "route_id": 60,
+    "route_short_name": "M12",
+    "route_long_name": "P-ta Cipariu - Valcele",
+    "route_color": "#f3513c",
+    "route_type": 3,
+    "route_desc": "P-ta Cipariu - Valcele"
+  },
+  {
+    "agency_id": "2",
+    "route_id": 61,
+    "route_short_name": "M13",
+    "route_long_name": "P-ta Stefan cel Mare - Gheorgheni",
+    "route_color": "#f3513c",
+    "route_type": 3,
+    "route_desc": "P-ta Stefan cel Mare - Gheorgheni"
+  },
+  {
+    "agency_id": "2",
+    "route_id": 62,
+    "route_short_name": "M16",
+    "route_long_name": "P-ta Stefan cel Mare - Pasaj Ciurila",
+    "route_color": "#f3513c",
+    "route_type": 3,
+    "route_desc": "P-ta Stefan cel Mare - Pasaj Ciurila"
+  },
+  {
+    "agency_id": "2",
+    "route_id": 63,
+    "route_short_name": "M21",
+    "route_long_name": "Bucium - Floresti Cetate",
+    "route_color": "#f3513c",
+    "route_type": 3,
+    "route_desc": "Bucium - Floresti Cetate"
+  },
+  {
+    "agency_id": "2",
+    "route_id": 64,
+    "route_short_name": "M22",
+    "route_long_name": "Bucium - Floresti Sesul de Sus",
+    "route_color": "#f3513c",
+    "route_type": 3,
+    "route_desc": "Bucium - Floresti Sesul de Sus"
+  },
+  {
+    "agency_id": "2",
+    "route_id": 65,
+    "route_short_name": "M23",
+    "route_long_name": "Calea Floresti - Luna de Sus",
+    "route_color": "#f3513c",
+    "route_type": 3,
+    "route_desc": "Calea Floresti - Luna de Sus"
+  },
+  {
+    "agency_id": "2",
+    "route_id": 66,
+    "route_short_name": "M24",
+    "route_long_name": "Str. Bucium - Floresti / Ferma",
+    "route_color": "#f3513c",
+    "route_type": 3,
+    "route_desc": "Str. Bucium - Floresti / Ferma"
+  },
+  {
+    "agency_id": "2",
+    "route_id": 67,
+    "route_short_name": "M25",
+    "route_long_name": "Str. Bucium - Tauti",
+    "route_color": "#f3513c",
+    "route_type": 3,
+    "route_desc": "Str. Bucium - Tauti"
+  },
+  {
+    "agency_id": "2",
+    "route_id": 68,
+    "route_short_name": "M26",
+    "route_long_name": "P-ta MIhai Viteazul - Floresti / Cetate",
+    "route_color": "#f3513c",
+    "route_type": 3,
+    "route_desc": "Parcul Central - Floresti / Cetate"
+  },
+  {
+    "agency_id": "2",
+    "route_id": 69,
+    "route_short_name": "M31",
+    "route_long_name": "P-ta M.Viteazul - Comuna Baciu",
+    "route_color": "#f3513c",
+    "route_type": 3,
+    "route_desc": "P-ta M.Viteazul - Comuna Baciu"
+  },
+  {
+    "agency_id": "2",
+    "route_id": 70,
+    "route_short_name": "M32",
+    "route_long_name": "P-ta Garii - Baciu / Suceagu",
+    "route_color": "#f3513c",
+    "route_type": 3,
+    "route_desc": "P-ta Garii - Baciu / Suceagu"
+  },
+  {
+    "agency_id": "2",
+    "route_id": 71,
+    "route_short_name": "M33",
+    "route_long_name": "P-ta Garii - Corusu / Salistea Noua",
+    "route_color": "#f3513c",
+    "route_type": 3,
+    "route_desc": "P-ta Garii - Corusu / Salistea Noua"
+  },
+  {
+    "agency_id": "2",
+    "route_id": 72,
+    "route_short_name": "M34",
+    "route_long_name": "P-ta Garii - Baciu / Mera",
+    "route_color": "#f3513c",
+    "route_type": 3,
+    "route_desc": "P-ta Garii - Baciu / Mera"
+  },
+  {
+    "agency_id": "2",
+    "route_id": 73,
+    "route_short_name": "M35",
+    "route_long_name": "P-ta Garii - Popesti Deal",
+    "route_color": "#f3513c",
+    "route_type": 3,
+    "route_desc": "P-ta Garii - Popesti Deal"
+  },
+  {
+    "agency_id": "2",
+    "route_id": 74,
+    "route_short_name": "M37",
+    "route_long_name": "Cluj-Napoca - Feiurdeni / Satu Lung",
+    "route_color": "#f3513c",
+    "route_type": 3,
+    "route_desc": "Cluj-Napoca - Feiurdeni / Satu Lung"
+  },
+  {
+    "agency_id": "2",
+    "route_id": 75,
+    "route_short_name": "M38",
+    "route_long_name": "Cluj-Napoca - Macicasu",
+    "route_color": "#f3513c",
+    "route_type": 3,
+    "route_desc": "Cluj-Napoca - Macicasu"
+  },
+  {
+    "agency_id": "2",
+    "route_id": 76,
+    "route_short_name": "M39",
+    "route_long_name": "Cluj-Napoca - Chinteni Lac",
+    "route_color": "#f3513c",
+    "route_type": 3,
+    "route_desc": "Cluj-Napoca - Chinteni Lac"
+  },
+  {
+    "agency_id": "2",
+    "route_id": 77,
+    "route_short_name": "M39L",
+    "route_long_name": "Cluj-Napoca - Deus",
+    "route_color": "#f3513c",
+    "route_type": 3,
+    "route_desc": "Cluj-Napoca - Deus"
+  },
+  {
+    "agency_id": "2",
+    "route_id": 78,
+    "route_short_name": "M41",
+    "route_long_name": "Str. Aurel Vlaicu - Apahida",
+    "route_color": "#f3513c",
+    "route_type": 3,
+    "route_desc": "Str. Aurel Vlaicu - Apahida"
+  },
+  {
+    "agency_id": "2",
+    "route_id": 79,
+    "route_short_name": "M41L",
+    "route_long_name": "Str. Aurel Vlaicu - Campenesti",
+    "route_color": "#f3513c",
+    "route_type": 3,
+    "route_desc": "Str. Aurel Vlaicu - Campenesti"
+  },
+  {
+    "agency_id": "2",
+    "route_id": 80,
+    "route_short_name": "M42",
+    "route_long_name": "Str. Aurel Vlaicu - Sannicoara",
+    "route_color": "#f3513c",
+    "route_type": 3,
+    "route_desc": "Str. Aurel Vlaicu - Sannicoara"
+  },
+  {
+    "agency_id": "2",
+    "route_id": 81,
+    "route_short_name": "M42L",
+    "route_long_name": "Str. Aurel Vlaicu -  Parcul Industrial Nervia",
+    "route_color": "#f3513c",
+    "route_type": 3,
+    "route_desc": "Str. Aurel Vlaicu -  Parcul Industrial Nervia"
+  },
+  {
+    "agency_id": "2",
+    "route_id": 82,
+    "route_short_name": "M43",
+    "route_long_name": "Str. Aurel Vlaicu - Dezmir",
+    "route_color": "#f3513c",
+    "route_type": 3,
+    "route_desc": "Str. Aurel Vlaicu - Dezmir"
+  },
+  {
+    "agency_id": "2",
+    "route_id": 83,
+    "route_short_name": "M44",
+    "route_long_name": "Str. A. Vlaicu - Corpadea",
+    "route_color": "#f3513c",
+    "route_type": 3,
+    "route_desc": "Str. A. Vlaicu - Corpadea"
+  },
+  {
+    "agency_id": "2",
+    "route_id": 84,
+    "route_short_name": "M45",
+    "route_long_name": "Str. A. Vlaicu - Pata",
+    "route_color": "#f3513c",
+    "route_type": 3,
+    "route_desc": "Str. A. Vlaicu - Pata"
+  },
+  {
+    "agency_id": "2",
+    "route_id": 85,
+    "route_short_name": "101A",
+    "route_long_name": "Bucium - P-ta Garii Autobuze",
+    "route_color": "#000",
+    "route_type": 3,
+    "route_desc": "Bucium - P-ta Garii Autobuze"
+  },
+  {
+    "agency_id": "2",
+    "route_id": 88,
+    "route_short_name": "18",
+    "route_long_name": "Str. Posada - Str. Veseliei",
+    "route_color": "#000",
+    "route_type": 3,
+    "route_desc": "Str. Posada - Str. Voievod Gelu"
+  },
+  {
+    "agency_id": "2",
+    "route_id": 90,
+    "route_short_name": "30U",
+    "route_long_name": "Grigorescu - IRA (Untold)",
+    "route_color": "#000",
+    "route_type": 3,
+    "route_desc": "Grigorescu - IRA"
+  },
+  {
+    "agency_id": "2",
+    "route_id": 92,
+    "route_short_name": "M26U",
+    "route_long_name": "Floresti - Platinia (Untold)",
+    "route_color": "#000",
+    "route_type": 3,
+    "route_desc": "Floresti - Baritiu"
+  },
+  {
+    "agency_id": "2",
+    "route_id": 93,
+    "route_short_name": "TE1",
+    "route_long_name": "Transport Elevi Manastur",
+    "route_color": "#000",
+    "route_type": 3,
+    "route_desc": ""
+  },
+  {
+    "agency_id": "2",
+    "route_id": 94,
+    "route_short_name": "TE2",
+    "route_long_name": "Transport Elevi Bucium",
+    "route_color": "#000",
+    "route_type": 3,
+    "route_desc": ""
+  },
+  {
+    "agency_id": "2",
+    "route_id": 95,
+    "route_short_name": "TE3",
+    "route_long_name": "Transport Elevi Zorilor",
+    "route_color": "#000",
+    "route_type": 3,
+    "route_desc": ""
+  },
+  {
+    "agency_id": "2",
+    "route_id": 96,
+    "route_short_name": "TE4",
+    "route_long_name": "Transport Elevi Unirii",
+    "route_color": "#000",
+    "route_type": 3,
+    "route_desc": ""
+  },
+  {
+    "agency_id": "2",
+    "route_id": 97,
+    "route_short_name": "TE5",
+    "route_long_name": "Transport Elevi IRA",
+    "route_color": "#000",
+    "route_type": 3,
+    "route_desc": ""
+  },
+  {
+    "agency_id": "2",
+    "route_id": 105,
+    "route_short_name": "52L",
+    "route_long_name": "Bucium - EMERSON",
+    "route_color": "#000",
+    "route_type": 3,
+    "route_desc": "Bucium - EMERSON"
+  },
+  {
+    "agency_id": "2",
+    "route_id": 106,
+    "route_short_name": "TE6",
+    "route_long_name": "Transport Elevi-Manastur - Kogalniceanu",
+    "route_color": "#000",
+    "route_type": 3,
+    "route_desc": "Manastur - Kogalniceanu"
+  },
+  {
+    "agency_id": "2",
+    "route_id": 107,
+    "route_short_name": "TE7",
+    "route_long_name": "Transport Elevi-Bucium - Kogalniceanu",
+    "route_color": "#000",
+    "route_type": 3,
+    "route_desc": "Bucium - Kogalniceanu"
+  },
+  {
+    "agency_id": "2",
+    "route_id": 108,
+    "route_short_name": "TE8",
+    "route_long_name": "Transport Elevi-Plevnei - Kogalniceanu",
+    "route_color": "#000",
+    "route_type": 3,
+    "route_desc": "Plevnei - Kogalniceanu"
+  },
+  {
+    "agency_id": "2",
+    "route_id": 109,
+    "route_short_name": "TE9",
+    "route_long_name": "Transport Elevi-Unirii - Kogalniceanu",
+    "route_color": "#000",
+    "route_type": 3,
+    "route_desc": "Unirii - Kogalniceanu"
+  },
+  {
+    "agency_id": "2",
+    "route_id": 110,
+    "route_short_name": "TE10",
+    "route_long_name": "Transport Elevi-Zorilor - Kogalniceanu",
+    "route_color": "#000",
+    "route_type": 3,
+    "route_desc": "Zorilor - Kogalniceanu"
+  },
+  {
+    "agency_id": "2",
+    "route_id": 111,
+    "route_short_name": "TE11",
+    "route_long_name": "Transport Elevi-Drum Faget - Kogalniceanu",
+    "route_color": "#000",
+    "route_type": 3,
+    "route_desc": "Drum Faget - Kogalniceanu"
+  },
+  {
+    "agency_id": "2",
+    "route_id": 112,
+    "route_short_name": "TE12",
+    "route_long_name": "Transport Elevi-Grigorescu - Kogalniceanu",
+    "route_color": "#000",
+    "route_type": 3,
+    "route_desc": "Grigorescu - Kogalniceanu"
+  },
+  {
+    "agency_id": "2",
+    "route_id": 113,
+    "route_short_name": "45",
+    "route_long_name": "Zorilor - Unirii",
+    "route_color": "#000",
+    "route_type": 3,
+    "route_desc": "Zorilor - Unirii"
+  },
+  {
+    "agency_id": "2",
+    "route_id": 114,
+    "route_short_name": "44",
+    "route_long_name": "Grigorescu - Soporului",
+    "route_color": "#000",
+    "route_type": 3,
+    "route_desc": "Grigorescu - Soporului"
+  },
+  {
+    "agency_id": "2",
+    "route_id": 115,
+    "route_short_name": "53",
+    "route_long_name": "P-ta Agroalimentara IRA - P-ta Mihai Viteazul",
+    "route_color": "#000",
+    "route_type": 3,
+    "route_desc": "P-ta Agroalimentara IRA - P-ta Mihai Viteazul"
+  },
+  {
+    "agency_id": "2",
+    "route_id": 116,
+    "route_short_name": "29S",
+    "route_long_name": "Sf. Ion - P.M.V. Sud",
+    "route_color": "#000",
+    "route_type": 3,
+    "route_desc": "Sf. Ion - P.M.V. Sud"
+  },
+  {
+    "agency_id": "2",
+    "route_id": 117,
+    "route_short_name": "2",
+    "route_long_name": "Ion Mester - P-ta Garii",
+    "route_color": "#000",
+    "route_type": 11,
+    "route_desc": "Ion Mester - P-ta Garii"
+  },
+  {
+    "agency_id": "2",
+    "route_id": 119,
+    "route_short_name": "10",
+    "route_long_name": "Gheorgheni - CUG",
+    "route_color": "#000",
+    "route_type": 11,
+    "route_desc": "Gheorgheni - CUG"
+  },
+  {
+    "agency_id": "2",
+    "route_id": 120,
+    "route_short_name": "14",
+    "route_long_name": "Ion Mester - CUG",
+    "route_color": "#000",
+    "route_type": 11,
+    "route_desc": "Ion Mester - CUG"
+  },
+  {
+    "agency_id": "2",
+    "route_id": 121,
+    "route_short_name": "M51",
+    "route_long_name": "Bucium - Pensiunea Dalia Gilau ",
+    "route_color": "#000",
+    "route_type": 3,
+    "route_desc": "Bucium - Pensiunea Dalia Gilau"
+  },
+  {
+    "agency_id": "2",
+    "route_id": 122,
+    "route_short_name": "M52",
+    "route_long_name": "Bucium - Somesul Rece",
+    "route_color": "#000",
+    "route_type": 3,
+    "route_desc": "Bucium - Somesul Rece"
+  },
+  {
+    "agency_id": "2",
+    "route_id": 129,
+    "route_short_name": "8D",
+    "route_long_name": "P-ta Marasti - AGRO TRANSILVANIA",
+    "route_color": "#000",
+    "route_type": 3,
+    "route_desc": "P-ta Marasti - AGRO TRANSILVANIA"
+  },
+  {
+    "agency_id": "2",
+    "route_id": 131,
+    "route_short_name": "46L",
+    "route_long_name": "P-ţa Ştefan cel Mare  -  Colonia Faget",
+    "route_color": "#000",
+    "route_type": 3,
+    "route_desc": "P-ţa Ştefan cel Mare  -  Colonia Faget"
+  },
+  {
+    "agency_id": "2",
+    "route_id": 132,
+    "route_short_name": "TE13",
+    "route_long_name": "Transport Elevi-Lombului-Kogalniceanu",
+    "route_color": "#000",
+    "route_type": 3,
+    "route_desc": "Lombului-Kogalniceanu"
+  },
+  {
+    "agency_id": "2",
+    "route_id": 133,
+    "route_short_name": "TE14",
+    "route_long_name": "Transport Elevi-Str.Campina - Liceul Teoretic Gheorghe Sincai",
+    "route_color": "#000",
+    "route_type": 3,
+    "route_desc": "Str.Campina - Liceul Teoretic Gheorghe Sincai"
+  },
+  {
+    "agency_id": "2",
+    "route_id": 134,
+    "route_short_name": "52B",
+    "route_long_name": "Str. Bucium - Str. I. Ionescu de la Brad",
+    "route_color": "#000",
+    "route_type": 3,
+    "route_desc": "Str. Bucium - Str. I. Ionescu de la Brad"
+  },
+  {
+    "agency_id": "2",
+    "route_id": 136,
+    "route_short_name": "A1E",
+    "route_long_name": "Piata Mihai Viteazu - Aeroport",
+    "route_color": "#000",
+    "route_type": 3,
+    "route_desc": "Piata Mihai Viteazu - Aeroport"
+  },
+  {
+    "agency_id": "2",
+    "route_id": 137,
+    "route_short_name": "TE5B",
+    "route_long_name": "Plevnei - Barc - Liceul Avram Iancu",
+    "route_color": "#000",
+    "route_type": 3,
+    "route_desc": "Plevnei - Barc - Liceul Avram Iancu"
+  },
+  {
+    "agency_id": "2",
+    "route_id": 138,
+    "route_short_name": "TE8B",
+    "route_long_name": "Plevnei - Barc - Kogalniceanu",
+    "route_color": "#000",
+    "route_type": 3,
+    "route_desc": "Plevnei - Barc - Kogalniceanu"
+  },
+  {
+    "agency_id": "2",
+    "route_id": 139,
+    "route_short_name": "M12L",
+    "route_long_name": "Posada - Feleacu - Valcele",
+    "route_color": "#000",
+    "route_type": 3,
+    "route_desc": "Posada - Feleacu - Valcele"
+  },
+  {
+    "agency_id": "2",
+    "route_id": 144,
+    "route_short_name": "M75",
+    "route_long_name": "TE1 Floresti",
+    "route_color": "#000",
+    "route_type": 3,
+    "route_desc": ""
+  },
+  {
+    "agency_id": "2",
+    "route_id": 145,
+    "route_short_name": "M76",
+    "route_long_name": "TE2 Floresti",
+    "route_color": "#000",
+    "route_type": 3,
+    "route_desc": ""
+  },
+  {
+    "agency_id": "2",
+    "route_id": 146,
+    "route_short_name": "M77",
+    "route_long_name": "TE3 Floresti",
+    "route_color": "#000",
+    "route_type": 3,
+    "route_desc": ""
+  },
+  {
+    "agency_id": "2",
+    "route_id": 147,
+    "route_short_name": "M78",
+    "route_long_name": "TE4 Floresti",
+    "route_color": "#000",
+    "route_type": 3,
+    "route_desc": ""
+  },
+  {
+    "agency_id": "2",
+    "route_id": 148,
+    "route_short_name": "M79",
+    "route_long_name": "TE5 Floresti",
+    "route_color": "#000",
+    "route_type": 3,
+    "route_desc": ""
+  },
+  {
+    "agency_id": "2",
+    "route_id": 149,
+    "route_short_name": "M80",
+    "route_long_name": "TE6 Floresti",
+    "route_color": "#000",
+    "route_type": 3,
+    "route_desc": ""
+  },
+  {
+    "agency_id": "2",
+    "route_id": 150,
+    "route_short_name": "M61",
+    "route_long_name": "Posada - Aiton - Rediu",
+    "route_color": "#ff0000",
+    "route_type": 3,
+    "route_desc": "Posada - Aiton - Rediu"
+  },
+  {
+    "agency_id": "2",
+    "route_id": 151,
+    "route_short_name": "M71",
+    "route_long_name": "Posada - Petrestii de Jos",
+    "route_color": "#fc002e",
+    "route_type": 3,
+    "route_desc": "Posada - Petrestii de Jos"
+  },
+  {
+    "agency_id": "2",
+    "route_id": 152,
+    "route_short_name": "54N",
+    "route_long_name": "Zorilor - Donath",
+    "route_color": "#37ff00",
+    "route_type": 3,
+    "route_desc": "Zorilor - Donath"
+  },
+  {
+    "agency_id": "2",
+    "route_id": 153,
+    "route_short_name": "5N",
+    "route_long_name": "P-ta Garii - Traian Vuia",
+    "route_color": "#00ff04",
+    "route_type": 11,
+    "route_desc": "P-ta Garii - Traian Vuia"
+  },
+  {
+    "agency_id": "2",
+    "route_id": 155,
+    "route_short_name": "50D",
+    "route_long_name": "P-ta Mihai Viteazu - Str. Panselutelor",
+    "route_color": "#000",
+    "route_type": 3,
+    "route_desc": "P-ta Mihai Viteazu - Str. Panselutelor"
+  },
+  {
+    "agency_id": "2",
+    "route_id": 156,
+    "route_short_name": "M81",
+    "route_long_name": "Str. Bucium - Savadisla",
+    "route_color": "#ff00f2",
+    "route_type": 3,
+    "route_desc": "Str. Bucium - Finisel"
+  },
+  {
+    "agency_id": "2",
+    "route_id": 157,
+    "route_short_name": "M17",
+    "route_long_name": "Cluj N.– sat Saliste",
+    "route_color": "#000",
+    "route_type": 3,
+    "route_desc": "Cluj N.– sat Saliste"
+  },
+  {
+    "agency_id": "2",
+    "route_id": 158,
+    "route_short_name": "M18",
+    "route_long_name": "Cluj-N – Filea de Jos – Filea de Sus",
+    "route_color": "#000",
+    "route_type": 3,
+    "route_desc": "Cluj-N – Filea de Jos – Filea de Sus"
+  },
+  {
+    "agency_id": "2",
+    "route_id": 160,
+    "route_short_name": "M34B",
+    "route_long_name": "P-ta Garii - Mera Noua",
+    "route_color": "#000",
+    "route_type": 3,
+    "route_desc": ""
+  },
+  {
+    "agency_id": "2",
+    "route_id": 161,
+    "route_short_name": "56",
+    "route_long_name": "P-ta Mihai Viteazu- Dambu Rotund",
+    "route_color": "#000",
+    "route_type": 3,
+    "route_desc": "P-ta Mihai Viteazu- Dambu Rotund"
+  },
+  {
+    "agency_id": "2",
+    "route_id": 162,
+    "route_short_name": "M75L",
+    "route_long_name": "TE1 Floresti",
+    "route_color": "#000",
+    "route_type": 3,
+    "route_desc": ""
+  },
+  {
+    "agency_id": "2",
+    "route_id": 164,
+    "route_short_name": "57",
+    "route_long_name": "Dunarii - Gheorgheni",
+    "route_color": "#000",
+    "route_type": 3,
+    "route_desc": ""
+  },
+  {
+    "agency_id": "2",
+    "route_id": 166,
+    "route_short_name": "4N",
+    "route_long_name": "Str. Aurel Vlaicu - P-ta Garii",
+    "route_color": "#000",
+    "route_type": 11,
+    "route_desc": "Str. Aurel Vlaicu - P-ta Garii"
+  },
+  {
+    "agency_id": "2",
+    "route_id": 167,
+    "route_short_name": "M21S",
+    "route_long_name": "Bucium - Ferma Floresti",
+    "route_color": "#000",
+    "route_type": 3,
+    "route_desc": "Bucium - Ferma Floresti"
+  },
+  {
+    "agency_id": "2",
+    "route_id": 168,
+    "route_short_name": "M22S",
+    "route_long_name": "Bucium - Primaria Floresti",
+    "route_color": "#000",
+    "route_type": 3,
+    "route_desc": "Bucium - Primaria Floresti"
+  },
+  {
+    "agency_id": "2",
+    "route_id": 169,
+    "route_short_name": "M26S",
+    "route_long_name": "Cluj-Napoca - Primaria Floresti",
+    "route_color": "#000",
+    "route_type": 3,
+    "route_desc": "Cluj-Napoca - Primaria Floresti"
+  },
+  {
+    "agency_id": "2",
+    "route_id": 170,
+    "route_short_name": "M24L",
+    "route_long_name": "Bucium - Floresti / Ferma",
+    "route_color": "#000",
+    "route_type": 3,
+    "route_desc": "Bucium - Floresti / Ferma"
+  },
+  {
+    "agency_id": "2",
+    "route_id": 171,
+    "route_short_name": "57L",
+    "route_long_name": "Gheorgheni - Emerson",
+    "route_color": "#000",
+    "route_type": 3,
+    "route_desc": ""
+  },
+  {
+    "agency_id": "2",
+    "route_id": 172,
+    "route_short_name": "89S",
+    "route_long_name": "Baciu-Emerson",
+    "route_color": "#000",
+    "route_type": 3,
+    "route_desc": "Baciu-Emerson"
+  },
+  {
+    "agency_id": "2",
+    "route_id": 174,
+    "route_short_name": "88A",
+    "route_long_name": "Floresti Cetate - Emerson",
+    "route_color": "#000",
+    "route_type": 3,
+    "route_desc": "Floresti Cetate - Emerson (traseu M21)"
+  },
+  {
+    "agency_id": "2",
+    "route_id": 175,
+    "route_short_name": "88B",
+    "route_long_name": "Floresti Cetate - Emerson",
+    "route_color": "#000",
+    "route_type": 3,
+    "route_desc": "Floresti Cetate - Emerson ( traseu M21)"
+  },
+  {
+    "agency_id": "2",
+    "route_id": 176,
+    "route_short_name": "88D",
+    "route_long_name": "Floresti Cetate - Emerson",
+    "route_color": "#000",
+    "route_type": 3,
+    "route_desc": "Floresti Cetate (M21)- Emerson "
+  },
+  {
+    "agency_id": "2",
+    "route_id": 177,
+    "route_short_name": "88E",
+    "route_long_name": "Emerson - Floresti Cetate ",
+    "route_color": "#000",
+    "route_type": 3,
+    "route_desc": "Emerson - Floresti Cetate "
+  },
+  {
+    "agency_id": "2",
+    "route_id": 178,
+    "route_short_name": "88F",
+    "route_long_name": "Emerson - Floresti Cetate ",
+    "route_color": "#000",
+    "route_type": 3,
+    "route_desc": "Emerson - Floresti Cetate (M21)"
+  },
+  {
+    "agency_id": "2",
+    "route_id": 179,
+    "route_short_name": "88L",
+    "route_long_name": "Chinteni - Emerson",
+    "route_color": "#000",
+    "route_type": 3,
+    "route_desc": "Chinteni - Emerson"
+  },
+  {
+    "agency_id": "2",
+    "route_id": 180,
+    "route_short_name": "88K",
+    "route_long_name": "Baciu - Emerson",
+    "route_color": "#000",
+    "route_type": 3,
+    "route_desc": "Baciu - Emerson"
+  }
+]
