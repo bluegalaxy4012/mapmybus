@@ -14,8 +14,10 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 import 'models.dart';
 import 'widgets/home_page.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
-void main() {
+Future<void> main() async {
+  await dotenv.load(fileName: ".env");
   runApp(MyApp());
 }
 
@@ -140,7 +142,7 @@ class MyAppState extends ChangeNotifier {
         headers: {
           'X-Agency-Id': agencyId,
           'Accept': 'application/json',
-          'X-API-KEY': 'iZfqSdYCq0ZxEsKEkfCRoyiXEsaC19CQ5QV4WMnF',
+          'X-API-KEY': dotenv.env['API_KEY'] ?? '',
         },
       );
 

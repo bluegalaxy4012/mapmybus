@@ -177,7 +177,7 @@ class _MapPageState extends State<MapPage> {
                 );
                 return Marker(
                   point: LatLng(v.latitude!, v.longitude!),
-                  width: 40,
+                  width: 50,
                   height: 30,
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
@@ -210,13 +210,13 @@ class _MapPageState extends State<MapPage> {
         ),
 
         Positioned(
-          child: FloatingActionButton(
-            mini: true,
-            child: const Icon(Icons.my_location),
-            onPressed: _centerMapOnCurrentPosition,
-          ),
           top: 30,
           right: 30,
+          child: FloatingActionButton(
+            mini: true,
+            onPressed: _centerMapOnCurrentPosition,
+            child: const Icon(Icons.my_location),
+          ),
         ),
 
         Positioned(
