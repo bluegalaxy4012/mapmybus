@@ -1,5 +1,8 @@
-import 'package:english_words/english_words.dart';
+// import 'package:english_words/english_words.dart';
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+// import 'package:flutter_map_location_marker/flutter_map_location_marker.dart';
 // import 'package:flutter_osm_plugin/flutter_osm_plugin.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_map/flutter_map.dart';
@@ -7,9 +10,124 @@ import 'package:latlong2/latlong.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:http/http.dart' as http;
+
 
 void main() {
   runApp(MyApp());
+}
+
+IconData getIconForVehicleType(int vehicleType) {
+  switch (vehicleType) {
+    case 0:
+      return Icons.tram; // Tram, Streetcar, Light rail
+    case 1:
+      return Icons.subway; // Subway, Metro
+    case 2:
+      return Icons.train; // Rail
+    case 3:
+      return Icons.directions_bus; // Bus
+    case 4:
+      return Icons.directions_ferry; // Ferry
+    case 5:
+      return Icons.tram; // Cable tram
+    case 6:
+      return Icons.airline_seat_flat; // Aerial lift
+    case 7:
+      return Icons.directions_railway; // Funicular
+    case 11:
+      return Icons.directions_bus_filled; // Trolleybus
+    case 12:
+      return Icons.train; // Monorail
+    default:
+      return Icons.directions_bus; // Default bus icon
+  }
+}
+
+enum Accessibility {
+  bikeAccessible,
+  bikeInaccessible,
+  wheelchairAccessible,
+  wheelchairInaccessible,
+  unknown,
+}
+
+class Vehicle {
+  final int id;
+  final String label;
+  final double? latitude;
+  final double? longitude;
+  final DateTime timestamp;
+  final int? speed;
+  final int? routeId;
+  final String? tripId;
+  final int vehicleType;
+  final Accessibility bikeAccessible;
+  final Accessibility wheelchairAccessible;
+
+  Vehicle({
+    required this.id,
+    required this.label,
+    this.latitude,
+    this.longitude,
+    required this.timestamp,
+    this.speed,
+    this.routeId,
+    this.tripId,
+    required this.vehicleType,
+    required this.bikeAccessible,
+    required this.wheelchairAccessible,
+  });
+
+  factory Vehicle.fromJson(Map<String, dynamic> json) {
+    Accessibility parseAccessibility(String? value) {
+      if (value == null) return Accessibility.unknown;
+
+      switch (value) {
+        case 'BIKE_ACCESSIBLE':
+          return Accessibility.bikeAccessible;
+        case 'BIKE_INACCESSIBLE':
+          return Accessibility.bikeInaccessible;
+        case 'WHEELCHAIR_ACCESSIBLE':
+          return Accessibility.wheelchairAccessible;
+        case 'WHEELCHAIR_INACCESSIBLE':
+          return Accessibility.wheelchairInaccessible;
+        default:
+          return Accessibility.unknown;
+      }
+    }
+
+    DateTime parseTimestamp(String? timestamp) {
+      if (timestamp == null) return DateTime.now();
+      try {
+        return DateTime.parse(timestamp);
+      } catch (e) {
+        print('Eroare la parsarea timestamp-ului: $e');
+        return DateTime.now();
+      }
+    }
+
+    return Vehicle(
+      id: json['id'] as int,
+      label: json['label'] as String,
+      latitude: json['latitude'] != null
+          ? (json['latitude'] as num).toDouble()
+          : null,
+      longitude: json['longitude'] != null
+          ? (json['longitude'] as num).toDouble()
+          : null,
+      timestamp: parseTimestamp(json['timestamp'] as String?),
+      speed: json['speed'] != null ? (json['speed'] as num).toInt() : null,
+      routeId: json['route_id'] as int?,
+      tripId: json['trip_id'] as String?,
+      vehicleType: json['vehicle_type'] as int,
+      bikeAccessible: parseAccessibility(json['bike_accessible'] as String?),
+      wheelchairAccessible: parseAccessibility(
+        json['wheelchair_accessible'] as String?,
+      ),
+    );
+  }
 }
 
 class Route {
@@ -41,7 +159,7 @@ class Route {
       String hexString = json['route_color'].toString().replaceAll('#', '');
 
       if (hexString.length == 6) {
-        hexString = 'FF' + hexString;
+        hexString = 'FF$hexString';
       } else if (hexString.length != 8) {
         throw FormatException(
           'Lungime invalida a string-ului hex pentru culoare: $hexString',
@@ -76,6 +194,7 @@ class CityConfig {
   final double minZoom;
   final double maxZoom;
   final LatLngBounds bounds;
+  final String agencyId;
 
   const CityConfig({
     required this.name,
@@ -84,6 +203,7 @@ class CityConfig {
     required this.minZoom,
     required this.maxZoom,
     required this.bounds,
+    required this.agencyId,
   });
 }
 
@@ -95,6 +215,7 @@ final List<CityConfig> cities = [
     minZoom: 13,
     maxZoom: 19,
     bounds: LatLngBounds(LatLng(46.83, 23.44), LatLng(46.72, 23.74)),
+    agencyId: '2',
   ),
 ];
 
@@ -127,6 +248,10 @@ class MyAppState extends ChangeNotifier {
   String _searchQuery = '';
   List<int> _favoriteRouteIds = [];
 
+  List<Vehicle> _vehicles = [];
+  Timer? _vehicleFetchTimer;
+
+
   MyAppState() {
     // _loadRoutes();
     // _loadFavoriteRouteIds();
@@ -140,6 +265,8 @@ class MyAppState extends ChangeNotifier {
 
   List<Route> get filteredRoutes => _filteredRoutes;
   String get searchQuery => _searchQuery;
+  List<Vehicle> get vehicles => _vehicles;
+
 
   Future<void> _loadRoutes() async {
     try {
@@ -179,8 +306,51 @@ class MyAppState extends ChangeNotifier {
     notifyListeners();
   }
 
+
+
+  Future<void> _fetchVehicles(String agencyId) async {
+    const url = 'https://api.tranzy.ai/v1/opendata/vehicles';
+    try {
+      final response = await http.get(
+        Uri.parse(url),
+        headers: {
+          'X-Agency-Id': agencyId,
+          'Accept': 'application/json',
+          'X-API-KEY': 'iZfqSdYCq0ZxEsKEkfCRoyiXEsaC19CQ5QV4WMnF',
+        },
+      );
+
+      if(response.statusCode == 200) {
+        final List<dynamic> jsonData = jsonDecode(response.body);
+        final List<Vehicle> vehicles = jsonData.map((json) {
+          return Vehicle.fromJson(json);
+        }).toList();
+
+        print('Fetched ${vehicles.length} vehicles for agency $agencyId');
+        _vehicles = vehicles;
+        notifyListeners();
+
+      }
+    }
+    catch (e) {
+      print('error fetching vehicles: $e');
+      // handle
+    }
+  }
+
+
+  void _startVehicleFetchTimer(String agencyId) {
+    _vehicleFetchTimer?.cancel();
+
+    _vehicleFetchTimer = Timer.periodic(Duration(seconds: 30), (timer) async {
+      // print('Fetching vehicles...');
+      await _fetchVehicles(agencyId);
+    });
+  }
+
+
   Future<void> toggleFavorite(Route route) async {
-    final index = _allRoutes.indexWhere((r) => r.routeId == route.routeId);
+    final index = _allRoutes.indexWhere((r) => r.routeId == route.routeId && r.agencyId == route.agencyId);
     if (index != -1) {
       _allRoutes[index].isFavorite = !_allRoutes[index].isFavorite;
 
@@ -219,11 +389,37 @@ class MyAppState extends ChangeNotifier {
   List<Route> get favoriteRoutes {
     return _allRoutes.where((route) => route.isFavorite).toList();
   }
+
+  String? getRouteShortName(int routeId, String agencyId) {
+    final route = _allRoutes.firstWhere(
+      (r) => r.routeId == routeId && r.agencyId == agencyId,
+      orElse: () => Route(
+        agencyId: agencyId,
+        routeId: routeId,
+        routeShortName: 'Unknown',
+        routeLongName: 'Unknown',
+        routeColor: Colors.grey,
+        routeType: 3,
+        routeDesc: '',
+      ),
+    );
+    return route.routeShortName;
+  }
+
+
+
+  @override
+  void dispose() {
+    _vehicleFetchTimer?.cancel();
+    super.dispose();
+  }
 }
 
 // ...
 
 class MyHomePage extends StatefulWidget {
+  const MyHomePage({super.key});
+
   @override
   State<MyHomePage> createState() => _MyHomePageState();
 }
@@ -272,6 +468,8 @@ class _MyHomePageState extends State<MyHomePage> {
 }
 
 class FavoritesPage extends StatelessWidget {
+  const FavoritesPage({super.key});
+
   @override
   Widget build(BuildContext context) {
     var appState = context.watch<MyAppState>();
@@ -334,7 +532,7 @@ class FavoritesPage extends StatelessWidget {
 class RouteListItem extends StatelessWidget {
   final Route route;
 
-  const RouteListItem({Key? key, required this.route}) : super(key: key);
+  const RouteListItem({super.key, required this.route});
 
   @override
   Widget build(BuildContext context) {
@@ -382,110 +580,207 @@ class RouteListItem extends StatelessWidget {
   }
 }
 
-class MapPage extends StatelessWidget {
+
+
+Future<Position> _determinePosition() async {
+  bool serviceEnabled;
+  LocationPermission permission;
+
+  serviceEnabled = await Geolocator.isLocationServiceEnabled();
+  if (!serviceEnabled) {
+    return Future.error('Location services are disabled.');
+  }
+
+  permission = await Geolocator.checkPermission();
+  if (permission == LocationPermission.denied) {
+    permission = await Geolocator.requestPermission();
+    if (permission == LocationPermission.denied) {
+      return Future.error('Location permissions are denied');
+    }
+  }
+
+  if (permission == LocationPermission.deniedForever) {
+
+    return Future.error(
+      'Location permissions are permanently denied, we cannot request permissions.',
+    );
+  }
+
+
+  return await Geolocator.getCurrentPosition(
+    // locationSettings: LocationSettings(
+    //   accuracy: LocationAccuracy.high,
+    //   distanceFilter: 3,
+    // ),
+  );
+}
+
+class MapPage extends StatefulWidget {
   const MapPage({super.key, required this.city});
 
   final CityConfig city;
 
   @override
-  Widget build(BuildContext context) {
-    return FlutterMap(
-      // mapController: MapController(),
-      options: MapOptions(
-        initialCenter: city.center,
-        initialZoom: city.initialZoom,
-        maxZoom: city.maxZoom,
-        minZoom: city.minZoom,
-        interactionOptions: InteractionOptions(
-          flags:
-              InteractiveFlag.drag |
-              InteractiveFlag.flingAnimation |
-              InteractiveFlag.doubleTapZoom |
-              InteractiveFlag.scrollWheelZoom |
-              InteractiveFlag.pinchZoom,
-        ),
-        cameraConstraint: CameraConstraint.contain(bounds: city.bounds),
-      ),
-
-      children: [
-        TileLayer(
-          urlTemplate: "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
-          subdomains: ['a', 'b', 'c'],
-          userAgentPackageName: 'com.mapmybus.app',
-        ),
-      ],
-    );
-  }
+  State<MapPage> createState() => _MapPageState();
 }
 
-// class GeneratorPage extends StatelessWidget {
-//   @override
-//   Widget build(BuildContext context) {
-//     var appState = context.watch<MyAppState>();
-//     var pair = appState.current;
+class _MapPageState extends State<MapPage> {
+  final MapController _mapController = MapController();
+  StreamSubscription<Position>? _positionStreamSubscription;
 
-//     IconData icon;
-//     if (appState.favorites.contains(pair)) {
-//       icon = Icons.favorite;
-//     } else {
-//       icon = Icons.favorite_border;
-//     }
+  LatLng? _currentPosition;
 
-//     return Center(
-//       child: Column(
-//         mainAxisAlignment: MainAxisAlignment.center,
-//         children: [
-//           BigCard(pair: pair),
-//           SizedBox(height: 10),
-//           Row(
-//             mainAxisSize: MainAxisSize.min,
-//             children: [
-//               ElevatedButton.icon(
-//                 onPressed: () {
-//                   appState.saveFavorite();
-//                 },
-//                 icon: Icon(icon),
-//                 label: Text('Like'),
-//               ),
-//               SizedBox(width: 10),
-//               ElevatedButton(
-//                 onPressed: () {
-//                   appState.getNext();
-//                 },
-//                 child: Text('Next'),
-//               ),
-//             ],
-//           ),
-//         ],
-//       ),
-//     );
-//   }
-// }
+  Future<void> _getCurrentPosition() async {
+    try {
+      Position position = await _determinePosition();
+      if (mounted)
+      setState(() {
+        _currentPosition = LatLng(position.latitude, position.longitude);
+      });
 
-// ...
+    } catch (e) {
+      print('error: $e');
+      // handle
+    }
+  }
 
-class BigCard extends StatelessWidget {
-  const BigCard({super.key, required this.pair});
+  void _startPositionStream() {
+    final LocationSettings locationSettings = LocationSettings(
+      accuracy: LocationAccuracy.high,
+      distanceFilter: 3,
+    );
+    _positionStreamSubscription =
+        Geolocator.getPositionStream(
+          locationSettings: locationSettings,
+        ).listen((Position? position) {
+          print(
+            position == null
+                ? 'Unknown'
+                : '${position.latitude.toString()}, ${position.longitude.toString()}',
+          );
 
-  final WordPair pair;
+          if (position != null && mounted) {
+            setState(() {
+              _currentPosition = LatLng(position.latitude, position.longitude);
+            });
+          }
+        });
+  }
+
+  void _centerMapOnCurrentPosition() {
+    if (_currentPosition != null) {
+      _mapController.move(_currentPosition!, widget.city.initialZoom);
+    } else {
+      print('current position unavailable');
+    }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _getCurrentPosition();
+    _startPositionStream();
+    context.read<MyAppState>()._fetchVehicles(widget.city.agencyId);
+    context.read<MyAppState>()._startVehicleFetchTimer(widget.city.agencyId);
+  }
+
+  @override
+  void dispose() {
+    _positionStreamSubscription?.cancel();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    var theme = Theme.of(context);
-    final style = theme.textTheme.displayMedium!.copyWith(
-      color: theme.colorScheme.onPrimary,
-    );
+    var appState = context.watch<MyAppState>();
 
-    return Card(
-      color: theme.colorScheme.primary,
-      child: Padding(
-        padding: const EdgeInsets.all(8.0),
-        child: Text(
-          pair.asLowerCase,
-          style: style,
-          semanticsLabel: "${pair.first} ${pair.second}",
+    var visibleRoutesIds = appState._favoriteRouteIds;
+    final visibleVehicles = appState.vehicles.where((v) =>
+      v.latitude != null &&
+      v.longitude != null &&
+      v.routeId != null &&
+      v.tripId != null &&
+      visibleRoutesIds.contains(v.routeId!),
+    ).toList();
+
+    return Stack(
+      children: [
+        FlutterMap(
+          mapController: _mapController,
+          options: MapOptions(
+            initialCenter: widget.city.center,
+            initialZoom: widget.city.initialZoom,
+            maxZoom: widget.city.maxZoom,
+            minZoom: widget.city.minZoom,
+            interactionOptions: InteractionOptions(
+              flags:
+                  InteractiveFlag.drag |
+                  InteractiveFlag.flingAnimation |
+                  InteractiveFlag.doubleTapZoom |
+                  InteractiveFlag.scrollWheelZoom |
+                  InteractiveFlag.pinchZoom,
+            ),
+            cameraConstraint: CameraConstraint.contain(bounds: widget.city.bounds),
+          ),
+
+          children: [
+            TileLayer(
+              urlTemplate: "https://{s}.basemaps.cartocdn.com/rastertiles/light_all/{z}/{x}/{y}.png",
+              userAgentPackageName: 'com.mapmybus.app',
+            ),
+            if (_currentPosition != null)
+              MarkerLayer(
+                markers: [
+                  Marker(
+                    point: _currentPosition!,
+                    width: 40,
+                    height: 40,
+                    child: Icon(Icons.location_on, color: Colors.red, size: 40),
+                  ),
+                ],
+              ),
+            MarkerLayer(markers: visibleVehicles.map((v) {
+              final routeShortName = appState.getRouteShortName(v.routeId!, widget.city.agencyId);
+              return Marker(
+                point: LatLng(v.latitude!, v.longitude!),
+                width: 40,
+                height: 30,
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Container(
+                        padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: Colors.black),
+                        ),
+                        child: Text(
+                          routeShortName ?? 'Unknown',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+              );
+            }).toList(),)
+          ],
         ),
-      ),
+
+        Positioned(
+          child: FloatingActionButton(
+            mini: true,
+            child: const Icon(Icons.my_location),
+            onPressed: _centerMapOnCurrentPosition,
+          ),
+          top: 30,
+          right: 30,
+        ),
+      ],
     );
   }
 }
