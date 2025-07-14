@@ -99,6 +99,19 @@ class _MapPageState extends State<MapPage> {
     }
   }
 
+  Future<void> _loadMapDetails(String tripId) async {
+    final dbService = context.read<MyAppState>().dbService;
+
+    try {
+      final stops = dbService.getStopsForTrip(tripId);
+      final shape = dbService.getShape(tripId);
+
+      //to add desenat pe harta
+    } catch (e) {
+      print('error loading visualization for trip $tripId: $e');
+    }
+  }
+
   @override
   void initState() {
     super.initState();
@@ -179,32 +192,45 @@ class _MapPageState extends State<MapPage> {
                   point: LatLng(v.latitude!, v.longitude!),
                   width: 50,
                   height: 30,
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Container(
-                        padding: EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: Colors.black),
-                        ),
-                        child: Text(
-                          routeShortName ?? 'Unknown',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.black,
+                  child: GestureDetector(
+                    onTap: () => _loadMapDetails(v.tripId!),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Container(
+                          padding: EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: Colors.black),
+                          ),
+                          child: Text(
+                            routeShortName ?? 'Unknown',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.black,
+                            ),
                           ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 );
               }).toList(),
+            ),
+            // if ()
+            PolylineLayer(
+              polylines: [
+                Polyline(
+                  points: [],
+                  color: Colors.lightBlueAccent,
+                  strokeWidth: 4.0,
+                ),
+              ],
             ),
           ],
         ),

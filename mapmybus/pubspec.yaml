@@ -17,6 +17,7 @@ dependencies:
   flutter_map_location_marker: ^10.1.0
   geolocator: ^14.0.2
   flutter_dotenv: ^5.2.1
+  hive_flutter: ^1.1.0
 
 dev_dependencies:
   flutter_test:
@@ -28,3 +29,6 @@ flutter:
 
   assets:
     - assets/data/routes.json
+    - assets/data/stops.json
+    - assets/data/trip_stops.json
+    - assets/data/shapes.json

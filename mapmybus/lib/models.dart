@@ -175,3 +175,95 @@ final List<CityConfig> cities = [
     agencyId: '2',
   ),
 ];
+
+class Stop {
+  final String stopId;
+  final String stopName;
+  final double latitude;
+  final double longitude;
+
+  Stop({
+    required this.stopId,
+    required this.stopName,
+    required this.latitude,
+    required this.longitude,
+  });
+
+  factory Stop.fromJson(Map<String, dynamic> json) {
+    return Stop(
+      stopId: json['stop_id'] as String,
+      stopName: json['stop_name'] as String,
+      latitude: (json['stop_lat'] as num).toDouble(),
+      longitude: (json['stop_lon'] as num).toDouble(),
+    );
+  }
+
+  Map<String, dynamic> toMap() {
+    return {
+      'stop_id': stopId,
+      'stop_name': stopName,
+      'stop_lat': latitude,
+      'stop_lon': longitude,
+    };
+  }
+}
+
+class TripStop {
+  final String tripId;
+  final String stopId;
+  final int stopSequence;
+
+  TripStop({
+    required this.tripId,
+    required this.stopId,
+    required this.stopSequence,
+  });
+
+  factory TripStop.fromJson(Map<String, dynamic> json) {
+    return TripStop(
+      tripId: json['trip_id'] as String,
+      stopId: json['stop_id'] as String,
+      stopSequence: (json['stop_sequence'] as num).toInt(),
+    );
+  }
+
+  Map<String, dynamic> toMap() {
+    return {
+      'trip_id': tripId,
+      'stop_id': stopId,
+      'stop_sequence': stopSequence,
+    };
+  }
+}
+
+class ShapePoint {
+  final String shapeId;
+  final double latitude;
+  final double longitude;
+  final int sequence;
+
+  ShapePoint({
+    required this.shapeId,
+    required this.latitude,
+    required this.longitude,
+    required this.sequence,
+  });
+
+  factory ShapePoint.fromJson(Map<String, dynamic> json) {
+    return ShapePoint(
+      shapeId: json['shape_id'] as String,
+      latitude: (json['shape_pt_lat'] as num).toDouble(),
+      longitude: (json['shape_pt_lon'] as num).toDouble(),
+      sequence: (json['shape_pt_sequence'] as num).toInt(),
+    );
+  }
+
+  Map<String, dynamic> toMap() {
+    return {
+      'shape_id': shapeId,
+      'shape_pt_lat': latitude,
+      'shape_pt_lon': longitude,
+      'shape_pt_sequence': sequence,
+    };
+  }
+}

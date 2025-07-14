@@ -2,6 +2,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart' hide Route;
+import 'package:mapmybus/db_service.dart';
 // import 'package:flutter_map_location_marker/flutter_map_location_marker.dart';
 // import 'package:flutter_osm_plugin/flutter_osm_plugin.dart';
 import 'package:provider/provider.dart';
@@ -18,6 +19,9 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 Future<void> main() async {
   await dotenv.load(fileName: ".env");
+
+  WidgetsFlutterBinding.ensureInitialized();
+
   runApp(MyApp());
 }
 
@@ -72,6 +76,8 @@ class MyApp extends StatelessWidget {
 }
 
 class MyAppState extends ChangeNotifier {
+  final dbService = DbService();
+
   List<Route> _allRoutes = [];
   List<Route> _filteredRoutes = [];
   String _searchQuery = '';
@@ -89,6 +95,7 @@ class MyAppState extends ChangeNotifier {
   Future<void> _loadData() async {
     await _loadFavoriteRouteIds();
     await _loadRoutes();
+    await dbService.init();
   }
 
   List<Route> get filteredRoutes => _filteredRoutes;
