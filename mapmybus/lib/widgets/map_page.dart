@@ -54,6 +54,11 @@ class _MapPageState extends State<MapPage> {
 
   LatLng? _currentPosition;
 
+  List<Stop> _drawnStops = [];
+  List<LatLng> _drawnPoints = [];
+
+  List<Stop> get drawnStops => _drawnStops;
+
   Future<void> _getCurrentPosition() async {
     try {
       Position position = await _determinePosition();
@@ -103,8 +108,19 @@ class _MapPageState extends State<MapPage> {
     final dbService = context.read<MyAppState>().dbService;
 
     try {
-      final stops = dbService.getStopsForTrip(tripId);
-      final shape = dbService.getShape(tripId);
+      // final stops = dbService.getStopsForTrip(tripId);
+      // final shape = dbService.getShape(tripId);
+
+      _drawnStops = await dbService.getStopsForTrip(tripId);
+      var _drawnShape = await dbService.getShape(tripId);
+
+      _drawnPoints = _drawnShape
+          .map((p) => LatLng(p.latitude, p.longitude))
+          .toList();
+
+      if (mounted) {
+        setState(() {});
+      }
 
       //to add desenat pe harta
     } catch (e) {
@@ -194,6 +210,7 @@ class _MapPageState extends State<MapPage> {
                   height: 30,
                   child: GestureDetector(
                     onTap: () => _loadMapDetails(v.tripId!),
+
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
@@ -202,11 +219,16 @@ class _MapPageState extends State<MapPage> {
                             horizontal: 8,
                             vertical: 4,
                           ),
+
                           decoration: BoxDecoration(
-                            color: Colors.white,
+                            color: v.tripId!.endsWith('_0')
+                                ? Colors.green
+                                : Colors.red,
+                            // color: Colors.white,
                             borderRadius: BorderRadius.circular(8),
                             border: Border.all(color: Colors.black),
                           ),
+
                           child: Text(
                             routeShortName ?? 'Unknown',
                             style: TextStyle(
@@ -222,16 +244,29 @@ class _MapPageState extends State<MapPage> {
                 );
               }).toList(),
             ),
-            // if ()
-            PolylineLayer(
-              polylines: [
-                Polyline(
-                  points: [],
-                  color: Colors.lightBlueAccent,
-                  strokeWidth: 4.0,
-                ),
-              ],
-            ),
+
+            if (_drawnStops.isNotEmpty)
+              MarkerLayer(
+                markers: _drawnStops.map((stop) {
+                  return Marker(
+                    point: LatLng(stop.latitude, stop.longitude),
+                    width: 25,
+                    height: 25,
+                    child: Icon(Icons.place, color: Colors.redAccent, size: 30),
+                  );
+                }).toList(),
+              ),
+
+            if (_drawnPoints.isNotEmpty)
+              PolylineLayer(
+                polylines: [
+                  Polyline(
+                    points: _drawnPoints,
+                    color: const Color.fromARGB(96, 255, 125, 125),
+                    strokeWidth: 4.0,
+                  ),
+                ],
+              ),
           ],
         ),
 
@@ -242,6 +277,20 @@ class _MapPageState extends State<MapPage> {
             mini: true,
             onPressed: _centerMapOnCurrentPosition,
             child: const Icon(Icons.my_location),
+          ),
+        ),
+
+        Positioned(
+          top: 80,
+          right: 30,
+          child: FloatingActionButton(
+            mini: true,
+            child: const Icon(Icons.clear_all),
+            onPressed: () => {
+              _drawnStops.clear(),
+              _drawnPoints.clear(),
+              setState(() {}),
+            },
           ),
         ),
 

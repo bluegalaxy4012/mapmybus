@@ -191,7 +191,7 @@ class Stop {
 
   factory Stop.fromJson(Map<String, dynamic> json) {
     return Stop(
-      stopId: json['stop_id'] as String,
+      stopId: json['stop_id'].toString(),
       stopName: json['stop_name'] as String,
       latitude: (json['stop_lat'] as num).toDouble(),
       longitude: (json['stop_lon'] as num).toDouble(),
