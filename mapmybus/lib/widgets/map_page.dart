@@ -57,6 +57,11 @@ class _MapPageState extends State<MapPage> {
   List<Stop> _drawnStops = [];
   List<LatLng> _drawnPoints = [];
 
+  bool showMenu = false;
+  String selectedRouteName = "";
+  String? previousStopName;
+  String? nextStopName;
+
   List<Stop> get drawnStops => _drawnStops;
 
   Future<void> _getCurrentPosition() async {
@@ -112,20 +117,81 @@ class _MapPageState extends State<MapPage> {
       // final shape = dbService.getShape(tripId);
 
       _drawnStops = await dbService.getStopsForTrip(tripId);
-      var _drawnShape = await dbService.getShape(tripId);
+      var drawnShape = await dbService.getShape(tripId);
 
-      _drawnPoints = _drawnShape
+      _drawnPoints = drawnShape
           .map((p) => LatLng(p.latitude, p.longitude))
           .toList();
 
       if (mounted) {
         setState(() {});
       }
-
-      //to add desenat pe harta
     } catch (e) {
       print('error loading visualization for trip $tripId: $e');
     }
+  }
+
+  void _showMenu(Vehicle vehicle, String? routeShortName) {
+    if (routeShortName == null || _drawnStops.isEmpty) {
+      return;
+    }
+
+    // presupunand ca nu exista statii la care e mai rapid sa cobori cu N inainte si sa mergi pe jos decat sa stai
+    double minDistance = double.infinity;
+    Stop? previousStop, nextStop;
+
+    Stop closestStop = _drawnStops.first;
+    int index = 0;
+
+    for (int i = 0; i < _drawnStops.length; i++) {
+      Stop stop = _drawnStops[i];
+
+      double dist = Geolocator.distanceBetween(
+        vehicle.latitude!,
+        vehicle.longitude!,
+        stop.latitude,
+        stop.longitude,
+      );
+      if (dist < minDistance) {
+        minDistance = dist;
+        closestStop = stop;
+        index = i;
+      }
+    }
+
+    double dist1 = Geolocator.distanceBetween(
+      drawnStops.first.latitude,
+      drawnStops.first.longitude,
+      closestStop.latitude,
+      closestStop.longitude,
+    );
+
+    double dist2 = Geolocator.distanceBetween(
+      drawnStops.first.latitude,
+      drawnStops.first.longitude,
+      vehicle.latitude!,
+      vehicle.longitude!,
+    );
+
+    if (dist1 >= dist2) {
+      nextStop = closestStop;
+      previousStop = index > 0 ? _drawnStops[index - 1] : null;
+    } else {
+      previousStop = closestStop;
+      nextStop = index < _drawnStops.length - 1 ? _drawnStops[index + 1] : null;
+    }
+
+    setState(() {
+      showMenu = true;
+      selectedRouteName = routeShortName;
+      previousStopName = previousStop?.stopName ?? '-';
+      nextStopName = nextStop?.stopName ?? '-';
+    });
+  }
+
+  Future<void> _onVehicleTap(Vehicle vehicle, String? routeShortName) async {
+    await _loadMapDetails(vehicle.tripId!);
+    _showMenu(vehicle, routeShortName);
   }
 
   @override
@@ -187,6 +253,47 @@ class _MapPageState extends State<MapPage> {
                   "https://{s}.basemaps.cartocdn.com/rastertiles/light_all/{z}/{x}/{y}.png",
               userAgentPackageName: 'com.mapmybus.app',
             ),
+
+            if (_drawnPoints.isNotEmpty)
+              PolylineLayer(
+                polylines: [
+                  Polyline(
+                    points: _drawnPoints,
+                    color: const Color.fromARGB(95, 127, 125, 255),
+                    strokeWidth: 4.0,
+                  ),
+                ],
+              ),
+
+            if (_drawnStops.isNotEmpty)
+              MarkerLayer(
+                markers: _drawnStops.map((stop) {
+                  return Marker(
+                    point: LatLng(stop.latitude, stop.longitude),
+                    width: 25,
+                    height: 25,
+                    child: GestureDetector(
+                      onTap: () => (ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Statia apasata: ${stop.stopName}'),
+                          duration: Duration(milliseconds: 1500),
+                          showCloseIcon: true,
+                        ),
+                      )),
+                      child: stop.stopId == _drawnStops.first.stopId
+                          ? Icon(Icons.circle, color: Colors.green, size: 30)
+                          : stop.stopId == _drawnStops.last.stopId
+                          ? Icon(Icons.circle, color: Colors.red, size: 30)
+                          : Icon(
+                              Icons.place,
+                              color: const Color.fromARGB(255, 68, 137, 216),
+                              size: 20,
+                            ),
+                    ),
+                  );
+                }).toList(),
+              ),
+
             if (_currentPosition != null)
               MarkerLayer(
                 markers: [
@@ -198,6 +305,7 @@ class _MapPageState extends State<MapPage> {
                   ),
                 ],
               ),
+
             MarkerLayer(
               markers: visibleVehicles.map((v) {
                 final routeShortName = appState.getRouteShortName(
@@ -209,7 +317,7 @@ class _MapPageState extends State<MapPage> {
                   width: 50,
                   height: 30,
                   child: GestureDetector(
-                    onTap: () => _loadMapDetails(v.tripId!),
+                    onTap: () => _onVehicleTap(v, routeShortName),
 
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -244,29 +352,6 @@ class _MapPageState extends State<MapPage> {
                 );
               }).toList(),
             ),
-
-            if (_drawnStops.isNotEmpty)
-              MarkerLayer(
-                markers: _drawnStops.map((stop) {
-                  return Marker(
-                    point: LatLng(stop.latitude, stop.longitude),
-                    width: 25,
-                    height: 25,
-                    child: Icon(Icons.place, color: Colors.redAccent, size: 30),
-                  );
-                }).toList(),
-              ),
-
-            if (_drawnPoints.isNotEmpty)
-              PolylineLayer(
-                polylines: [
-                  Polyline(
-                    points: _drawnPoints,
-                    color: const Color.fromARGB(96, 255, 125, 125),
-                    strokeWidth: 4.0,
-                  ),
-                ],
-              ),
           ],
         ),
 
@@ -293,6 +378,53 @@ class _MapPageState extends State<MapPage> {
             },
           ),
         ),
+
+        if (showMenu)
+          Positioned(
+            left: 10,
+            top: 10,
+            child: Material(
+              elevation: 4.0,
+              borderRadius: BorderRadius.circular(8.0),
+              child: Container(
+                padding: EdgeInsets.all(12.0),
+                color: Colors.white,
+                child: Column(
+                  spacing: 15.0,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'Detalii traseu: Linia $selectedRouteName',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
+
+                    Text('Statia anterioara: $previousStopName'),
+
+                    Text('Statia urmatoare: $nextStopName'),
+
+                    ElevatedButton(
+                      onPressed: () {},
+                      child: Text('Afiseaza orar'),
+                    ),
+
+                    ElevatedButton(
+                      onPressed: () {},
+                      child: Text('Estimeaza timpul de sosire la o statie'),
+                    ),
+
+                    ElevatedButton(
+                      onPressed: () {
+                        setState(() {
+                          showMenu = false;
+                        });
+                      },
+                      child: Text('Inchide'),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
 
         Positioned(
           bottom: 10,
