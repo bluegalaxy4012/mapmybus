@@ -17,10 +17,14 @@ import 'models.dart';
 import 'widgets/home_page.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
+late String etasApiUrl;
+
 Future<void> main() async {
   await dotenv.load(fileName: ".env");
 
   WidgetsFlutterBinding.ensureInitialized();
+
+  etasApiUrl = dotenv.env['ETAS_API_URL'] ?? '';
 
   runApp(MyApp());
 }
@@ -172,7 +176,7 @@ class MyAppState extends ChangeNotifier {
   void startVehicleFetchTimer(String agencyId) {
     _vehicleFetchTimer?.cancel();
 
-    _vehicleFetchTimer = Timer.periodic(Duration(seconds: 30), (timer) async {
+    _vehicleFetchTimer = Timer.periodic(Duration(seconds: 20), (timer) async {
       // print('fetching vehicles...');
       await fetchVehicles(agencyId);
     });
