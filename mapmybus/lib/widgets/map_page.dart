@@ -64,11 +64,11 @@ class _MapPageState extends State<MapPage> {
         Geolocator.getPositionStream(
           locationSettings: locationSettings,
         ).listen((Position? position) {
-          print(
-            position == null
-                ? 'Unknown'
-                : '${position.latitude.toString()}, ${position.longitude.toString()}',
-          );
+          // print(
+          //   position == null
+          //       ? 'Unknown'
+          //       : '${position.latitude.toString()}, ${position.longitude.toString()}',
+          // );
 
           if (position != null && mounted) {
             setState(() {
@@ -90,11 +90,8 @@ class _MapPageState extends State<MapPage> {
     final dbService = context.read<MyAppState>().dbService;
 
     try {
-      // final stops = dbService.getStopsForTrip(tripId);
-      // final shape = dbService.getShape(tripId);
-
-      _drawnStops = await dbService.getStopsForTrip(tripId);
-      var drawnShape = await dbService.getShape(tripId);
+      _drawnStops = await dbService.getStopsForTrip(tripId, widget.city.agencyId);
+      var drawnShape = await dbService.getShape(tripId, widget.city.agencyId);
 
       _drawnPoints = drawnShape
           .map((p) => LatLng(p.latitude, p.longitude))
@@ -273,7 +270,7 @@ class _MapPageState extends State<MapPage> {
 
     _appState = context.read<MyAppState>();
 
-    _appState.fetchVehicles(widget.city.agencyId);
+    context.read<MyAppState>().dbService.fetchVehicles(widget.city.agencyId);
     _appState.startVehicleFetchTimer(widget.city.agencyId);
     _appState.addListener(_updateMenuOnVehicleFetch);
   }
@@ -464,6 +461,7 @@ class _MapPageState extends State<MapPage> {
           top: 30,
           right: 30,
           child: FloatingActionButton(
+            tooltip: "Centreaza pe locatia ta",
             mini: true,
             onPressed: _centerMapOnCurrentPosition,
             child: const Icon(Icons.my_location),
@@ -474,6 +472,7 @@ class _MapPageState extends State<MapPage> {
           top: 80,
           right: 30,
           child: FloatingActionButton(
+            tooltip: "Sterge traseul desenat",
             mini: true,
             child: const Icon(Icons.clear_all),
             onPressed: () {

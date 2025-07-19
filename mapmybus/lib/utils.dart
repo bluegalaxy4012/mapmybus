@@ -7,6 +7,8 @@ import 'package:latlong2/latlong.dart';
   const String tripStopsBoxName = 'trip_stops';
   const String shapesBoxName = 'shapes';
   late String etasApiUrl;
+  late String stopsApiUrl;
+  late String shapesApiUrl;
   const String routesAssetPath = 'data/routes.json';
 const String stopsAssetPath = 'data/stops.json';
 const String tripStopsAssetPath = 'data/trip_stops.json';

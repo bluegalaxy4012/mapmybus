@@ -1,107 +1,88 @@
 import 'dart:convert';
-import 'package:flutter/services.dart' show rootBundle;
-import 'package:hive_flutter/hive_flutter.dart';
+// import 'package:flutter/services.dart' show rootBundle;
+// import 'package:hive_flutter/hive_flutter.dart';
 import 'package:mapmybus/utils.dart';
 import 'models.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
 
+
+// to fix:
+// apikey in header
+// spread
+// getEtas remake models
+// fetch on build
 class DbService {
-  static const String _stopsBoxName = stopsBoxName;
-  static const String _tripStopsBoxName = tripStopsBoxName;
-  static const String _shapesBoxName = shapesBoxName;
 
   Future<void> init() async {
     await dotenv.load(fileName: ".env");
+    stopsApiUrl = dotenv.env['STOPS_API_URL'] ?? '';
+    shapesApiUrl = dotenv.env['SHAPES_API_URL'] ?? '';
     etasApiUrl = dotenv.env['ETAS_API_URL'] ?? '';
+  }
 
-    await Hive.initFlutter();
-    await Hive.openBox(_stopsBoxName);
-    await Hive.openBox(_tripStopsBoxName);
-    await Hive.openBox(_shapesBoxName);
-
-    final stopsBox = Hive.box(_stopsBoxName);
-
-    if (stopsBox.isEmpty) {
-      final stopsJson = await rootBundle.loadString(stopsAssetPath);
-      final stopsList = jsonDecode(stopsJson) as List;
-
-      for (var stop in stopsList) {
-        await stopsBox.put(
-          stop['stop_id'].toString(),
-          Map<String, dynamic>.from(stop),
-        );
-      }
-
-      print('loaded ${stopsList.length} stops into Hive');
+    Future<List<Stop>> getStopsForTrip(String tripId, String agencyId) async {
+    final uri = Uri.parse('$stopsApiUrl/$agencyId?trip_id=$tripId');
+    final response = await http.get(uri, headers: {
+      'X-Agency-Id': agencyId,
+      'Accept': 'application/json',
+      'X-API-KEY': dotenv.env['API_KEY'] ?? '',
+    });
+    if (response.statusCode == 200) {
+      final List<dynamic> data = jsonDecode(response.body);
+      print("first stop: ${data.first}");
+      return data.map((stop) => Stop.fromJson(stop)).toList();
     }
+    throw Exception('Failed to fetch stops: ${response.statusCode}');
+  }
 
-    final tripStopsBox = Hive.box(_tripStopsBoxName);
-
-    if (tripStopsBox.isEmpty) {
-      final tripStopsJson = await rootBundle.loadString(tripStopsAssetPath);
-      final tripStopsList = jsonDecode(tripStopsJson) as List;
-
-      for (var ts in tripStopsList) {
-        await tripStopsBox.put(
-          '${ts['trip_id']}_${ts['stop_id'].toString()}',
-          Map<String, dynamic>.from(ts),
-        );
-      }
-
-      print('loaded ${tripStopsList.length} trip_stops into Hive');
+  Future<List<ShapePoint>> getShape(String shapeId, String agencyId) async {
+    final uri = Uri.parse('$shapesApiUrl/$agencyId?shape_id=$shapeId');
+    final response = await http.get(uri, headers: {
+      'X-Agency-Id': agencyId,
+      'Accept': 'application/json',
+      'X-API-KEY': dotenv.env['API_KEY'] ?? '',
+    });
+    if (response.statusCode == 200) {
+      final List<dynamic> data = jsonDecode(response.body);
+      print("first shape point: ${data.first}");
+      return data.map((point) => ShapePoint.fromJson(point)).toList();
     }
+    throw Exception('Failed to fetch shapes: ${response.statusCode}');
+  }
 
-    final shapesBox = Hive.box(_shapesBoxName);
 
-    if (shapesBox.isEmpty) {
-      final shapesJson = await rootBundle.loadString(shapesAssetPath);
-      final shapesList = jsonDecode(shapesJson) as List;
-
-      for (var shape in shapesList) {
-        await shapesBox.put(
-          shape['shape_id'].toString(),
-          (shape['points'] as List)
-              .map((p) => Map<String, dynamic>.from(p))
-              .toList(),
-        );
-      }
-
-      print(
-        'loaded ${shapesList.length} shapes with ${shapesList.fold<int>(0, (sum, shape) => sum + (shape['points'] as List).length)} points into Hive',
+  Future<List<Vehicle>?> fetchVehicles(String agencyId) async {
+    const url = tranzyVehiclesEndpoint;
+    try {
+      final response = await http.get(
+        Uri.parse(url),
+        headers: {
+          'X-Agency-Id': agencyId,
+          'Accept': 'application/json',
+          'X-API-KEY': dotenv.env['API_KEY'] ?? '',
+        },
       );
+
+      if (response.statusCode == 200) {
+        final List<dynamic> jsonData = jsonDecode(response.body);
+        final List<Vehicle> vehicles = jsonData.map((json) {
+          return Vehicle.fromJson(json);
+        }).toList();
+
+        print('fetched ${vehicles.length} vehicles for agency $agencyId');
+
+        return vehicles;
+      }
+    } catch (e) {
+      print('error fetching vehicles: $e');
+      // handle
     }
+
+    return null;
   }
 
-  Future<List<Stop>> getStopsForTrip(String tripId) async {
-    final tripStopsBox = Hive.box(_tripStopsBoxName);
-    final stopsBox = Hive.box(_stopsBoxName);
 
-    final tripStops =
-        tripStopsBox.values.where((ts) => ts['trip_id'] == tripId).toList()
-          ..sort(
-            (a, b) => (a['stop_sequence'] as int).compareTo(
-              b['stop_sequence'] as int,
-            ),
-          );
-
-    return tripStops.map((ts) {
-      final stopRaw = stopsBox.get(ts['stop_id'].toString());
-      final stopMap = Map<String, dynamic>.from(stopRaw);
-
-      return Stop.fromJson(stopMap);
-    }).toList();
-  }
-
-  Future<List<ShapePoint>> getShape(String shapeId) async {
-    final shapesBox = Hive.box(_shapesBoxName);
-    final pointsRaw = shapesBox.get(shapeId, defaultValue: []) as List;
-
-    return pointsRaw.map((point) {
-      final pointMap = Map<String, dynamic>.from(point);
-      return ShapePoint.fromJson(pointMap);
-    }).toList()..sort((a, b) => a.sequence.compareTo(b.sequence));
-  }
 
   Future<List<dynamic>> getEtas(
     Vehicle vehicle,
@@ -126,4 +107,6 @@ class DbService {
       );
     }
   }
+
+
 }

@@ -15,6 +15,7 @@ class _MyHomePageState extends State<MyHomePage> {
 
   @override
   Widget build(BuildContext context) {
+    // momentan
     final city = cities.firstWhere((c) => c.name == 'Cluj-Napoca');
 
     Widget page;

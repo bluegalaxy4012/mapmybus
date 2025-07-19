@@ -13,7 +13,7 @@ import 'package:flutter/services.dart' show rootBundle;
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 // import 'package:geolocator/geolocator.dart';
-import 'package:http/http.dart' as http;
+// import 'package:http/http.dart' as http;
 import 'models.dart';
 import 'widgets/home_page.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
@@ -140,40 +140,17 @@ class MyAppState extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> fetchVehicles(String agencyId) async {
-    const url = tranzyVehiclesEndpoint;
-    try {
-      final response = await http.get(
-        Uri.parse(url),
-        headers: {
-          'X-Agency-Id': agencyId,
-          'Accept': 'application/json',
-          'X-API-KEY': dotenv.env['API_KEY'] ?? '',
-        },
-      );
-
-      if (response.statusCode == 200) {
-        final List<dynamic> jsonData = jsonDecode(response.body);
-        final List<Vehicle> vehicles = jsonData.map((json) {
-          return Vehicle.fromJson(json);
-        }).toList();
-
-        print('Fetched ${vehicles.length} vehicles for agency $agencyId');
-        _vehicles = vehicles;
-        notifyListeners();
-      }
-    } catch (e) {
-      print('error fetching vehicles: $e');
-      // handle
-    }
-  }
-
   void startVehicleFetchTimer(String agencyId) {
     _vehicleFetchTimer?.cancel();
 
     _vehicleFetchTimer = Timer.periodic(Duration(seconds: 20), (timer) async {
       // print('fetching vehicles...');
-      await fetchVehicles(agencyId);
+
+      final vehicles = await dbService.fetchVehicles(agencyId);
+      if (vehicles != null) {
+        _vehicles = vehicles;
+        notifyListeners();
+      }
     });
   }
 
