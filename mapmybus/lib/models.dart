@@ -171,7 +171,7 @@ final List<CityConfig> cities = [
     initialZoom: 14,
     minZoom: 13,
     maxZoom: 19,
-    bounds: LatLngBounds(LatLng(46.83, 23.44), LatLng(46.72, 23.74)),
+    bounds: LatLngBounds(LatLng(46.89, 23.35), LatLng(46.64, 23.83)),
     agencyId: '2',
   ),
 ];

@@ -3,6 +3,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart' hide Route;
 import 'package:mapmybus/db_service.dart';
+import 'package:mapmybus/utils.dart';
 // import 'package:flutter_map_location_marker/flutter_map_location_marker.dart';
 // import 'package:flutter_osm_plugin/flutter_osm_plugin.dart';
 import 'package:provider/provider.dart';
@@ -17,14 +18,10 @@ import 'models.dart';
 import 'widgets/home_page.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
-late String etasApiUrl;
-
 Future<void> main() async {
   await dotenv.load(fileName: ".env");
 
   WidgetsFlutterBinding.ensureInitialized();
-
-  etasApiUrl = dotenv.env['ETAS_API_URL'] ?? '';
 
   runApp(MyApp());
 }
@@ -91,8 +88,6 @@ class MyAppState extends ChangeNotifier {
   Timer? _vehicleFetchTimer;
 
   MyAppState() {
-    // _loadRoutes();
-    // _loadFavoriteRouteIds();
     _loadData();
   }
 
@@ -109,7 +104,7 @@ class MyAppState extends ChangeNotifier {
 
   Future<void> _loadRoutes() async {
     try {
-      final String response = await rootBundle.loadString('data/routes.json');
+      final String response = await rootBundle.loadString(routesAssetPath);
       final List<dynamic> jsonData = jsonDecode(response);
 
       _allRoutes = jsonData.map((json) {
@@ -146,7 +141,7 @@ class MyAppState extends ChangeNotifier {
   }
 
   Future<void> fetchVehicles(String agencyId) async {
-    const url = 'https://api.tranzy.ai/v1/opendata/vehicles';
+    const url = tranzyVehiclesEndpoint;
     try {
       final response = await http.get(
         Uri.parse(url),
