@@ -19,39 +19,25 @@ import 'models.dart';
 import 'widgets/home_page.dart';
 // import 'package:flutter_dotenv/flutter_dotenv.dart';
 
+// small fix:
+// apikey in header - fixed, all api calls in backend
+// getEtas, upload api after remaking models - wip
+// fetch on build - fixed
+// log instead of prints - fixed
+
+//bigger todo:
+// split myappstate, more providers
+// better db and service layers
+// better error handling
+// use final/const where possible
+// route should be immutable
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   await AppConfig.load();
 
   runApp(MyApp());
-}
-
-IconData getIconForVehicleType(int vehicleType) {
-  switch (vehicleType) {
-    case 0:
-      return Icons.tram; // Tram, Streetcar, Light rail
-    case 1:
-      return Icons.subway; // Subway, Metro
-    case 2:
-      return Icons.train; // Rail
-    case 3:
-      return Icons.directions_bus; // Bus
-    case 4:
-      return Icons.directions_ferry; // Ferry
-    case 5:
-      return Icons.tram; // Cable tram
-    case 6:
-      return Icons.airline_seat_flat; // Aerial lift
-    case 7:
-      return Icons.directions_railway; // Funicular
-    case 11:
-      return Icons.directions_bus_filled; // Trolleybus
-    case 12:
-      return Icons.train; // Monorail
-    default:
-      return Icons.directions_bus; // Default bus icon
-  }
 }
 
 class MyApp extends StatelessWidget {
@@ -120,9 +106,9 @@ class MyAppState extends ChangeNotifier {
       _filteredRoutes = _allRoutes;
 
       notifyListeners();
-      print('routes loaded successfully: ${_allRoutes.length} routes');
+      log.i('Routes loaded successfully: ${_allRoutes.length} routes');
     } catch (e) {
-      print('error loading routes from assets: $e');
+      log.e('Error loading routes from assets: $e');
       // handle
     }
   }
@@ -184,9 +170,10 @@ class MyAppState extends ChangeNotifier {
     final List<String>? favoriteIdsJson = prefs.getStringList(
       'favoriteRouteIds',
     );
+
     if (favoriteIdsJson != null) {
       _favoriteRouteIds = favoriteIdsJson.map(int.parse).toList();
-      print('loaded favorite IDs: $_favoriteRouteIds');
+      log.d('Loaded favorite IDs: $_favoriteRouteIds');
     }
   }
 
@@ -195,8 +182,9 @@ class MyAppState extends ChangeNotifier {
     final List<String> favoriteIdsJson = _favoriteRouteIds
         .map((id) => id.toString())
         .toList();
+
     await prefs.setStringList('favoriteRouteIds', favoriteIdsJson);
-    print('saved favorite IDs: $_favoriteRouteIds');
+    log.d('Saved favorite IDs: $_favoriteRouteIds');
   }
 
   List<Route> get favoriteRoutes {

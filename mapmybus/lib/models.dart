@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:flutter_map/flutter_map.dart';
+import 'package:mapmybus/utils.dart';
 
 enum Accessibility {
   bikeAccessible,
@@ -60,7 +61,7 @@ class Vehicle {
       try {
         return DateTime.parse(timestamp);
       } catch (e) {
-        print('Eroare la parsarea timestamp-ului: $e');
+        log.e('Eroare la parsarea timestamp-ului: $e');
         return DateTime.now();
       }
     }
@@ -111,7 +112,7 @@ class Route {
   factory Route.fromJson(Map<String, dynamic> json) {
     Color color;
 
-    // unele il au gresit oricum (#000)
+    // unele il au neparsabil oricum (#000)
     try {
       String hexString = json['route_color'].toString().replaceAll('#', '');
 
@@ -126,7 +127,7 @@ class Route {
       color = Color(int.parse(hexString, radix: 16));
     } catch (e) {
       color = Colors.orangeAccent;
-      print(
+      log.w(
         'Eroare la parsarea culorii pentru ruta ${json['route_short_name']}: $e. Se foloseste portocaliu implicit',
       );
     }

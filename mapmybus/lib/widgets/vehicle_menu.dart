@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:mapmybus/models.dart';
+import 'package:mapmybus/utils.dart';
 import 'package:mapmybus/widgets/timetable_page.dart';
 
 class VehicleMenu extends StatelessWidget {
@@ -36,9 +37,10 @@ class VehicleMenu extends StatelessWidget {
           padding: EdgeInsets.all(12.0),
           color: Colors.white,
           child: Column(
-            spacing: 15.0,
+            spacing: 12.0,
             mainAxisSize: MainAxisSize.min,
             children: [
+              Icon(getIconForVehicleType(selectedVehicle!.vehicleType)),
               Text(
                 'Detalii traseu: Linia $selectedRouteName',
                 style: TextStyle(fontWeight: FontWeight.bold),
@@ -67,6 +69,7 @@ class VehicleMenu extends StatelessWidget {
 
               ElevatedButton(
                 onPressed: onRequestStopArrivalTimes,
+
                 child: isLoading
                     ? SizedBox(
                         height: 20,
@@ -75,7 +78,13 @@ class VehicleMenu extends StatelessWidget {
                           color: Theme.of(context).primaryColor,
                         ),
                       )
-                    : Text('Estimeaza timpul de sosire la o statie'),
+                    // better alternative ?
+                    : Column(
+                        children: [
+                          Text('Estimeaza timpurile de sosire'),
+                          Text('la statiile de pe traseu'),
+                        ],
+                      ),
               ),
 
               ElevatedButton(onPressed: onClose, child: Text('Inchide')),

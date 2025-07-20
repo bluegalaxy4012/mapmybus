@@ -51,7 +51,7 @@ class _MapPageState extends State<MapPage> {
         });
       }
     } catch (e) {
-      print('error: $e');
+      log.e('Error getting current position: $e');
       // handle
     }
   }
@@ -65,12 +65,6 @@ class _MapPageState extends State<MapPage> {
         Geolocator.getPositionStream(
           locationSettings: locationSettings,
         ).listen((Position? position) {
-          // print(
-          //   position == null
-          //       ? 'Unknown'
-          //       : '${position.latitude.toString()}, ${position.longitude.toString()}',
-          // );
-
           if (position != null && mounted) {
             setState(() {
               _currentPosition = LatLng(position.latitude, position.longitude);
@@ -83,7 +77,7 @@ class _MapPageState extends State<MapPage> {
     if (_currentPosition != null) {
       _mapController.move(_currentPosition!, widget.city.initialZoom);
     } else {
-      print('current position unavailable');
+      log.w('Current position unavailable');
     }
   }
 
@@ -105,7 +99,7 @@ class _MapPageState extends State<MapPage> {
         setState(() {});
       }
     } catch (e) {
-      print('error loading visualization for trip $tripId: $e');
+      log.e('Error loading visualization for trip $tripId: $e');
     }
   }
 
@@ -168,9 +162,6 @@ class _MapPageState extends State<MapPage> {
   }
 
   Future<void> _onVehicleTap(Vehicle vehicle, String? routeShortName) async {
-    // print("WHAT");
-    // print("Vehicle tapped: ${vehicle.tripId}, route: $routeShortName");
-
     setState(() {
       selectedVehicle = vehicle;
     });
@@ -217,16 +208,17 @@ class _MapPageState extends State<MapPage> {
           final minEta = eta.floor();
           final maxEta = (eta + 1).ceil();
 
-          print("Dureaza intre $minEta si $maxEta minute pana la $stopName");
+          // momentan neafisate
+          log.i("Dureaza intre $minEta si $maxEta minute pana la $stopName");
         } else if (data['message'] == "Vehicle has already passed this stop") {
-          print('Vehiculul a trecut deja pe la $stopName');
+          log.i('Vehiculul a trecut deja pe la $stopName');
         } else {
-          print('error etas...');
+          log.w('Something wrong while getting etas...');
           // handle
         }
       }
     } catch (e) {
-      print('error fetching arrival times');
+      log.e('Error fetching arrival times');
       // handle
     } finally {
       setState(() {
@@ -238,8 +230,7 @@ class _MapPageState extends State<MapPage> {
   void _updateMenuOnVehicleFetch() async {
     if (!mounted || !showMenu || selectedVehicle == null) return;
 
-    final String? vehicleLabel = selectedVehicle!.label;
-    if (vehicleLabel == null) return;
+    final String vehicleLabel = selectedVehicle!.label;
 
     try {
       final vehicle = _appState.vehicles.firstWhere(

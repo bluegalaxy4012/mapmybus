@@ -51,9 +51,6 @@ class RouteListItem extends StatelessWidget {
         ),
 
         onTap: () {
-          // ScaffoldMessenger.of(context).showSnackBar(
-          //   SnackBar(content: Text('afisare orar etc ${route.routeShortName}')),
-          // );
           Navigator.push(
             context,
             MaterialPageRoute(

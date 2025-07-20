@@ -138,21 +138,6 @@ class TimetablePage extends StatelessWidget {
     }
 
     final timetableRows = rows.sublist(5);
-    // for (final row in timetableRows) {
-    //   widgets.add(
-    //     Padding(
-    //       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-
-    //       child: Row(
-
-    //         children: row.map((cell) {
-    //           return Expanded(child: Text(cell.trim(), textAlign: TextAlign.center));
-    //         }).toList(),
-
-    //       ),
-    //     ),
-    //   );
-    // }
 
     for (int i = 0; i < timetableRows.length; i++) {
       final row = timetableRows[i];
@@ -164,6 +149,7 @@ class TimetablePage extends StatelessWidget {
         Container(
           color: backgroundColor,
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+
           child: Row(
             children: row.map((cell) {
               return Expanded(

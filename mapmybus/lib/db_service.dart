@@ -3,16 +3,12 @@ import 'dart:convert';
 // import 'package:hive_flutter/hive_flutter.dart';
 import 'package:csv/csv.dart';
 import 'package:mapmybus/config.dart';
+import 'package:mapmybus/utils.dart';
 // import 'package:mapmybus/utils.dart';
 import 'models.dart';
 // import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
 
-// to fix:
-// apikey in header
-// spread
-// getEtas remake models
-// fetch on build
 class DbService {
   Future<List<Vehicle>?> fetchVehicles(String agencyId) async {
     final uri = Uri.parse('${AppConfig.vehiclesApiUrl}/$agencyId');
@@ -26,11 +22,7 @@ class DbService {
           return Vehicle.fromJson(json);
         }).toList();
 
-        // print('fetched ${vehicles.length} vehicles for agency $agencyId');
-
-        // print(
-        //   'first vehicle: ${vehicles.first}, tripId: ${vehicles.first.tripId}, lat: ${vehicles.first.latitude}, lon: ${vehicles.first.longitude}',
-        // );
+        log.d("Fetched ${vehicles.length} vehicles for agency $agencyId");
 
         return vehicles;
       }
@@ -42,6 +34,7 @@ class DbService {
     return null;
   }
 
+  /// throws exception
   Future<List<Stop>> getStopsForTrip(String tripId, String agencyId) async {
     final uri = Uri.parse('${AppConfig.stopsApiUrl}/$agencyId?trip_id=$tripId');
 
@@ -49,13 +42,16 @@ class DbService {
 
     if (response.statusCode == 200) {
       final List<dynamic> data = jsonDecode(response.body);
-      // print("first stop: ${data.first}");
+
+      log.d("Fetched ${data.length} stops for trip $tripId");
+
       return data.map((stop) => Stop.fromJson(stop)).toList();
     }
 
     throw Exception('Failed to fetch stops: ${response.statusCode}');
   }
 
+  /// throws exception
   Future<List<ShapePoint>> getShape(String shapeId, String agencyId) async {
     final uri = Uri.parse(
       '${AppConfig.shapesApiUrl}/$agencyId?shape_id=$shapeId',
@@ -65,13 +61,16 @@ class DbService {
 
     if (response.statusCode == 200) {
       final List<dynamic> data = jsonDecode(response.body);
-      // print("first shape point: ${data.first}");
+
+      log.d("Fetched ${data.length} shape points for shape $shapeId");
+
       return data.map((point) => ShapePoint.fromJson(point)).toList();
     }
 
     throw Exception('Failed to fetch shapes: ${response.statusCode}');
   }
 
+  /// throws exception
   Future<List<dynamic>> getEtas(
     Vehicle vehicle,
     List<String> stopIds,
@@ -91,11 +90,12 @@ class DbService {
       return jsonDecode(response.body);
     } else {
       throw Exception(
-        'failed to fetch etas - response code ${response.statusCode}',
+        'Failed to fetch etas - response code ${response.statusCode}',
       );
     }
   }
 
+  /// throws exception
   Future<List<List<dynamic>>> getTimetable(
     String routeShortName,
     String dayType,
@@ -104,6 +104,8 @@ class DbService {
 
     final res = await http.get(Uri.parse(url));
     if (res.statusCode == 200) {
+      log.d("Fetched timetable for route $routeShortName on day $dayType");
+
       return const CsvToListConverter(
         eol: "\n",
       ).convert(utf8.decode(res.bodyBytes));

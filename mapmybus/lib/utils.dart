@@ -1,11 +1,13 @@
 import 'dart:math';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:logger/logger.dart';
+
+final log = Logger(level: kReleaseMode ? Level.off : Level.debug);
 
 // constants
-// const String stopsBoxName = 'stops';
-// const String tripStopsBoxName = 'trip_stops';
-// const String shapesBoxName = 'shapes';
 const String routesAssetPath = 'data/routes.json';
 const String stopsAssetPath = 'data/stops.json';
 const String tripStopsAssetPath = 'data/trip_stops.json';
@@ -16,6 +18,33 @@ const String tranzyVehiclesEndpoint = '$tranzyApiBaseUrl/vehicles';
 const String mapTileProviderUrl =
     'https://{s}.basemaps.cartocdn.com/rastertiles/light_all/{z}/{x}/{y}.png';
 //
+
+IconData getIconForVehicleType(int vehicleType) {
+  switch (vehicleType) {
+    case 0:
+      return Icons.tram; // Tram, Streetcar, Light rail
+    case 1:
+      return Icons.subway; // Subway, Metro
+    case 2:
+      return Icons.train; // Rail
+    case 3:
+      return Icons.directions_bus; // Bus
+    case 4:
+      return Icons.directions_ferry; // Ferry
+    case 5:
+      return Icons.tram; // Cable tram
+    case 6:
+      return Icons.airline_seat_flat; // Aerial lift
+    case 7:
+      return Icons.directions_railway; // Funicular
+    case 11:
+      return Icons.directions_bus_filled; // Trolleybus
+    case 12:
+      return Icons.train; // Monorail
+    default:
+      return Icons.directions_bus; // Default bus icon
+  }
+}
 
 Future<Position> determinePosition() async {
   bool serviceEnabled;
