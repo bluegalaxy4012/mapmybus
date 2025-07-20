@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:mapmybus/models.dart';
 import 'package:provider/provider.dart';
 import '../main.dart';
 import 'route_list_item.dart';
 
 class FavoritesPage extends StatelessWidget {
-  const FavoritesPage({super.key});
+  final CityConfig city;
+
+  const FavoritesPage({super.key, required this.city});
 
   @override
   Widget build(BuildContext context) {
@@ -56,7 +59,7 @@ class FavoritesPage extends StatelessWidget {
 
                   itemBuilder: (context, index) {
                     final route = filteredRoutes[index];
-                    return RouteListItem(route: route);
+                    return RouteListItem(agencyId: city.agencyId, route: route);
                   },
                 ),
         ),

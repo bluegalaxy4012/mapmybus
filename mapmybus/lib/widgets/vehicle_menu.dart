@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:mapmybus/models.dart';
+import 'package:mapmybus/widgets/timetable_page.dart';
 
 class VehicleMenu extends StatelessWidget {
+  final String agencyId;
   final String selectedRouteName;
   final String? previousStopName;
   final String? nextStopName;
@@ -12,6 +14,7 @@ class VehicleMenu extends StatelessWidget {
 
   const VehicleMenu({
     super.key,
+    required this.agencyId,
     required this.selectedRouteName,
     this.previousStopName,
     this.nextStopName,
@@ -45,7 +48,22 @@ class VehicleMenu extends StatelessWidget {
 
               Text('Statia urmatoare: $nextStopName'),
 
-              ElevatedButton(onPressed: () {}, child: Text('Afiseaza orar')),
+              ElevatedButton(
+                onPressed: () {
+                  if (selectedVehicle != null && selectedRouteName.isNotEmpty) {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => TimetablePage(
+                          agencyId: agencyId,
+                          routeShortName: selectedRouteName,
+                        ),
+                      ),
+                    );
+                  }
+                },
+                child: Text('Afiseaza orar'),
+              ),
 
               ElevatedButton(
                 onPressed: onRequestStopArrivalTimes,

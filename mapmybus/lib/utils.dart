@@ -3,21 +3,18 @@ import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
 
 // constants
-  const String stopsBoxName = 'stops';
-  const String tripStopsBoxName = 'trip_stops';
-  const String shapesBoxName = 'shapes';
-  late String etasApiUrl;
-  late String stopsApiUrl;
-  late String shapesApiUrl;
-  const String routesAssetPath = 'data/routes.json';
+// const String stopsBoxName = 'stops';
+// const String tripStopsBoxName = 'trip_stops';
+// const String shapesBoxName = 'shapes';
+const String routesAssetPath = 'data/routes.json';
 const String stopsAssetPath = 'data/stops.json';
 const String tripStopsAssetPath = 'data/trip_stops.json';
 const String shapesAssetPath = 'data/shapes.json';
 
-
 const String tranzyApiBaseUrl = 'https://api.tranzy.ai/v1/opendata';
 const String tranzyVehiclesEndpoint = '$tranzyApiBaseUrl/vehicles';
-const String mapTileProviderUrl = 'https://{s}.basemaps.cartocdn.com/rastertiles/light_all/{z}/{x}/{y}.png';
+const String mapTileProviderUrl =
+    'https://{s}.basemaps.cartocdn.com/rastertiles/light_all/{z}/{x}/{y}.png';
 //
 
 Future<Position> determinePosition() async {

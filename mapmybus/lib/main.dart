@@ -2,6 +2,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart' hide Route;
+import 'package:mapmybus/config.dart';
 import 'package:mapmybus/db_service.dart';
 import 'package:mapmybus/utils.dart';
 // import 'package:flutter_map_location_marker/flutter_map_location_marker.dart';
@@ -16,12 +17,12 @@ import 'package:shared_preferences/shared_preferences.dart';
 // import 'package:http/http.dart' as http;
 import 'models.dart';
 import 'widgets/home_page.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
+// import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 Future<void> main() async {
-  await dotenv.load(fileName: ".env");
-
   WidgetsFlutterBinding.ensureInitialized();
+
+  await AppConfig.load();
 
   runApp(MyApp());
 }
@@ -94,7 +95,6 @@ class MyAppState extends ChangeNotifier {
   Future<void> _loadData() async {
     await _loadFavoriteRouteIds();
     await _loadRoutes();
-    await dbService.init();
   }
 
   List<Route> get filteredRoutes => _filteredRoutes;
@@ -116,7 +116,9 @@ class MyAppState extends ChangeNotifier {
 
         return route;
       }).toList();
-      _filteredRoutes = List.from(_allRoutes);
+
+      _filteredRoutes = _allRoutes;
+
       notifyListeners();
       print('routes loaded successfully: ${_allRoutes.length} routes');
     } catch (e) {
@@ -137,20 +139,24 @@ class MyAppState extends ChangeNotifier {
             route.routeLongName.toLowerCase().contains(query.toLowerCase());
       }).toList();
     }
+
     notifyListeners();
+  }
+
+  void fetchVehiclesAndNotify(String agencyId) async {
+    final vehicles = await dbService.fetchVehicles(agencyId);
+
+    if (vehicles != null) {
+      _vehicles = vehicles;
+      notifyListeners();
+    }
   }
 
   void startVehicleFetchTimer(String agencyId) {
     _vehicleFetchTimer?.cancel();
 
-    _vehicleFetchTimer = Timer.periodic(Duration(seconds: 20), (timer) async {
-      // print('fetching vehicles...');
-
-      final vehicles = await dbService.fetchVehicles(agencyId);
-      if (vehicles != null) {
-        _vehicles = vehicles;
-        notifyListeners();
-      }
+    _vehicleFetchTimer = Timer.periodic(const Duration(seconds: 20), (timer) {
+      fetchVehiclesAndNotify(agencyId);
     });
   }
 

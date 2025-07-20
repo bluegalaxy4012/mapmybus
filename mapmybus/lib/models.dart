@@ -125,9 +125,9 @@ class Route {
 
       color = Color(int.parse(hexString, radix: 16));
     } catch (e) {
-      color = Colors.grey;
+      color = Colors.orangeAccent;
       print(
-        'Eroare la parsarea culorii pentru ruta ${json['route_short_name']}: $e. Se foloseste gri implicit.',
+        'Eroare la parsarea culorii pentru ruta ${json['route_short_name']}: $e. Se foloseste portocaliu implicit',
       );
     }
 

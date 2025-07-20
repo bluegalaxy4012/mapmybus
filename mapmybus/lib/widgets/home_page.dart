@@ -24,7 +24,7 @@ class _MyHomePageState extends State<MyHomePage> {
         page = MapPage(city: city);
         break;
       case 1:
-        page = FavoritesPage();
+        page = FavoritesPage(city: city);
         break;
       default:
         page = Center(child: Text('Index necunoscut: $currentIndex'));

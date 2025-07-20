@@ -5,6 +5,7 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:mapmybus/utils.dart';
+import 'package:mapmybus/widgets/stop_marker.dart';
 import 'package:mapmybus/widgets/vehicle_marker.dart';
 import 'package:mapmybus/widgets/vehicle_menu.dart';
 import 'package:provider/provider.dart';
@@ -90,7 +91,10 @@ class _MapPageState extends State<MapPage> {
     final dbService = context.read<MyAppState>().dbService;
 
     try {
-      _drawnStops = await dbService.getStopsForTrip(tripId, widget.city.agencyId);
+      _drawnStops = await dbService.getStopsForTrip(
+        tripId,
+        widget.city.agencyId,
+      );
       var drawnShape = await dbService.getShape(tripId, widget.city.agencyId);
 
       _drawnPoints = drawnShape
@@ -270,9 +274,9 @@ class _MapPageState extends State<MapPage> {
 
     _appState = context.read<MyAppState>();
 
-    context.read<MyAppState>().dbService.fetchVehicles(widget.city.agencyId);
-    _appState.startVehicleFetchTimer(widget.city.agencyId);
+    _appState.fetchVehiclesAndNotify(widget.city.agencyId);
     _appState.addListener(_updateMenuOnVehicleFetch);
+    _appState.startVehicleFetchTimer(widget.city.agencyId);
   }
 
   @override
@@ -280,27 +284,6 @@ class _MapPageState extends State<MapPage> {
     _positionStreamSubscription?.cancel();
     _appState.removeListener(_updateMenuOnVehicleFetch);
     super.dispose();
-  }
-
-  Widget _buildStopMarker(String name) {
-    return Container(
-      width: 36,
-      height: 36,
-      decoration: BoxDecoration(
-        color: Colors.black,
-        shape: BoxShape.circle,
-        border: Border.all(color: Colors.white, width: 2),
-      ),
-      alignment: Alignment.center,
-      child: Text(
-        name,
-        style: TextStyle(
-          color: Colors.white,
-          fontSize: 10,
-          fontWeight: FontWeight.bold,
-        ),
-      ),
-    );
   }
 
   @override
@@ -379,9 +362,9 @@ class _MapPageState extends State<MapPage> {
                         ),
                       )),
                       child: stop.stopId == _drawnStops.first.stopId
-                          ? _buildStopMarker("Start")
+                          ? StopMarker("Start")
                           : stop.stopId == _drawnStops.last.stopId
-                          ? _buildStopMarker("End")
+                          ? StopMarker("End")
                           : Icon(
                               Icons.place,
                               color: const Color.fromARGB(255, 68, 137, 216),
@@ -489,6 +472,7 @@ class _MapPageState extends State<MapPage> {
         if (_isLoading) Center(child: CircularProgressIndicator()),
         if (showMenu)
           VehicleMenu(
+            agencyId: widget.city.agencyId,
             selectedRouteName: selectedRouteName,
             previousStopName: previousStopName,
             nextStopName: nextStopName,
