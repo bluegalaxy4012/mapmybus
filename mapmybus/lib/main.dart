@@ -28,11 +28,11 @@ import 'widgets/home_page.dart';
 // log instead of prints - fixed
 
 //bigger todo:
-// split myappstate, more providers
-// better db and service layers
-// better error handling
-// use final/const where possible
-// route should be immutable
+// split myappstate, more providers - ok
+// better db and service layers - ok
+// better error handling - ok
+// use final/const where possible - almost
+// route should be immutable - ok
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
