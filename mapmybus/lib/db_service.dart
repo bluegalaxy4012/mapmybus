@@ -10,7 +10,7 @@ import 'models.dart';
 import 'package:http/http.dart' as http;
 
 class DbService {
-  Future<List<Vehicle>?> fetchVehicles(String agencyId) async {
+  Future<Result<List<Vehicle>, Exception>> fetchVehicles(String agencyId) async {
     final uri = Uri.parse('${AppConfig.vehiclesApiUrl}/$agencyId');
 
     try {
@@ -24,20 +24,20 @@ class DbService {
 
         log.d("Fetched ${vehicles.length} vehicles for agency $agencyId");
 
-        return vehicles;
+        return Success(vehicles);
+      }
+      else {
+        return Failure(ApiException("Server error", response.statusCode));
       }
     } catch (e) {
-      print('error fetching vehicles: $e');
-      // handle
+      return Failure(Exception("Unexpected error: $e"));
     }
-
-    return null;
   }
 
-  /// throws exception
-  Future<List<Stop>> getStopsForTrip(String tripId, String agencyId) async {
+  Future<Result<List<Stop>, Exception>> getStopsForTrip(String tripId, String agencyId) async {
     final uri = Uri.parse('${AppConfig.stopsApiUrl}/$agencyId?trip_id=$tripId');
 
+    try {
     final response = await http.get(uri);
 
     if (response.statusCode == 200) {
@@ -45,18 +45,23 @@ class DbService {
 
       log.d("Fetched ${data.length} stops for trip $tripId");
 
-      return data.map((stop) => Stop.fromJson(stop)).toList();
+      return Success(data.map((stop) => Stop.fromJson(stop)).toList());
     }
-
-    throw Exception('Failed to fetch stops: ${response.statusCode}');
+    else {
+      return Failure(ApiException("Server error during stops fetch", response.statusCode));
+    }
+    }
+    catch (e) {
+      return Failure(Exception("Unexpected error: $e"));
+    }
   }
 
-  /// throws exception
-  Future<List<ShapePoint>> getShape(String shapeId, String agencyId) async {
+  Future<Result<List<ShapePoint>, Exception>> getShape(String shapeId, String agencyId) async {
     final uri = Uri.parse(
       '${AppConfig.shapesApiUrl}/$agencyId?shape_id=$shapeId',
     );
 
+try{
     final response = await http.get(uri);
 
     if (response.statusCode == 200) {
@@ -64,14 +69,20 @@ class DbService {
 
       log.d("Fetched ${data.length} shape points for shape $shapeId");
 
-      return data.map((point) => ShapePoint.fromJson(point)).toList();
+      return Success(data.map((point) => ShapePoint.fromJson(point)).toList());
+    }
+    else {
+      return Failure(ApiException("Server error during shapes fetch", response.statusCode));
+    }
+}
+    catch (e) {
+      return Failure(Exception("Unexpected error: $e"));
     }
 
-    throw Exception('Failed to fetch shapes: ${response.statusCode}');
+
   }
 
-  /// throws exception
-  Future<List<dynamic>> getEtas(
+  Future<Result<List<Eta>, Exception>> getEtas(
     Vehicle vehicle,
     List<String> stopIds,
     String agencyId,
@@ -85,32 +96,53 @@ class DbService {
       },
     );
 
+
+try{
     final response = await http.get(uri);
     if (response.statusCode == 200) {
-      return jsonDecode(response.body);
+final data = jsonDecode(response.body) as List<dynamic>;
+    return Success(data.map((json) => Eta.fromJson(json)).toList());
     } else {
-      throw Exception(
-        'Failed to fetch etas - response code ${response.statusCode}',
+      throw ApiException(
+        "Server error during ETAs fetch",
+        response.statusCode,
       );
     }
+
+}
+    catch (e) {
+      return Failure(Exception("Unexpected error: $e"));
+    }
+
   }
 
-  /// throws exception
-  Future<List<List<dynamic>>> getTimetable(
+
+  Future<Result<List<List<String>>, Exception>> getTimetable(
     String routeShortName,
     String dayType,
   ) async {
     final url = '${AppConfig.timetablesApiUrl}/$routeShortName/$dayType';
 
+try{
     final res = await http.get(Uri.parse(url));
     if (res.statusCode == 200) {
       log.d("Fetched timetable for route $routeShortName on day $dayType");
 
-      return const CsvToListConverter(
+      return Success(const CsvToListConverter(
         eol: "\n",
-      ).convert(utf8.decode(res.bodyBytes));
+        shouldParseNumbers: false,
+      ).convert(utf8.decode(res.bodyBytes)));
+    }
+    else {
+      return Failure(ApiException(
+        "Server error during timetables fetch",
+        res.statusCode,
+      ));
+    }
+}
+    catch (e) {
+      return Failure(Exception("Unexpected error: $e"));
     }
 
-    throw Exception('Failed to fetch timetable: ${res.statusCode}');
   }
 }

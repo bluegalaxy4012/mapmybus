@@ -4,12 +4,15 @@ import 'package:flutter/material.dart' hide Route;
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:mapmybus/db_service.dart';
+import 'package:mapmybus/providers/routes_provider.dart';
+import 'package:mapmybus/providers/vehicles_provider.dart';
 import 'package:mapmybus/utils.dart';
 import 'package:mapmybus/widgets/stop_marker.dart';
 import 'package:mapmybus/widgets/vehicle_marker.dart';
 import 'package:mapmybus/widgets/vehicle_menu.dart';
 import 'package:provider/provider.dart';
-import '../main.dart';
+// import '../main.dart';
 import '../models.dart';
 
 class MapPage extends StatefulWidget {
@@ -22,7 +25,22 @@ class MapPage extends StatefulWidget {
 }
 
 class _MapPageState extends State<MapPage> {
-  late MyAppState _appState;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _getCurrentPosition();
+    _startPositionStream();
+
+    // _appState = context.read<MyAppState>();
+    final vehicleProvider = context.read<VehiclesProvider>();
+
+    vehicleProvider.fetchVehiclesAndNotify(widget.city.agencyId);
+    vehicleProvider.addListener(_updateMenuOnVehicleFetch);
+    vehicleProvider.startVehicleFetchTimer(widget.city.agencyId);
+  }
+
+  // late MyAppState _appState;
 
   final MapController _mapController = MapController();
   StreamSubscription<Position>? _positionStreamSubscription;
@@ -82,25 +100,65 @@ class _MapPageState extends State<MapPage> {
   }
 
   Future<void> _loadMapDetails(String tripId) async {
-    final dbService = context.read<MyAppState>().dbService;
+    final dbService = context.read<DbService>();
 
-    try {
-      _drawnStops = await dbService.getStopsForTrip(
+      final resultStops = await dbService.getStopsForTrip(
         tripId,
         widget.city.agencyId,
       );
-      var drawnShape = await dbService.getShape(tripId, widget.city.agencyId);
 
-      _drawnPoints = drawnShape
-          .map((p) => LatLng(p.latitude, p.longitude))
-          .toList();
+      if (!mounted) return;
+
+      switch (resultStops) {
+        case Success(data: final stops):
+          _drawnStops = stops;
+          break;
+
+        case Failure(exception: final e):
+          log.e('Failed to fetch stops for trip $tripId: $e');
+
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Nu s-au putut obtine statiile pentru acest traseu'),
+              duration: Duration(seconds: 2),
+              showCloseIcon: true,
+            ),
+          );
+          return;
+      }
+
+
+      final resultShape = await dbService.getShape(
+        tripId,
+        widget.city.agencyId,
+      ); 
+
+      if (!mounted) return;
+
+      switch (resultShape) {
+        case Success(data: final shapePoints):
+          _drawnPoints = shapePoints
+              .map((point) => LatLng(point.latitude, point.longitude))
+              .toList();
+          break;
+
+        case Failure(exception: final e):
+          log.e('Failed to fetch shape for trip $tripId: $e');
+          
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Nu s-au putut obtine punctele pentru acest traseu'),
+              duration: Duration(seconds: 2),
+              showCloseIcon: true,
+            ),
+          );
+          return;
+      }
 
       if (mounted) {
         setState(() {});
       }
-    } catch (e) {
-      log.e('Error loading visualization for trip $tripId: $e');
-    }
+  
   }
 
   void _showMenu(Vehicle vehicle, String? routeShortName) {
@@ -184,60 +242,88 @@ class _MapPageState extends State<MapPage> {
       _isLoading = true;
     });
 
-    final dbService = context.read<MyAppState>().dbService;
+    try {
+    final dbService = context.read<DbService>();
 
     final stopIds = _drawnStops.map((s) => s.stopId).toList();
     if (stopIds.isEmpty) return;
 
-    try {
-      final results = await dbService.getEtas(
+
+      final result = await dbService.getEtas(
         vehicle,
         stopIds,
         widget.city.agencyId,
       );
 
-      for (var data in results) {
-        final stopName = _drawnStops
-            .firstWhere((s) => s.stopId == data['stop_id'])
-            .stopName;
+      if (!mounted) return;
 
-        if (data['message'] == "Success") {
-          final fix = DateTime.now().difference(vehicle.timestamp);
-          final eta = data['predicted_eta_minutes'] - fix.inSeconds / 60.0;
+      switch (result) {
+        case Success(data: final results):
+          if (results.isEmpty) {
+            log.w('No ETAs found for vehicle ${vehicle.label}');
+            return;
+          }
+          _handleEtas(results, vehicle);
+          break;
 
-          final minEta = eta.floor();
-          final maxEta = (eta + 1).ceil();
+        case Failure(exception: final e):
+          log.e('Failed to fetch ETAs: $e');
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Nu s-au putut obtine timpii de sosire'),
+              duration: Duration(seconds: 2),
+              showCloseIcon: true,
+            ),
+          );
+          return;
 
-          // momentan neafisate
-          log.i("Dureaza intre $minEta si $maxEta minute pana la $stopName");
-        } else if (data['message'] == "Vehicle has already passed this stop") {
-          log.i('Vehiculul a trecut deja pe la $stopName');
-        } else {
-          log.w('Something wrong while getting etas...');
-          // handle
-        }
       }
-    } catch (e) {
-      log.e('Error fetching arrival times');
-      // handle
-    } finally {
+    }
+    finally {
       setState(() {
         _isLoading = false;
       });
     }
   }
 
+  void _handleEtas(List<Eta> results, Vehicle vehicle) {
+    for (var data in results) {
+      final stopName = _drawnStops
+          .firstWhere((s) => s.stopId == data.stopId)
+          .stopName;
+    
+      if (data.message == "Success") {
+        final fix = DateTime.now().difference(vehicle.timestamp);
+        final eta = data.predictedEtaMinutes - fix.inSeconds / 60.0;
+    
+        final minEta = eta.floor();
+        final maxEta = (eta + 1).ceil();
+    
+        // momentan neafisate
+        log.i("Dureaza intre $minEta si $maxEta minute pana la $stopName");
+      } else if (data.message == "Vehicle has already passed this stop") {
+        log.i('Vehiculul a trecut deja pe la $stopName');
+      } else {
+        log.w('Something wrong while getting etas...');
+        // handle
+      }
+    }
+  }
+
   void _updateMenuOnVehicleFetch() async {
     if (!mounted || !showMenu || selectedVehicle == null) return;
+
+    final vehicleProvider = context.read<VehiclesProvider>();
+    final routeProvider = context.read<RoutesProvider>();
 
     final String vehicleLabel = selectedVehicle!.label;
 
     try {
-      final vehicle = _appState.vehicles.firstWhere(
+      final vehicle = vehicleProvider.vehicles.firstWhere(
         (v) => v.label == vehicleLabel,
       );
 
-      final routeShortName = _appState.getRouteShortName(
+      final routeShortName = routeProvider.getRouteShortName(
         vehicle.routeId!,
         widget.city.agencyId,
       );
@@ -258,31 +344,20 @@ class _MapPageState extends State<MapPage> {
   }
 
   @override
-  void initState() {
-    super.initState();
-    _getCurrentPosition();
-    _startPositionStream();
-
-    _appState = context.read<MyAppState>();
-
-    _appState.fetchVehiclesAndNotify(widget.city.agencyId);
-    _appState.addListener(_updateMenuOnVehicleFetch);
-    _appState.startVehicleFetchTimer(widget.city.agencyId);
-  }
-
-  @override
   void dispose() {
     _positionStreamSubscription?.cancel();
-    _appState.removeListener(_updateMenuOnVehicleFetch);
+    context.read<VehiclesProvider>().removeListener(_updateMenuOnVehicleFetch);
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final appState = context.watch<MyAppState>();
+    // final appState = context.watch<MyAppState>();
+    final vehicleProvider = context.watch<VehiclesProvider>();
+    final routeProvider = context.watch<RoutesProvider>();
 
-    var visibleRoutesIds = appState.favoriteRouteIds;
-    final visibleVehicles = appState.vehicles
+    var visibleRoutesIds = routeProvider.favoriteRouteIds;
+    final visibleVehicles = vehicleProvider.vehicles
         .where(
           (v) =>
               v.latitude != null &&
@@ -380,7 +455,7 @@ class _MapPageState extends State<MapPage> {
 
             MarkerLayer(
               markers: visibleVehicles.map((v) {
-                final routeShortName = appState.getRouteShortName(
+                final routeShortName = routeProvider.getRouteShortName(
                   v.routeId!,
                   widget.city.agencyId,
                 );
@@ -509,7 +584,7 @@ class _MapPageState extends State<MapPage> {
           bottom: 10,
           left: 10,
           child: Text(
-            '© OpenStreetMap contributors, © CARTO',
+            copyrightText,
             style: TextStyle(fontSize: 12, color: Colors.black),
           ),
         ),

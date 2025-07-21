@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:mapmybus/models.dart';
+import 'package:mapmybus/providers/routes_provider.dart';
 import 'package:provider/provider.dart';
-import '../main.dart';
+// import '../main.dart';
 import 'route_list_item.dart';
 
 class FavoritesPage extends StatelessWidget {
@@ -11,7 +12,7 @@ class FavoritesPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    var appState = context.watch<MyAppState>();
+    var appState = context.watch<RoutesProvider>();
     var filteredRoutes = appState.filteredRoutes;
     var searchQuery = appState.searchQuery;
 
@@ -33,7 +34,9 @@ class FavoritesPage extends StatelessWidget {
               contentPadding: EdgeInsets.symmetric(vertical: 0, horizontal: 10),
             ),
             onChanged: (query) {
-              appState.filterRoutes(query);
+              // appState.filterRoutes(query);
+              // ?
+              context.read<RoutesProvider>().filterRoutes(query);
             },
           ),
         ),

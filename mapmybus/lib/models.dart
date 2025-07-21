@@ -24,7 +24,7 @@ class Vehicle {
   final Accessibility bikeAccessible;
   final Accessibility wheelchairAccessible;
 
-  Vehicle({
+  const Vehicle({
     required this.id,
     required this.label,
     this.latitude,
@@ -96,9 +96,9 @@ class Route {
   final Color routeColor; // Store as Color
   final int routeType;
   final String routeDesc;
-  bool isFavorite;
+  final bool isFavorite;
 
-  Route({
+  const Route({
     required this.agencyId,
     required this.routeId,
     required this.routeShortName,
@@ -143,6 +143,29 @@ class Route {
       isFavorite: false,
     );
   }
+
+
+  Route copyWith({
+    String? agencyId,
+    int? routeId,
+    String? routeShortName,
+    String? routeLongName,
+    Color? routeColor,
+    int? routeType,
+    String? routeDesc,
+    bool? isFavorite,
+  }) {
+    return Route(
+      agencyId: agencyId ?? this.agencyId,
+      routeId: routeId ?? this.routeId,
+      routeShortName: routeShortName ?? this.routeShortName,
+      routeLongName: routeLongName ?? this.routeLongName,
+      routeColor: routeColor ?? this.routeColor,
+      routeType: routeType ?? this.routeType,
+      routeDesc: routeDesc ?? this.routeDesc,
+      isFavorite: isFavorite ?? this.isFavorite,
+    );
+  }
 }
 
 class CityConfig {
@@ -183,7 +206,7 @@ class Stop {
   final double latitude;
   final double longitude;
 
-  Stop({
+  const Stop({
     required this.stopId,
     required this.stopName,
     required this.latitude,
@@ -214,7 +237,7 @@ class TripStop {
   final String stopId;
   final int stopSequence;
 
-  TripStop({
+  const TripStop({
     required this.tripId,
     required this.stopId,
     required this.stopSequence,
@@ -243,7 +266,7 @@ class ShapePoint {
   final double longitude;
   final int sequence;
 
-  ShapePoint({
+  const ShapePoint({
     required this.shapeId,
     required this.latitude,
     required this.longitude,
@@ -267,4 +290,27 @@ class ShapePoint {
       'shape_pt_sequence': sequence,
     };
   }
+}
+
+
+
+class Eta {
+  final String tripId;
+  final String stopId;
+  final double predictedEtaMinutes;
+  final String message;
+
+  const Eta({
+    required this.tripId,
+    required this.stopId,
+    required this.predictedEtaMinutes,
+    required this.message,
+  });
+
+  factory Eta.fromJson(Map<String, dynamic> json) => Eta(
+    tripId: json['trip_id'] as String,
+    stopId: json['stop_id'].toString(),
+    predictedEtaMinutes: (json['predicted_eta_minutes'] as num).toDouble(),
+    message: json['message'] as String,
+  );
 }

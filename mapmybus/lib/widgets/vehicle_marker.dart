@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:mapmybus/models.dart';
+import 'package:mapmybus/utils.dart';
 
 class VehicleMarker extends StatelessWidget {
   final Vehicle v;
@@ -51,7 +52,7 @@ class VehicleMarker extends StatelessWidget {
 
                     Icon(
                       Icons.navigation,
-                      color: v.tripId!.endsWith('_0')
+                      color: v.tripId!.endsWith(tripDirectionInSuffix)
                           ? Colors.green
                           : Colors.red,
                       size: 20,
@@ -63,7 +64,7 @@ class VehicleMarker extends StatelessWidget {
           Container(
             padding: EdgeInsets.fromLTRB(8, 0, 8, 6),
             decoration: BoxDecoration(
-              color: v.tripId!.endsWith('_0') ? Colors.green : Colors.red,
+              color: v.tripId!.endsWith(tripDirectionInSuffix) ? Colors.green : Colors.red,
               borderRadius: BorderRadius.circular(8),
               border: Border.all(color: Colors.black),
             ),

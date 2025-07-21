@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart' hide Route;
+import 'package:mapmybus/providers/routes_provider.dart';
 import 'package:mapmybus/widgets/timetable_page.dart';
 import 'package:provider/provider.dart';
 import '../models.dart';
-import '../main.dart';
+// import '../main.dart';
 
 class RouteListItem extends StatelessWidget {
   final String agencyId;
@@ -12,7 +13,7 @@ class RouteListItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    var appState = context.watch<MyAppState>();
+    // var appState = context.watch<RoutesProvider>();
 
     return Card(
       margin: EdgeInsets.symmetric(vertical: 4.0, horizontal: 8.0),
@@ -46,7 +47,9 @@ class RouteListItem extends StatelessWidget {
           ),
 
           onPressed: () {
-            appState.toggleFavorite(route);
+            // appState.toggleFavorite(route);
+            // ?
+            context.read<RoutesProvider>().toggleFavorite(route);
           },
         ),
 

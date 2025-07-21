@@ -36,8 +36,8 @@ class _MyHomePageState extends State<MyHomePage> {
       bottomNavigationBar: SafeArea(
         child: BottomNavigationBar(
           items: [
-            BottomNavigationBarItem(icon: Icon(Icons.map), label: 'Harta'),
-            BottomNavigationBarItem(
+            const BottomNavigationBarItem(icon: Icon(Icons.map), label: 'Harta'),
+            const BottomNavigationBarItem(
               icon: Icon(Icons.favorite),
               label: 'Linii favorite',
             ),

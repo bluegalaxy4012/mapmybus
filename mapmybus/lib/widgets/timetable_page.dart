@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:mapmybus/main.dart';
+import 'package:mapmybus/db_service.dart';
+// import 'package:mapmybus/main.dart';
+import 'package:mapmybus/utils.dart';
 import 'package:provider/provider.dart';
 
 class TimetablePage extends StatelessWidget {
@@ -18,20 +20,27 @@ class TimetablePage extends StatelessWidget {
     // momentan
     if (agencyId != "2") return {};
 
-    final db = context.read<MyAppState>().dbService;
+    final db = context.read<DbService>();
 
     const days = {"Luni - Vineri": "lv", "Sambata": "s", "Duminica": "d"};
     final data = <String, List<List<String>>?>{};
 
     for (final entry in days.entries) {
-      try {
-        final rows = await db.getTimetable(routeShortName, entry.value);
-        data[entry.key] = rows
-            .map((r) => r.map((c) => c.toString()).toList())
-            .toList();
-      } catch (_) {
-        data[entry.key] = null;
-      }
+        final result = await db.getTimetable(routeShortName, entry.value);
+
+        switch (result) {
+          case Success(data: final rows):
+            if (rows.isEmpty) {
+              data[entry.key] = null; // nu circula
+            } else {
+              data[entry.key] = rows.map((r) => r.map((c) => c.toString()).toList()).toList();
+            }
+            break;
+          case Failure(exception: final e):
+            log.w('Failed to fetch timetable for ${entry.key}: $e');
+            data[entry.key] = null; // nu circula
+            break;
+        }
     }
 
     return data;

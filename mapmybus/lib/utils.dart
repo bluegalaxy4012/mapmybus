@@ -17,7 +17,44 @@ const String tranzyApiBaseUrl = 'https://api.tranzy.ai/v1/opendata';
 const String tranzyVehiclesEndpoint = '$tranzyApiBaseUrl/vehicles';
 const String mapTileProviderUrl =
     'https://{s}.basemaps.cartocdn.com/rastertiles/light_all/{z}/{x}/{y}.png';
+
+const Duration snackBarDuration = Duration(seconds: 2);
+
+typedef Seconds = int;
+const Seconds defaultRefreshInterval = 20;
+
+const String tripDirectionInSuffix = '_0';
+// const String tripDirectionOutSuffix = '_1';
+
+const String appTitle = 'Map My Bus';
+const String copyrightText = '© OpenStreetMap contributors, © CARTO';
+
+// fontSizes candva
+
 //
+
+
+
+sealed class Result<S, E extends Exception> {
+  const Result();
+}
+
+final class Success<S, E extends Exception> extends Result<S, E> {
+  const Success(this.data);
+  final S data;
+}
+
+final class Failure<S, E extends Exception> extends Result<S, E> {
+  const Failure(this.exception);
+  final E exception;
+}
+
+class ApiException implements Exception {
+  final String message;
+  final int statusCode;
+  ApiException(this.message, this.statusCode);
+}
+
 
 IconData getIconForVehicleType(int vehicleType) {
   switch (vehicleType) {
