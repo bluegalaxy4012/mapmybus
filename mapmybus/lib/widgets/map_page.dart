@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart' hide Route;
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
@@ -8,11 +9,12 @@ import 'package:mapmybus/db_service.dart';
 import 'package:mapmybus/providers/routes_provider.dart';
 import 'package:mapmybus/providers/vehicles_provider.dart';
 import 'package:mapmybus/utils.dart';
+import 'package:mapmybus/widgets/simple_snackbar.dart';
 import 'package:mapmybus/widgets/stop_marker.dart';
 import 'package:mapmybus/widgets/vehicle_marker.dart';
 import 'package:mapmybus/widgets/vehicle_menu.dart';
 import 'package:provider/provider.dart';
-// import '../main.dart';
+
 import '../models.dart';
 
 class MapPage extends StatefulWidget {
@@ -25,24 +27,34 @@ class MapPage extends StatefulWidget {
 }
 
 class _MapPageState extends State<MapPage> {
+  final MapController _mapController = MapController();
+  late final VehiclesProvider _vehicleProvider;
 
   @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    _getCurrentPosition();
-    _startPositionStream();
+  void initState() {
+    super.initState();
 
-    // _appState = context.read<MyAppState>();
-    final vehicleProvider = context.read<VehiclesProvider>();
-
-    vehicleProvider.fetchVehiclesAndNotify(widget.city.agencyId);
-    vehicleProvider.addListener(_updateMenuOnVehicleFetch);
-    vehicleProvider.startVehicleFetchTimer(widget.city.agencyId);
+    _initRoutes();
+    _initVehicles();
+    _initUserPosition();
   }
 
-  // late MyAppState _appState;
+  void _initUserPosition() {
+    _getCurrentPosition();
+    _startPositionStream();
+  }
 
-  final MapController _mapController = MapController();
+  Future<void> _initVehicles() async {
+    _vehicleProvider = context.read<VehiclesProvider>();
+    await _vehicleProvider.startVehicleFetchTimer(widget.city.agencyId);
+    _vehicleProvider.addListener(_updateMenuOnVehicleFetch);
+  }
+
+  Future<void> _initRoutes() async {
+    final routesProvider = context.read<RoutesProvider>();
+    routesProvider.init(widget.city.agencyId);
+  }
+
   StreamSubscription<Position>? _positionStreamSubscription;
 
   LatLng? _currentPosition;
@@ -55,6 +67,8 @@ class _MapPageState extends State<MapPage> {
   String? previousStopName;
   String? nextStopName;
   Vehicle? selectedVehicle;
+
+  List<EtaDisplayInfo> _currentEtaDisplayInfo = [];
 
   bool _isLoading = false;
 
@@ -70,7 +84,10 @@ class _MapPageState extends State<MapPage> {
       }
     } catch (e) {
       log.e('Error getting current position: $e');
-      // handle
+
+      if (mounted) {
+        showSimpleSnackbar(context, 'Nu s-a putut obtine locatia');
+      }
     }
   }
 
@@ -102,120 +119,75 @@ class _MapPageState extends State<MapPage> {
   Future<void> _loadMapDetails(String tripId) async {
     final dbService = context.read<DbService>();
 
-      final resultStops = await dbService.getStopsForTrip(
-        tripId,
-        widget.city.agencyId,
-      );
+    final resultStops = await dbService.getStopsForTrip(
+      tripId,
+      widget.city.agencyId,
+    );
 
-      if (!mounted) return;
+    if (!mounted) return;
 
-      switch (resultStops) {
-        case Success(data: final stops):
-          _drawnStops = stops;
-          break;
+    switch (resultStops) {
+      case Success(data: final stops):
+        _drawnStops = stops;
+        break;
 
-        case Failure(exception: final e):
-          log.e('Failed to fetch stops for trip $tripId: $e');
+      case Failure(exception: final e):
+        log.e('Failed to fetch stops for trip $tripId: $e');
 
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Nu s-au putut obtine statiile pentru acest traseu'),
-              duration: Duration(seconds: 2),
-              showCloseIcon: true,
-            ),
-          );
-          return;
-      }
+        showSimpleSnackbar(
+          context,
+          'Nu s-au putut obtine detaliile pentru acest traseu',
+        );
+        return;
+    }
 
+    final resultShape = await dbService.getShape(tripId, widget.city.agencyId);
 
-      final resultShape = await dbService.getShape(
-        tripId,
-        widget.city.agencyId,
-      ); 
+    if (!mounted) return;
 
-      if (!mounted) return;
+    switch (resultShape) {
+      case Success(data: final shapePoints):
+        _drawnPoints = shapePoints
+            .map((point) => LatLng(point.latitude, point.longitude))
+            .toList();
+        break;
 
-      switch (resultShape) {
-        case Success(data: final shapePoints):
-          _drawnPoints = shapePoints
-              .map((point) => LatLng(point.latitude, point.longitude))
-              .toList();
-          break;
+      case Failure(exception: final e):
+        log.e('Failed to fetch shape for trip $tripId: $e');
 
-        case Failure(exception: final e):
-          log.e('Failed to fetch shape for trip $tripId: $e');
-          
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Nu s-au putut obtine punctele pentru acest traseu'),
-              duration: Duration(seconds: 2),
-              showCloseIcon: true,
-            ),
-          );
-          return;
-      }
+        showSimpleSnackbar(
+          context,
+          'Nu s-au putut obtine detaliile pentru acest traseu',
+        );
+        return;
+    }
 
-      if (mounted) {
-        setState(() {});
-      }
-  
+    if (mounted) {
+      setState(() {});
+    }
   }
 
-  void _showMenu(Vehicle vehicle, String? routeShortName) {
+  Future<void> _showMenu(Vehicle vehicle, String? routeShortName) async {
     if (routeShortName == null || _drawnStops.isEmpty) {
       return;
     }
 
-    // presupunand ca nu exista statii la care e mai rapid sa cobori cu N inainte si sa mergi pe jos decat sa stai
-    double minDist = double.infinity;
-    Stop? previousStop, nextStop;
-
-    Stop closestStop = _drawnStops.first;
-    int index = 0;
-
-    for (int i = 0; i < _drawnStops.length; i++) {
-      Stop stop = _drawnStops[i];
-
-      double dist = Geolocator.distanceBetween(
-        vehicle.latitude!,
-        vehicle.longitude!,
-        stop.latitude,
-        stop.longitude,
-      );
-      if (dist < minDist) {
-        minDist = dist;
-        closestStop = stop;
-        index = i;
-      }
-    }
-
-    double dist1 = Geolocator.distanceBetween(
-      drawnStops.first.latitude,
-      drawnStops.first.longitude,
-      closestStop.latitude,
-      closestStop.longitude,
+    final infoMap = VehicleStopsInfo(
+      latitude: vehicle.latitude!,
+      longitude: vehicle.longitude!,
+      stops: _drawnStops,
     );
 
-    double dist2 = Geolocator.distanceBetween(
-      drawnStops.first.latitude,
-      drawnStops.first.longitude,
-      vehicle.latitude!,
-      vehicle.longitude!,
-    );
+    final result = await compute(computeClosestStops, infoMap);
 
-    if (dist1 >= dist2) {
-      nextStop = closestStop;
-      previousStop = index > 0 ? _drawnStops[index - 1] : null;
-    } else {
-      previousStop = closestStop;
-      nextStop = index < _drawnStops.length - 1 ? _drawnStops[index + 1] : null;
-    }
+    if (!mounted) return;
 
     setState(() {
       showMenu = true;
       selectedRouteName = routeShortName;
-      previousStopName = previousStop?.stopName ?? '-';
-      nextStopName = nextStop?.stopName ?? '-';
+      previousStopName = result['previous'] ?? '-';
+      nextStopName = result['next'] ?? '-';
+      _currentEtaDisplayInfo = [];
     });
   }
 
@@ -234,7 +206,7 @@ class _MapPageState extends State<MapPage> {
 
     await Future.delayed(Duration(milliseconds: 10));
 
-    _showMenu(vehicle, routeShortName);
+    await _showMenu(vehicle, routeShortName);
   }
 
   void requestStopArrivalTimes(Vehicle vehicle) async {
@@ -243,11 +215,10 @@ class _MapPageState extends State<MapPage> {
     });
 
     try {
-    final dbService = context.read<DbService>();
+      final dbService = context.read<DbService>();
 
-    final stopIds = _drawnStops.map((s) => s.stopId).toList();
-    if (stopIds.isEmpty) return;
-
+      final stopIds = _drawnStops.map((s) => s.stopId).toList();
+      if (stopIds.isEmpty) return;
 
       final result = await dbService.getEtas(
         vehicle,
@@ -259,27 +230,22 @@ class _MapPageState extends State<MapPage> {
 
       switch (result) {
         case Success(data: final results):
+          // nu ar trebui
           if (results.isEmpty) {
             log.w('No ETAs found for vehicle ${vehicle.label}');
             return;
           }
+
           _handleEtas(results, vehicle);
           break;
 
         case Failure(exception: final e):
           log.e('Failed to fetch ETAs: $e');
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Nu s-au putut obtine timpii de sosire'),
-              duration: Duration(seconds: 2),
-              showCloseIcon: true,
-            ),
-          );
-          return;
 
+          showSimpleSnackbar(context, 'Nu s-au putut obtine timpii de sosire');
+          return;
       }
-    }
-    finally {
+    } finally {
       setState(() {
         _isLoading = false;
       });
@@ -287,39 +253,54 @@ class _MapPageState extends State<MapPage> {
   }
 
   void _handleEtas(List<Eta> results, Vehicle vehicle) {
-    for (var data in results) {
+    final etas = <EtaDisplayInfo>[];
+
+    for (final data in results) {
       final stopName = _drawnStops
           .firstWhere((s) => s.stopId == data.stopId)
           .stopName;
-    
+
       if (data.message == "Success") {
         final fix = DateTime.now().difference(vehicle.timestamp);
         final eta = data.predictedEtaMinutes - fix.inSeconds / 60.0;
-    
+
         final minEta = eta.floor();
         final maxEta = (eta + 1).ceil();
-    
-        // momentan neafisate
-        log.i("Dureaza intre $minEta si $maxEta minute pana la $stopName");
+
+        etas.add(
+          EtaDisplayInfo(
+            stopName: stopName,
+            etaMessage: "$minEta - $maxEta min",
+          ),
+        );
+        // log.i("Dureaza intre $minEta si $maxEta minute pana la $stopName");
       } else if (data.message == "Vehicle has already passed this stop") {
-        log.i('Vehiculul a trecut deja pe la $stopName');
+        etas.add(EtaDisplayInfo(stopName: stopName, etaMessage: "Trecut"));
+        // log.i('Vehiculul a trecut deja pe la $stopName');
       } else {
-        log.w('Something wrong while getting etas...');
-        // handle
+        log.w('Unexpected error while getting etas');
+        if (mounted) {
+          showSimpleSnackbar(context, 'Eroare la obtinerea timpii de sosire');
+        }
       }
+    }
+
+    if (mounted) {
+      setState(() {
+        _currentEtaDisplayInfo = etas;
+      });
     }
   }
 
   void _updateMenuOnVehicleFetch() async {
     if (!mounted || !showMenu || selectedVehicle == null) return;
 
-    final vehicleProvider = context.read<VehiclesProvider>();
     final routeProvider = context.read<RoutesProvider>();
 
     final String vehicleLabel = selectedVehicle!.label;
 
     try {
-      final vehicle = vehicleProvider.vehicles.firstWhere(
+      final vehicle = _vehicleProvider.vehicles.firstWhere(
         (v) => v.label == vehicleLabel,
       );
 
@@ -346,17 +327,18 @@ class _MapPageState extends State<MapPage> {
   @override
   void dispose() {
     _positionStreamSubscription?.cancel();
-    context.read<VehiclesProvider>().removeListener(_updateMenuOnVehicleFetch);
+    _vehicleProvider.removeListener(_updateMenuOnVehicleFetch);
+    _vehicleProvider.stopVehicleFetchTimer();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    // final appState = context.watch<MyAppState>();
     final vehicleProvider = context.watch<VehiclesProvider>();
     final routeProvider = context.watch<RoutesProvider>();
 
-    var visibleRoutesIds = routeProvider.favoriteRouteIds;
+    final visibleRoutesIds = routeProvider.favoriteRouteIdsSet;
+
     final visibleVehicles = vehicleProvider.vehicles
         .where(
           (v) =>
@@ -395,9 +377,8 @@ class _MapPageState extends State<MapPage> {
               urlTemplate: mapTileProviderUrl,
               userAgentPackageName: 'com.mapmybus.app',
 
-              // temporar
               tileUpdateTransformer: TileUpdateTransformers.debounce(
-                const Duration(milliseconds: 200),
+                const Duration(milliseconds: 300),
               ),
             ),
 
@@ -420,17 +401,14 @@ class _MapPageState extends State<MapPage> {
                     width: 30,
                     height: 30,
                     child: GestureDetector(
-                      onTap: () => (ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('Statia apasata: ${stop.stopName}'),
-                          duration: Duration(milliseconds: 1500),
-                          showCloseIcon: true,
-                        ),
-                      )),
+                      onTap: () => showSimpleSnackbar(
+                        context,
+                        "Statia apasata: ${stop.stopName}",
+                      ),
                       child: stop.stopId == _drawnStops.first.stopId
-                          ? StopMarker("Start")
+                          ? StopMarker(name: "Start")
                           : stop.stopId == _drawnStops.last.stopId
-                          ? StopMarker("End")
+                          ? StopMarker(name: "End")
                           : Icon(
                               Icons.place,
                               color: const Color.fromARGB(255, 68, 137, 216),
@@ -510,6 +488,7 @@ class _MapPageState extends State<MapPage> {
           top: 30,
           right: 30,
           child: FloatingActionButton(
+            heroTag: "centerButton",
             tooltip: "Centreaza pe locatia ta",
             mini: true,
             onPressed: _centerMapOnCurrentPosition,
@@ -521,6 +500,7 @@ class _MapPageState extends State<MapPage> {
           top: 80,
           right: 30,
           child: FloatingActionButton(
+            heroTag: "clearButton",
             tooltip: "Sterge traseul desenat",
             mini: true,
             child: const Icon(Icons.clear_all),
@@ -544,11 +524,14 @@ class _MapPageState extends State<MapPage> {
             nextStopName: nextStopName,
             isLoading: _isLoading,
             selectedVehicle: selectedVehicle,
+            etasInfo: _currentEtaDisplayInfo,
+
             onRequestStopArrivalTimes: () {
               if (selectedVehicle != null && !_isLoading) {
                 requestStopArrivalTimes(selectedVehicle!);
               }
             },
+
             onClose: () {
               setState(() {
                 showMenu = false;

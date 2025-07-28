@@ -1,134 +1,182 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart' hide Route;
-import 'package:flutter/services.dart';
+import 'package:mapmybus/db_service.dart';
 import 'package:mapmybus/utils.dart';
 import 'package:mapmybus/models.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class RoutesProvider extends ChangeNotifier {
+  final DbService dbService;
+
   List<Route> _allRoutes = [];
   List<Route> _filteredRoutes = [];
   String _searchQuery = '';
-  List<int> _favoriteRouteIds = [];
+  Map<int, bool> _favoriteRouteIds = {};
+  bool _showFavoritesOnly = false;
+  String _agencyId = '2'; // default
 
+  bool _isInitialized = false;
 
+  List<Route> get allRoutes => _allRoutes;
   List<Route> get filteredRoutes => _filteredRoutes;
   String get searchQuery => _searchQuery;
-  List<int> get favoriteRouteIds => _favoriteRouteIds;
+  bool get showFavoritesOnly => _showFavoritesOnly;
 
-  RoutesProvider() {
-    _loadData();
+  RoutesProvider({required this.dbService});
+
+  void init(String agencyId) async {
+    if (_isInitialized) return;
+
+    _agencyId = agencyId;
+    await _loadData();
+    _isInitialized = true;
   }
-
 
   Future<void> _loadData() async {
+    await _loadSettings();
     await _loadFavoriteRouteIds();
-    await _loadRoutesFromAsset();
+    await _loadRoutes(_agencyId);
   }
 
-  Future<void> _loadRoutesFromAsset() async {
+  Future<void> _loadRoutes(String agencyId) async {
     try {
-      final String response = await rootBundle.loadString(routesAssetPath);
-      final List<dynamic> jsonData = jsonDecode(response);
+      final result = await dbService.fetchRoutes(agencyId);
 
-      _allRoutes = jsonData.map((json) {
-        Route route = Route.fromJson(json);
-
-        if (_favoriteRouteIds.contains(route.routeId)) {
-          route = route.copyWith(isFavorite: true);
-        }
-
-        return route;
-      }).toList();
-
-      _filteredRoutes = _allRoutes;
-
-      notifyListeners();
-      log.i('Routes loaded successfully: ${_allRoutes.length} routes');
+      switch (result) {
+        case Success(data: final routes):
+          _allRoutes = routes
+              .map(
+                (r) => r.copyWith(
+                  isFavorite: _favoriteRouteIds[r.routeId] ?? false,
+                ),
+              )
+              .toList();
+          break;
+        case Failure(exception: final e):
+          log.e('Failed to fetch routes: $e');
+          _allRoutes = [];
+          _filteredRoutes = [];
+          break;
+      }
     } catch (e) {
-      log.e('Error loading routes from assets: $e');
-      // handle
+      log.e('Unexpected error while loading routes: $e');
+      _allRoutes = [];
+      _filteredRoutes = [];
+    } finally {
+      _applyFilters();
     }
+  }
+
+  Future<void> _loadSettings() async {
+    final prefs = await SharedPreferences.getInstance();
+    _showFavoritesOnly = prefs.getBool('showFavoritesOnly') ?? false;
+  }
+
+  void _applyFilters() {
+    List<Route> tempRoutes = List.from(_allRoutes);
+
+    if (_showFavoritesOnly) {
+      tempRoutes = tempRoutes.where((route) => route.isFavorite).toList();
+    }
+
+    if (_searchQuery.isNotEmpty) {
+      tempRoutes = tempRoutes.where((route) {
+        return route.routeShortName.toLowerCase().contains(_searchQuery) ||
+            route.routeLongName.toLowerCase().contains(_searchQuery);
+      }).toList();
+    }
+
+    _filteredRoutes = tempRoutes;
+    notifyListeners();
+  }
+
+  void refreshFilters() {
+    _applyFilters();
   }
 
   void filterRoutes(String query) {
     _searchQuery = query.toLowerCase();
-    if (query.isEmpty) {
-      _filteredRoutes = List.from(_allRoutes);
-    } else {
-      _filteredRoutes = _allRoutes.where((route) {
-        return route.routeShortName.toLowerCase().contains(
-              query.toLowerCase(),
-            ) ||
-            route.routeLongName.toLowerCase().contains(query.toLowerCase());
-      }).toList();
-    }
-
-    notifyListeners();
+    _applyFilters();
   }
 
+  void resetSearchQuery() {
+    _searchQuery = '';
+  }
 
+  void setShowFavoritesOnly(bool value) async {
+    _showFavoritesOnly = value;
+    _applyFilters();
 
-    Future<void> toggleFavorite(Route route) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('showFavoritesOnly', value);
+  }
+
+  Future<void> toggleFavorite(Route route) async {
     final index = _allRoutes.indexWhere(
       (r) => r.routeId == route.routeId && r.agencyId == route.agencyId,
     );
     if (index != -1) {
-      final oldRoute = _allRoutes[index];
-      _allRoutes[index] = oldRoute.copyWith(isFavorite: !oldRoute.isFavorite);
+      final current = _allRoutes[index];
+      final updated = current.copyWith(isFavorite: !current.isFavorite);
+      _allRoutes[index] = updated;
 
-      if (_allRoutes[index].isFavorite) {
-        _favoriteRouteIds.add(_allRoutes[index].routeId);
-      } else {
-        _favoriteRouteIds.remove(_allRoutes[index].routeId);
-      }
+      _favoriteRouteIds[updated.routeId] = updated.isFavorite;
 
       await _saveFavoriteRouteIds();
 
-      filterRoutes(_searchQuery);
+      _applyFilters();
     }
   }
 
   Future<void> _loadFavoriteRouteIds() async {
     final prefs = await SharedPreferences.getInstance();
-    final List<String>? favoriteIdsJson = prefs.getStringList(
-      'favoriteRouteIds',
-    );
+    final jsonString = prefs.getString('favoriteRouteMap');
 
-    if (favoriteIdsJson != null) {
-      _favoriteRouteIds = favoriteIdsJson.map(int.parse).toList();
-      log.d('Loaded favorite IDs: $_favoriteRouteIds');
+    if (jsonString != null) {
+      final decoded = jsonDecode(jsonString) as Map<String, dynamic>;
+      _favoriteRouteIds = decoded.map(
+        (k, v) => MapEntry(int.parse(k), v as bool),
+      );
+      log.d('Loaded favorite route map: $_favoriteRouteIds');
     }
   }
 
   Future<void> _saveFavoriteRouteIds() async {
     final prefs = await SharedPreferences.getInstance();
-    final List<String> favoriteIdsJson = _favoriteRouteIds
-        .map((id) => id.toString())
-        .toList();
+    final encoded = jsonEncode(
+      _favoriteRouteIds.map((k, v) => MapEntry(k.toString(), v)),
+    );
 
-    await prefs.setStringList('favoriteRouteIds', favoriteIdsJson);
-    log.d('Saved favorite IDs: $_favoriteRouteIds');
+    await prefs.setString('favoriteRouteMap', encoded);
+    log.d('Saved favorite route map: $_favoriteRouteIds');
   }
 
-  List<Route> get favoriteRoutes {
-    return _allRoutes.where((route) => route.isFavorite).toList();
+  List<Route> get favoriteRoutes =>
+      _allRoutes.where((route) => route.isFavorite).toList();
+  Set<int> get favoriteRouteIdsSet {
+    return _favoriteRouteIds.entries
+        .where((e) => e.value == true)
+        .map((e) => e.key)
+        .toSet();
   }
+
+  bool isFavorite(int routeId) => _favoriteRouteIds[routeId] ?? false;
 
   String? getRouteShortName(int routeId, String agencyId) {
-    final route = _allRoutes.firstWhere(
-      (r) => r.routeId == routeId && r.agencyId == agencyId,
-      orElse: () => Route(
-        agencyId: agencyId,
-        routeId: routeId,
-        routeShortName: 'Unknown',
-        routeLongName: 'Unknown',
-        routeColor: Colors.grey,
-        routeType: 3,
-        routeDesc: '',
-      ),
-    );
-    return route.routeShortName;
+    return _allRoutes
+        .firstWhere(
+          (r) => r.routeId == routeId && r.agencyId == agencyId,
+          orElse: () => Route(
+            agencyId: agencyId,
+            routeId: routeId,
+            routeShortName: 'Unknown',
+            routeLongName: 'Unknown',
+            routeColor: Colors.grey,
+            routeType: 3,
+            routeDesc: '',
+          ),
+        )
+        .routeShortName;
   }
 }

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:mapmybus/db_service.dart';
-// import 'package:mapmybus/main.dart';
 import 'package:mapmybus/utils.dart';
 import 'package:provider/provider.dart';
 
@@ -26,21 +25,23 @@ class TimetablePage extends StatelessWidget {
     final data = <String, List<List<String>>?>{};
 
     for (final entry in days.entries) {
-        final result = await db.getTimetable(routeShortName, entry.value);
+      final result = await db.getTimetable(routeShortName, entry.value);
 
-        switch (result) {
-          case Success(data: final rows):
-            if (rows.isEmpty) {
-              data[entry.key] = null; // nu circula
-            } else {
-              data[entry.key] = rows.map((r) => r.map((c) => c.toString()).toList()).toList();
-            }
-            break;
-          case Failure(exception: final e):
-            log.w('Failed to fetch timetable for ${entry.key}: $e');
+      switch (result) {
+        case Success(data: final rows):
+          if (rows.isEmpty) {
             data[entry.key] = null; // nu circula
-            break;
-        }
+          } else {
+            data[entry.key] = rows
+                .map((r) => r.map((c) => c.toString()).toList())
+                .toList();
+          }
+          break;
+        case Failure(exception: final e):
+          log.w('Failed to fetch timetable for ${entry.key}: $e');
+          data[entry.key] = null; // nu circula
+          break;
+      }
     }
 
     return data;

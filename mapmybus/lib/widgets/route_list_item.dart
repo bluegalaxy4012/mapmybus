@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart' hide Route;
 import 'package:mapmybus/providers/routes_provider.dart';
+import 'package:mapmybus/widgets/simple_snackbar.dart';
 import 'package:mapmybus/widgets/timetable_page.dart';
 import 'package:provider/provider.dart';
+
 import '../models.dart';
-// import '../main.dart';
 
 class RouteListItem extends StatelessWidget {
   final String agencyId;
@@ -13,8 +14,6 @@ class RouteListItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // var appState = context.watch<RoutesProvider>();
-
     return Card(
       margin: EdgeInsets.symmetric(vertical: 4.0, horizontal: 8.0),
       elevation: 2.0,
@@ -23,7 +22,7 @@ class RouteListItem extends StatelessWidget {
           backgroundColor: route.routeColor,
           child: Text(
             route.routeShortName,
-            style: TextStyle(
+            style: const TextStyle(
               color: Colors.white,
               fontWeight: FontWeight.bold,
               fontSize: 14.0,
@@ -33,24 +32,30 @@ class RouteListItem extends StatelessWidget {
 
         title: Text(
           route.routeShortName,
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 19.0),
+          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 19.0),
         ),
 
         subtitle: Text(
           route.routeLongName,
           style: TextStyle(fontSize: 13.0, color: Colors.grey[700]),
         ),
-        trailing: IconButton(
-          icon: Icon(
-            route.isFavorite ? Icons.favorite : Icons.favorite_border,
-            color: route.isFavorite ? Colors.red : Colors.grey,
-          ),
+        trailing: Selector<RoutesProvider, bool>(
+          selector: (_, provider) => provider.isFavorite(route.routeId),
+          builder: (_, isFav, _) => IconButton(
+            icon: Icon(
+              isFav ? Icons.favorite : Icons.favorite_border,
+              color: isFav ? Colors.red : Colors.grey,
+              size: 28.0,
+            ),
 
-          onPressed: () {
-            // appState.toggleFavorite(route);
-            // ?
-            context.read<RoutesProvider>().toggleFavorite(route);
-          },
+            onPressed: () {
+              context.read<RoutesProvider>().toggleFavorite(route);
+              showSimpleSnackbar(
+                context,
+                'Linia ${route.routeShortName} a fost ${isFav ? 'scoasa de la' : 'adaugata la'} favorite.',
+              );
+            },
+          ),
         ),
 
         onTap: () {

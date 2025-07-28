@@ -10,6 +10,8 @@ class VehicleMenu extends StatelessWidget {
   final String? nextStopName;
   final bool isLoading;
   final Vehicle? selectedVehicle;
+  final List<EtaDisplayInfo> etasInfo;
+
   final VoidCallback onRequestStopArrivalTimes;
   final VoidCallback onClose;
 
@@ -21,6 +23,7 @@ class VehicleMenu extends StatelessWidget {
     this.nextStopName,
     required this.isLoading,
     this.selectedVehicle,
+    required this.etasInfo,
     required this.onRequestStopArrivalTimes,
     required this.onClose,
   });
@@ -75,7 +78,7 @@ class VehicleMenu extends StatelessWidget {
                         height: 20,
                         width: 20,
                         child: CircularProgressIndicator(
-                          color: Theme.of(context).primaryColor,
+                          color: Theme.of(context).colorScheme.primary,
                         ),
                       )
                     // better alternative ?
@@ -86,6 +89,61 @@ class VehicleMenu extends StatelessWidget {
                         ],
                       ),
               ),
+
+              if (etasInfo.isNotEmpty) ...[
+                SizedBox(
+                  height: 120,
+
+                  child: Scrollbar(
+                    thumbVisibility: true,
+                    child: SingleChildScrollView(
+                      child: DataTable(
+                        headingRowColor: WidgetStateProperty.all(
+                          Theme.of(context).colorScheme.surfaceContainerLow,
+                        ),
+
+                        dataRowMinHeight: 18,
+                        dataRowMaxHeight: 26,
+                        headingRowHeight: 32,
+
+                        columns: const [
+                          DataColumn(
+                            label: Text(
+                              'Nume statie',
+                              style: TextStyle(fontSize: 13),
+                            ),
+                          ),
+                          DataColumn(
+                            label: Text(
+                              'Timp estimat',
+                              style: TextStyle(fontSize: 13),
+                            ),
+                          ),
+                        ],
+
+                        rows: etasInfo.map((e) {
+                          return DataRow(
+                            cells: [
+                              DataCell(
+                                Text(
+                                  e.stopName,
+                                  style: const TextStyle(fontSize: 10),
+                                ),
+                              ),
+                              DataCell(
+                                Text(
+                                  e.etaMessage,
+                                  style: const TextStyle(fontSize: 10),
+                                ),
+                              ),
+                            ],
+                          );
+                        }).toList(),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
 
               ElevatedButton(onPressed: onClose, child: Text('Inchide')),
             ],

@@ -1,20 +1,48 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:mapmybus/models.dart';
 import 'package:mapmybus/providers/routes_provider.dart';
 import 'package:provider/provider.dart';
-// import '../main.dart';
+
 import 'route_list_item.dart';
 
-class FavoritesPage extends StatelessWidget {
+class FavoritesPage extends StatefulWidget {
   final CityConfig city;
 
   const FavoritesPage({super.key, required this.city});
 
   @override
+  State<FavoritesPage> createState() => _FavoritesPageState();
+}
+
+class _FavoritesPageState extends State<FavoritesPage> {
+  RoutesProvider? _routesProvider;
+
+  Timer? _debounceTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _routesProvider = context.read<RoutesProvider>();
+      _routesProvider?.init(widget.city.agencyId);
+      _routesProvider?.refreshFilters();
+    });
+  }
+
+  @override
+  void dispose() {
+    _debounceTimer?.cancel();
+    _routesProvider?.resetSearchQuery();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    var appState = context.watch<RoutesProvider>();
-    var filteredRoutes = appState.filteredRoutes;
-    var searchQuery = appState.searchQuery;
+    final routeProvider = context.watch<RoutesProvider>();
+    final filteredRoutes = routeProvider.filteredRoutes;
+    final searchQuery = routeProvider.searchQuery;
 
     return Column(
       children: [
@@ -23,21 +51,43 @@ class FavoritesPage extends StatelessWidget {
           child: TextField(
             decoration: InputDecoration(
               hintText: 'Cauta numele liniilor...',
-              prefixIcon: Icon(Icons.search),
+              prefixIcon: const Icon(Icons.search),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(10.0),
                 borderSide: BorderSide.none,
               ),
 
               filled: true,
-              fillColor: Colors.grey[200],
+              fillColor: Colors.grey[250],
               contentPadding: EdgeInsets.symmetric(vertical: 0, horizontal: 10),
             ),
             onChanged: (query) {
-              // appState.filterRoutes(query);
-              // ?
-              context.read<RoutesProvider>().filterRoutes(query);
+              if (_debounceTimer?.isActive ?? false) {
+                _debounceTimer!.cancel();
+              }
+
+              _debounceTimer = Timer(const Duration(milliseconds: 300), () {
+                routeProvider.filterRoutes(query);
+              });
             },
+            maxLength: 50,
+          ),
+        ),
+
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          child: Row(
+            children: [
+              Checkbox(
+                value: routeProvider.showFavoritesOnly,
+                onChanged: (v) {
+                  if (v == null) return;
+
+                  routeProvider.setShowFavoritesOnly(v);
+                },
+              ),
+              const Text('Afiseaza doar favoritele'),
+            ],
           ),
         ),
 
@@ -51,7 +101,7 @@ class FavoritesPage extends StatelessWidget {
                 )
               : filteredRoutes.isEmpty && searchQuery.isEmpty
               ? Center(
-                  child: Text(
+                  child: const Text(
                     'Nicio ruta disponibila.',
                     style: TextStyle(fontSize: 18),
                   ),
@@ -59,10 +109,13 @@ class FavoritesPage extends StatelessWidget {
               : ListView.builder(
                   padding: EdgeInsets.all(8.0),
                   itemCount: filteredRoutes.length,
-
                   itemBuilder: (context, index) {
                     final route = filteredRoutes[index];
-                    return RouteListItem(agencyId: city.agencyId, route: route);
+                    return RouteListItem(
+                      key: ValueKey(route.routeId),
+                      agencyId: widget.city.agencyId,
+                      route: route,
+                    );
                   },
                 ),
         ),

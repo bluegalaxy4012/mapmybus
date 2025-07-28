@@ -37,7 +37,6 @@ class VehicleMarker extends StatelessWidget {
       onTap: onTap,
 
       child: Stack(
-        // mainAxisAlignment: MainAxisAlignment.center,
         alignment: Alignment.center,
         children: [
           if (isSelected)
@@ -64,7 +63,9 @@ class VehicleMarker extends StatelessWidget {
           Container(
             padding: EdgeInsets.fromLTRB(8, 0, 8, 6),
             decoration: BoxDecoration(
-              color: v.tripId!.endsWith(tripDirectionInSuffix) ? Colors.green : Colors.red,
+              color: v.tripId!.endsWith(tripDirectionInSuffix)
+                  ? Colors.green
+                  : Colors.red,
               borderRadius: BorderRadius.circular(8),
               border: Border.all(color: Colors.black),
             ),

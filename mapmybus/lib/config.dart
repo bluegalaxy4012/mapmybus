@@ -6,6 +6,7 @@ class AppConfig {
   static late final String shapesApiUrl;
   static late final String vehiclesApiUrl;
   static late final String timetablesApiUrl;
+  static late final String routesApiUrl;
   static late final String apiKey;
 
   static Future<void> load() async {
@@ -16,6 +17,7 @@ class AppConfig {
     shapesApiUrl = dotenv.env['SHAPES_API_URL'] ?? '';
     vehiclesApiUrl = dotenv.env['VEHICLES_API_URL'] ?? '';
     timetablesApiUrl = dotenv.env['TIMETABLES_API_URL'] ?? '';
+    routesApiUrl = dotenv.env['ROUTES_API_URL'] ?? '';
     apiKey = dotenv.env['API_KEY'] ?? '';
   }
 }

@@ -1,16 +1,16 @@
 import 'dart:convert';
-// import 'package:flutter/services.dart' show rootBundle;
-// import 'package:hive_flutter/hive_flutter.dart';
+
 import 'package:csv/csv.dart';
 import 'package:mapmybus/config.dart';
 import 'package:mapmybus/utils.dart';
-// import 'package:mapmybus/utils.dart';
-import 'models.dart';
-// import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
 
+import 'models.dart';
+
 class DbService {
-  Future<Result<List<Vehicle>, Exception>> fetchVehicles(String agencyId) async {
+  Future<Result<List<Vehicle>, Exception>> fetchVehicles(
+    String agencyId,
+  ) async {
     final uri = Uri.parse('${AppConfig.vehiclesApiUrl}/$agencyId');
 
     try {
@@ -25,8 +25,7 @@ class DbService {
         log.d("Fetched ${vehicles.length} vehicles for agency $agencyId");
 
         return Success(vehicles);
-      }
-      else {
+      } else {
         return Failure(ApiException("Server error", response.statusCode));
       }
     } catch (e) {
@@ -34,52 +33,80 @@ class DbService {
     }
   }
 
-  Future<Result<List<Stop>, Exception>> getStopsForTrip(String tripId, String agencyId) async {
-    final uri = Uri.parse('${AppConfig.stopsApiUrl}/$agencyId?trip_id=$tripId');
+  Future<Result<List<Route>, Exception>> fetchRoutes(String agencyId) async {
+    final uri = Uri.parse('${AppConfig.routesApiUrl}/$agencyId');
 
     try {
-    final response = await http.get(uri);
+      final response = await http.get(uri);
 
-    if (response.statusCode == 200) {
-      final List<dynamic> data = jsonDecode(response.body);
+      if (response.statusCode == 200) {
+        final List<dynamic> jsonData = jsonDecode(response.body);
+        final List<Route> routes = jsonData.map((json) {
+          return Route.fromJson(json);
+        }).toList();
 
-      log.d("Fetched ${data.length} stops for trip $tripId");
-
-      return Success(data.map((stop) => Stop.fromJson(stop)).toList());
-    }
-    else {
-      return Failure(ApiException("Server error during stops fetch", response.statusCode));
-    }
-    }
-    catch (e) {
+        log.d("Fetched ${routes.length} routes for agency $agencyId");
+        return Success(routes);
+      } else {
+        return Failure(ApiException("Server error", response.statusCode));
+      }
+    } catch (e) {
       return Failure(Exception("Unexpected error: $e"));
     }
   }
 
-  Future<Result<List<ShapePoint>, Exception>> getShape(String shapeId, String agencyId) async {
+  Future<Result<List<Stop>, Exception>> getStopsForTrip(
+    String tripId,
+    String agencyId,
+  ) async {
+    final uri = Uri.parse('${AppConfig.stopsApiUrl}/$agencyId?trip_id=$tripId');
+
+    try {
+      final response = await http.get(uri);
+
+      if (response.statusCode == 200) {
+        final List<dynamic> data = jsonDecode(response.body);
+
+        log.d("Fetched ${data.length} stops for trip $tripId");
+
+        return Success(data.map((stop) => Stop.fromJson(stop)).toList());
+      } else {
+        return Failure(
+          ApiException("Server error during stops fetch", response.statusCode),
+        );
+      }
+    } catch (e) {
+      return Failure(Exception("Unexpected error: $e"));
+    }
+  }
+
+  Future<Result<List<ShapePoint>, Exception>> getShape(
+    String shapeId,
+    String agencyId,
+  ) async {
     final uri = Uri.parse(
       '${AppConfig.shapesApiUrl}/$agencyId?shape_id=$shapeId',
     );
 
-try{
-    final response = await http.get(uri);
+    try {
+      final response = await http.get(uri);
 
-    if (response.statusCode == 200) {
-      final List<dynamic> data = jsonDecode(response.body);
+      if (response.statusCode == 200) {
+        final List<dynamic> data = jsonDecode(response.body);
 
-      log.d("Fetched ${data.length} shape points for shape $shapeId");
+        log.d("Fetched ${data.length} shape points for shape $shapeId");
 
-      return Success(data.map((point) => ShapePoint.fromJson(point)).toList());
-    }
-    else {
-      return Failure(ApiException("Server error during shapes fetch", response.statusCode));
-    }
-}
-    catch (e) {
+        return Success(
+          data.map((point) => ShapePoint.fromJson(point)).toList(),
+        );
+      } else {
+        return Failure(
+          ApiException("Server error during shapes fetch", response.statusCode),
+        );
+      }
+    } catch (e) {
       return Failure(Exception("Unexpected error: $e"));
     }
-
-
   }
 
   Future<Result<List<Eta>, Exception>> getEtas(
@@ -96,26 +123,23 @@ try{
       },
     );
 
+    try {
+      final response = await http.get(uri);
 
-try{
-    final response = await http.get(uri);
-    if (response.statusCode == 200) {
-final data = jsonDecode(response.body) as List<dynamic>;
-    return Success(data.map((json) => Eta.fromJson(json)).toList());
-    } else {
-      throw ApiException(
-        "Server error during ETAs fetch",
-        response.statusCode,
-      );
-    }
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body) as List<dynamic>;
 
-}
-    catch (e) {
+        return Success(data.map((json) => Eta.fromJson(json)).toList());
+      } else {
+        throw ApiException(
+          "Server error during ETAs fetch",
+          response.statusCode,
+        );
+      }
+    } catch (e) {
       return Failure(Exception("Unexpected error: $e"));
     }
-
   }
-
 
   Future<Result<List<List<String>>, Exception>> getTimetable(
     String routeShortName,
@@ -123,26 +147,25 @@ final data = jsonDecode(response.body) as List<dynamic>;
   ) async {
     final url = '${AppConfig.timetablesApiUrl}/$routeShortName/$dayType';
 
-try{
-    final res = await http.get(Uri.parse(url));
-    if (res.statusCode == 200) {
-      log.d("Fetched timetable for route $routeShortName on day $dayType");
+    try {
+      final res = await http.get(Uri.parse(url));
 
-      return Success(const CsvToListConverter(
-        eol: "\n",
-        shouldParseNumbers: false,
-      ).convert(utf8.decode(res.bodyBytes)));
-    }
-    else {
-      return Failure(ApiException(
-        "Server error during timetables fetch",
-        res.statusCode,
-      ));
-    }
-}
-    catch (e) {
+      if (res.statusCode == 200) {
+        log.d("Fetched timetable for route $routeShortName on day $dayType");
+
+        return Success(
+          const CsvToListConverter(
+            eol: "\n",
+            shouldParseNumbers: false,
+          ).convert(utf8.decode(res.bodyBytes)),
+        );
+      } else {
+        return Failure(
+          ApiException("Server error during timetables fetch", res.statusCode),
+        );
+      }
+    } catch (e) {
       return Failure(Exception("Unexpected error: $e"));
     }
-
   }
 }

@@ -4,21 +4,23 @@ import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:logger/logger.dart';
+import 'package:mapmybus/models.dart';
 
 final log = Logger(level: kReleaseMode ? Level.off : Level.debug);
 
-// constants
-const String routesAssetPath = 'data/routes.json';
-const String stopsAssetPath = 'data/stops.json';
-const String tripStopsAssetPath = 'data/trip_stops.json';
-const String shapesAssetPath = 'data/shapes.json';
+/// constants
+///
+// const String routesAssetPath = 'data/routes.json';
+// const String stopsAssetPath = 'data/stops.json';
+// const String tripStopsAssetPath = 'data/trip_stops.json';
+// const String shapesAssetPath = 'data/shapes.json';
 
 const String tranzyApiBaseUrl = 'https://api.tranzy.ai/v1/opendata';
 const String tranzyVehiclesEndpoint = '$tranzyApiBaseUrl/vehicles';
 const String mapTileProviderUrl =
     'https://{s}.basemaps.cartocdn.com/rastertiles/light_all/{z}/{x}/{y}.png';
 
-const Duration snackBarDuration = Duration(seconds: 2);
+const Duration snackBarDuration = Duration(milliseconds: 2500);
 
 typedef Seconds = int;
 const Seconds defaultRefreshInterval = 20;
@@ -30,10 +32,8 @@ const String appTitle = 'Map My Bus';
 const String copyrightText = '© OpenStreetMap contributors, © CARTO';
 
 // fontSizes candva
-
-//
-
-
+///
+///
 
 sealed class Result<S, E extends Exception> {
   const Result();
@@ -54,7 +54,6 @@ class ApiException implements Exception {
   final int statusCode;
   ApiException(this.message, this.statusCode);
 }
-
 
 IconData getIconForVehicleType(int vehicleType) {
   switch (vehicleType) {
@@ -96,7 +95,7 @@ Future<Position> determinePosition() async {
   if (permission == LocationPermission.denied) {
     permission = await Geolocator.requestPermission();
     if (permission == LocationPermission.denied) {
-      return Future.error('Location permissions are denied');
+      return Future.error('Location permissions are denied.');
     }
   }
 
@@ -126,4 +125,63 @@ double calculateBearing(LatLng start, LatLng end) {
       cos(lat1) * sin(lat2) - sin(lat1) * cos(lat2) * cos(lon2 - lon1);
 
   return atan2(y, x);
+}
+
+Map<String, String?> computeClosestStops(VehicleStopsInfo infoMap) {
+  // presupunand ca nu exista statii la care e mai rapid sa cobori cu cateva inainte si sa mergi pe jos decat sa stai
+
+  // final double vehLat = infoMap['lat'];
+  // final double vehLon = infoMap['lon'];
+  final double vehLat = infoMap.latitude;
+  final double vehLon = infoMap.longitude;
+
+  final List<Stop> stops = infoMap.stops;
+
+  // final List<dynamic> stops = infoMap['stops'];
+
+  double minDist = double.infinity;
+  int closestIndex = 0;
+
+  for (int i = 0; i < stops.length; i++) {
+    final stop = stops[i];
+    final dist = Geolocator.distanceBetween(
+      vehLat,
+      vehLon,
+      stop.latitude,
+      stop.longitude,
+    );
+
+    if (dist < minDist) {
+      minDist = dist;
+      closestIndex = i;
+    }
+  }
+
+  final double dist1 = Geolocator.distanceBetween(
+    stops.first.latitude,
+    stops.first.longitude,
+    stops[closestIndex].latitude,
+    stops[closestIndex].longitude,
+  );
+
+  final double dist2 = Geolocator.distanceBetween(
+    stops.first.latitude,
+    stops.first.longitude,
+    vehLat,
+    vehLon,
+  );
+
+  String? previous, next;
+
+  if (dist1 >= dist2) {
+    next = stops[closestIndex].stopName;
+    previous = closestIndex > 0 ? stops[closestIndex - 1].stopName : null;
+  } else {
+    previous = stops[closestIndex].stopName;
+    next = closestIndex < stops.length - 1
+        ? stops[closestIndex + 1].stopName
+        : null;
+  }
+
+  return {'previous': previous, 'next': next};
 }

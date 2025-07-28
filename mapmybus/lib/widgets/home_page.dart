@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../models.dart';
 import 'favorites_page.dart';
 import 'map_page.dart';
@@ -11,7 +12,7 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-  var currentIndex = 0;
+  int currentIndex = 0;
 
   @override
   Widget build(BuildContext context) {
@@ -36,7 +37,10 @@ class _MyHomePageState extends State<MyHomePage> {
       bottomNavigationBar: SafeArea(
         child: BottomNavigationBar(
           items: [
-            const BottomNavigationBarItem(icon: Icon(Icons.map), label: 'Harta'),
+            const BottomNavigationBarItem(
+              icon: Icon(Icons.map),
+              label: 'Harta',
+            ),
             const BottomNavigationBarItem(
               icon: Icon(Icons.favorite),
               label: 'Linii favorite',

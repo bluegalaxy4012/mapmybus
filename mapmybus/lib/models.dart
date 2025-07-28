@@ -61,7 +61,7 @@ class Vehicle {
       try {
         return DateTime.parse(timestamp);
       } catch (e) {
-        log.e('Eroare la parsarea timestamp-ului: $e');
+        log.w('Eroare la parsarea timestamp-ului: $e');
         return DateTime.now();
       }
     }
@@ -93,7 +93,7 @@ class Route {
   final int routeId;
   final String routeShortName;
   final String routeLongName;
-  final Color routeColor; // Store as Color
+  final Color routeColor;
   final int routeType;
   final String routeDesc;
   final bool isFavorite;
@@ -143,7 +143,6 @@ class Route {
       isFavorite: false,
     );
   }
-
 
   Route copyWith({
     String? agencyId,
@@ -292,8 +291,6 @@ class ShapePoint {
   }
 }
 
-
-
 class Eta {
   final String tripId;
   final String stopId;
@@ -313,4 +310,23 @@ class Eta {
     predictedEtaMinutes: (json['predicted_eta_minutes'] as num).toDouble(),
     message: json['message'] as String,
   );
+}
+
+class VehicleStopsInfo {
+  final double latitude;
+  final double longitude;
+  final List<Stop> stops;
+
+  const VehicleStopsInfo({
+    required this.latitude,
+    required this.longitude,
+    required this.stops,
+  });
+}
+
+class EtaDisplayInfo {
+  final String stopName;
+  final String etaMessage;
+
+  const EtaDisplayInfo({required this.stopName, required this.etaMessage});
 }
