@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart' hide Route;
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 // import 'package:mapmybus/config.dart';
 import 'package:mapmybus/db_service.dart';
 import 'package:mapmybus/providers/city_provider.dart';
@@ -23,11 +24,23 @@ Future<void> main() async {
   final selectedCityName = prefs.getString('selected_city') ?? 'Cluj-Napoca';
 
   runApp(
-    MyApp(
-      dbService: dbService,
-      seenWelcome: seenWelcome,
-      selectedCityName: selectedCityName,
+    ScreenUtilInit(
+      designSize: const Size(1920, 1080),
+      minTextAdapt: true,
+      splitScreenMode: true,
+      builder: (context, child) {
+        return MyApp(
+          dbService: dbService,
+          seenWelcome: seenWelcome,
+          selectedCityName: selectedCityName,
+        );
+      },
     ),
+    // MyApp(
+    //   dbService: dbService,
+    //   seenWelcome: seenWelcome,
+    //   selectedCityName: selectedCityName,
+    // ),
   );
 }
 

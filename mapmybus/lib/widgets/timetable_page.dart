@@ -39,7 +39,7 @@ class TimetablePage extends StatelessWidget {
           }
           break;
         case Failure(exception: final e):
-          log.w('Failed to fetch timetable for ${entry.key}: $e');
+          log.w("Failed to fetch timetable for ${entry.key}: $e");
           data[entry.key] = null; // nu circula
           break;
       }

@@ -106,10 +106,10 @@ class _MapPageState extends State<MapPage> {
         });
       }
     } catch (e) {
-      log.e('Error getting current position: $e');
+      log.e("Error getting current position: $e");
 
       if (mounted) {
-        showSimpleSnackbar(context, 'Nu s-a putut obtine locatia');
+        showSimpleSnackbar(context, "Nu s-a putut obtine locatia");
       }
     }
   }
@@ -135,7 +135,7 @@ class _MapPageState extends State<MapPage> {
     if (_currentPosition != null) {
       _mapController.move(_currentPosition!, widget.city.initialZoom);
     } else {
-      log.w('Current position unavailable');
+      log.w("Current position unavailable");
     }
   }
 
@@ -155,12 +155,13 @@ class _MapPageState extends State<MapPage> {
         break;
 
       case Failure(exception: final e):
-        log.e('Failed to fetch stops for trip $tripId: $e');
+        log.e("Failed to fetch stops for trip $tripId: $e");
 
         showSimpleSnackbar(
           context,
-          'Nu s-au putut obtine detaliile pentru acest traseu',
+          "Nu s-au putut obtine detaliile pentru acest traseu",
         );
+
         return;
     }
 
@@ -176,11 +177,11 @@ class _MapPageState extends State<MapPage> {
         break;
 
       case Failure(exception: final e):
-        log.e('Failed to fetch shape for trip $tripId: $e');
+        log.e("Failed to fetch shape for trip $tripId: $e");
 
         showSimpleSnackbar(
           context,
-          'Nu s-au putut obtine detaliile pentru acest traseu',
+          "Nu s-au putut obtine detaliile pentru acest traseu",
         );
         return;
     }
@@ -255,7 +256,7 @@ class _MapPageState extends State<MapPage> {
         case Success(data: final results):
           // nu ar trebui
           if (results.isEmpty) {
-            log.w('No ETAs found for vehicle ${vehicle.label}');
+            log.w("No ETAs found for vehicle ${vehicle.label}");
             return;
           }
 
@@ -263,9 +264,9 @@ class _MapPageState extends State<MapPage> {
           break;
 
         case Failure(exception: final e):
-          log.e('Failed to fetch ETAs: $e');
+          log.e("Failed to fetch ETAs: $e");
 
-          showSimpleSnackbar(context, 'Nu s-au putut obtine timpii de sosire');
+          showSimpleSnackbar(context, "Nu s-au putut obtine timpii de sosire");
           return;
       }
     } finally {
@@ -308,7 +309,7 @@ class _MapPageState extends State<MapPage> {
         log.w('Unexpected error while getting etas');
 
         if (mounted) {
-          showSimpleSnackbar(context, 'Eroare la obtinerea timpii de sosire');
+          showSimpleSnackbar(context, "Eroare la obtinerea timpii de sosire");
         }
       }
     }
@@ -366,6 +367,7 @@ class _MapPageState extends State<MapPage> {
     final routeProvider = context.watch<RoutesProvider>();
 
     final visibleRoutesIds = routeProvider.favoriteRouteIdsSet;
+    final dateTimeNow = DateTime.now();
 
     final visibleVehicles = vehicleProvider.vehicles
         .where(
@@ -374,6 +376,7 @@ class _MapPageState extends State<MapPage> {
               v.longitude != null &&
               v.routeId != null &&
               v.tripId != null &&
+              dateTimeNow.difference(v.timestamp).inMinutes <= 3 &&
               visibleRoutesIds.contains(v.routeId!),
         )
         .toList();
@@ -513,8 +516,8 @@ class _MapPageState extends State<MapPage> {
         ),
 
         Positioned(
-          top: 30,
-          right: 30,
+          top: 10,
+          right: 10,
           child: FloatingActionButton(
             heroTag: "centerButton",
             tooltip: "Centreaza pe locatia ta",
@@ -525,8 +528,8 @@ class _MapPageState extends State<MapPage> {
         ),
 
         Positioned(
-          top: 80,
-          right: 30,
+          top: 60,
+          right: 10,
           child: FloatingActionButton(
             heroTag: "clearButton",
             tooltip: "Sterge traseul desenat",
@@ -592,11 +595,11 @@ class _MapPageState extends State<MapPage> {
           ),
 
         Positioned(
-          bottom: 10,
-          left: 10,
+          bottom: 5,
+          left: 5,
           child: Text(
             Constants.copyrightText,
-            style: TextStyle(fontSize: 12, color: Colors.black),
+            style: TextStyle(fontSize: 10, color: Colors.black),
           ),
         ),
       ],

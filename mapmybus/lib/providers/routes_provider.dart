@@ -59,13 +59,13 @@ class RoutesProvider extends ChangeNotifier {
               .toList();
           break;
         case Failure(exception: final e):
-          log.e('Failed to fetch routes: $e');
+          log.e("Failed to fetch routes: $e");
           _allRoutes = [];
           _filteredRoutes = [];
           break;
       }
     } catch (e) {
-      log.e('Unexpected error while loading routes: $e');
+      log.e("Unexpected error while loading routes: $e");
       _allRoutes = [];
       _filteredRoutes = [];
     } finally {
@@ -143,7 +143,7 @@ class RoutesProvider extends ChangeNotifier {
       _favoriteRouteIds = decoded.map(
         (k, v) => MapEntry(int.parse(k), v as bool),
       );
-      log.d('Loaded favorite route map: $_favoriteRouteIds');
+      log.d("Loaded favorite route map: $_favoriteRouteIds");
     }
   }
 
@@ -154,7 +154,7 @@ class RoutesProvider extends ChangeNotifier {
     );
 
     await prefs.setString('favoriteRouteMap_$_agencyId', encoded);
-    log.d('Saved favorite route map: $_favoriteRouteIds');
+    log.d("Saved favorite route map: $_favoriteRouteIds");
   }
 
   List<Route> get favoriteRoutes =>
@@ -175,11 +175,11 @@ class RoutesProvider extends ChangeNotifier {
           orElse: () => Route(
             agencyId: agencyId,
             routeId: routeId,
-            routeShortName: 'Unknown',
-            routeLongName: 'Unknown',
+            routeShortName: "?",
+            routeLongName: '?',
             routeColor: Colors.grey,
             routeType: 3,
-            routeDesc: '',
+            routeDesc: "",
           ),
         )
         .routeShortName;

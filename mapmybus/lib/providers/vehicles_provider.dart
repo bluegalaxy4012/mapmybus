@@ -37,7 +37,7 @@ class VehiclesProvider extends ChangeNotifier {
         _vehicles = vehicles;
         break;
       case Failure(exception: final e):
-        log.e('Failed to fetch vehicles: $e');
+        log.e("Failed to fetch vehicles: $e");
         break;
     }
 

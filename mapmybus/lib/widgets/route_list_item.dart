@@ -52,7 +52,7 @@ class RouteListItem extends StatelessWidget {
               context.read<RoutesProvider>().toggleFavorite(route);
               showSimpleSnackbar(
                 context,
-                'Linia ${route.routeShortName} a fost ${isFav ? 'scoasa de la' : 'adaugata la'} favorite.',
+                "Linia ${route.routeShortName} a fost ${isFav ? 'scoasa de la' : 'adaugata la'} favorite.",
               );
             },
           ),

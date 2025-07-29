@@ -61,7 +61,7 @@ class Vehicle {
       try {
         return DateTime.parse(timestamp);
       } catch (e) {
-        log.w('Eroare la parsarea timestamp-ului: $e');
+        log.w("Eroare la parsarea timestamp-ului: $e");
         return DateTime.now();
       }
     }
@@ -128,7 +128,7 @@ class Route {
     } catch (e) {
       color = Colors.orangeAccent;
       log.w(
-        'Eroare la parsarea culorii pentru ruta ${json['route_short_name']}: $e. Se foloseste portocaliu implicit',
+        "Eroare la parsarea culorii pentru ruta ${json['route_short_name']}: $e. Se foloseste portocaliu implicit",
       );
     }
 

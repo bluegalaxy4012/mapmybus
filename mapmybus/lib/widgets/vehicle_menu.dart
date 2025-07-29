@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:mapmybus/models.dart';
 import 'package:mapmybus/utils.dart';
 import 'package:mapmybus/widgets/timetable_page.dart';
 
-class VehicleMenu extends StatelessWidget {
+class VehicleMenu extends StatefulWidget {
   final String agencyId;
   final String selectedRouteName;
   final String? previousStopName;
@@ -29,54 +30,128 @@ class VehicleMenu extends StatelessWidget {
   });
 
   @override
+  State<VehicleMenu> createState() => _VehicleMenuState();
+}
+
+class _VehicleMenuState extends State<VehicleMenu> {
+  final ScrollController _scrollController = ScrollController();
+
+  @override
+  void initState() {
+    super.initState();
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _scrollToCorrespondingStop();
+    });
+  }
+
+  void _scrollToCorrespondingStop() {
+    if (!_scrollController.hasClients ||
+        widget.nextStopName == null ||
+        widget.etasInfo.isEmpty) {
+      return;
+    }
+
+    final int index = widget.etasInfo.indexWhere(
+      (item) => item.stopName == widget.nextStopName,
+    );
+
+    if (index != -1) {
+      final double rowH = 26.h;
+      final double headerH = 32.0.h;
+
+      final double rowTop = headerH + (index * rowH);
+      final double visibleHeight = _scrollController.position.viewportDimension;
+      final double middleOffset = (visibleHeight / 2) - (rowH / 2);
+      final double finalPos = rowTop - middleOffset;
+
+      _scrollController.animateTo(
+        finalPos.clamp(0.0, _scrollController.position.maxScrollExtent),
+        duration: const Duration(milliseconds: 400),
+        curve: Curves.easeOut,
+      );
+    }
+  }
+
+  @override
+  void didUpdateWidget(VehicleMenu oldWidget) {
+    super.didUpdateWidget(oldWidget);
+
+    if (oldWidget.isLoading &&
+        !widget.isLoading &&
+        widget.etasInfo.isNotEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _scrollToCorrespondingStop();
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Positioned(
-      left: 10,
-      top: 10,
+      left: 10.w,
+      top: 10.h,
       child: Material(
         elevation: 4.0,
-        borderRadius: BorderRadius.circular(8.0),
+        borderRadius: BorderRadius.circular(6.r),
+
         child: Container(
-          padding: EdgeInsets.all(12.0),
+          padding: EdgeInsets.all(10.w),
           color: Colors.white,
           child: Column(
-            spacing: 12.0,
+            spacing: 12.h,
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(getIconForVehicleType(selectedVehicle!.vehicleType)),
+              Icon(
+                getIconForVehicleType(widget.selectedVehicle!.vehicleType),
+                size: 60.sp,
+              ),
               Text(
-                "Detalii traseu: Linia $selectedRouteName",
-                style: TextStyle(fontWeight: FontWeight.bold),
+                "Detalii traseu: Linia ${widget.selectedRouteName}",
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 24.sp),
               ),
 
-              Text("Statia anterioara: $previousStopName"),
+              Text(
+                "Statia anterioara: ${widget.previousStopName}",
+                style: TextStyle(fontSize: 18.sp),
+              ),
 
-              Text("Statia urmatoare: $nextStopName"),
+              Text(
+                "Statia urmatoare: ${widget.nextStopName}",
+                style: TextStyle(fontSize: 18.sp),
+              ),
 
               ElevatedButton(
                 onPressed: () {
-                  if (selectedVehicle != null && selectedRouteName.isNotEmpty) {
+                  if (widget.selectedVehicle != null &&
+                      widget.selectedRouteName.isNotEmpty) {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
                         builder: (context) => TimetablePage(
-                          agencyId: agencyId,
-                          routeShortName: selectedRouteName,
+                          agencyId: widget.agencyId,
+                          routeShortName: widget.selectedRouteName,
                         ),
                       ),
                     );
                   }
                 },
-                child: Text("Afiseaza orar"),
+                child: Text("Afiseaza orar", style: TextStyle(fontSize: 18.sp)),
               ),
 
               ElevatedButton(
-                onPressed: onRequestStopArrivalTimes,
+                onPressed: widget.onRequestStopArrivalTimes,
 
-                child: isLoading
+                child: widget.isLoading
                     ? SizedBox(
-                        height: 20,
-                        width: 20,
+                        height: 16,
+                        width: 16,
                         child: CircularProgressIndicator(
                           color: Theme.of(context).colorScheme.primary,
                         ),
@@ -84,57 +159,78 @@ class VehicleMenu extends StatelessWidget {
                     // better alternative ?
                     : Column(
                         children: [
-                          Text("Estimeaza timpurile de sosire"),
-                          Text("la statiile de pe traseu"),
+                          Text(
+                            "Estimeaza timpurile de sosire",
+                            style: TextStyle(fontSize: 18.sp),
+                          ),
+                          Text(
+                            "la statiile de pe traseu",
+                            style: TextStyle(fontSize: 18.sp),
+                          ),
                         ],
                       ),
               ),
 
-              if (etasInfo.isNotEmpty) ...[
+              if (widget.etasInfo.isNotEmpty) ...[
                 SizedBox(
                   height: 120,
 
                   child: Scrollbar(
                     thumbVisibility: true,
-
+                    controller: _scrollController,
                     child: SingleChildScrollView(
+                      controller: _scrollController,
                       child: DataTable(
                         headingRowColor: WidgetStateProperty.all(
                           Theme.of(context).colorScheme.surfaceContainerLow,
                         ),
 
-                        dataRowMinHeight: 18,
-                        dataRowMaxHeight: 26,
-                        headingRowHeight: 32,
+                        dataRowMinHeight: 18.h,
+                        dataRowMaxHeight: 26.h,
+                        headingRowHeight: 32.h,
 
-                        columns: const [
+                        columns: [
                           DataColumn(
                             label: Text(
                               "Nume statie",
-                              style: TextStyle(fontSize: 13),
+                              style: TextStyle(fontSize: 17.sp),
                             ),
                           ),
                           DataColumn(
                             label: Text(
                               "Timp estimat",
-                              style: TextStyle(fontSize: 13),
+                              style: TextStyle(fontSize: 17.sp),
                             ),
                           ),
                         ],
 
-                        rows: etasInfo.map((e) {
+                        rows: widget.etasInfo.map((e) {
                           return DataRow(
+                            color: e.stopName == widget.nextStopName
+                                ? WidgetStateProperty.all(
+                                    Theme.of(
+                                      context,
+                                    ).colorScheme.surfaceContainerLow,
+                                  )
+                                : null,
+
                             cells: [
                               DataCell(
                                 Text(
                                   e.stopName,
-                                  style: const TextStyle(fontSize: 10),
+                                  style: TextStyle(
+                                    fontSize: 14.sp,
+                                    fontWeight:
+                                        e.stopName == widget.nextStopName
+                                        ? FontWeight.bold
+                                        : FontWeight.normal,
+                                  ),
                                 ),
                               ),
                               DataCell(
                                 Text(
                                   e.etaMessage,
-                                  style: const TextStyle(fontSize: 10),
+                                  style: TextStyle(fontSize: 15.sp),
                                 ),
                               ),
                             ],
@@ -146,7 +242,10 @@ class VehicleMenu extends StatelessWidget {
                 ),
               ],
 
-              ElevatedButton(onPressed: onClose, child: Text("Inchide")),
+              ElevatedButton(
+                onPressed: widget.onClose,
+                child: Text("Inchide", style: TextStyle(fontSize: 18.sp)),
+              ),
             ],
           ),
         ),
