@@ -14,9 +14,7 @@ class RoutesProvider extends ChangeNotifier {
   String _searchQuery = '';
   Map<int, bool> _favoriteRouteIds = {};
   bool _showFavoritesOnly = false;
-  String _agencyId = '2'; // default
-
-  bool _isInitialized = false;
+  String _agencyId = '';
 
   List<Route> get allRoutes => _allRoutes;
   List<Route> get filteredRoutes => _filteredRoutes;
@@ -26,11 +24,18 @@ class RoutesProvider extends ChangeNotifier {
   RoutesProvider({required this.dbService});
 
   void init(String agencyId) async {
-    if (_isInitialized) return;
+    if (_allRoutes.isNotEmpty && _agencyId == agencyId) return;
 
     _agencyId = agencyId;
+
+    _allRoutes = [];
+    _filteredRoutes = [];
+    _searchQuery = '';
+    _showFavoritesOnly = false;
+
+    await setShowFavoritesOnly(false);
+
     await _loadData();
-    _isInitialized = true;
   }
 
   Future<void> _loadData() async {
@@ -104,7 +109,7 @@ class RoutesProvider extends ChangeNotifier {
     _searchQuery = '';
   }
 
-  void setShowFavoritesOnly(bool value) async {
+  Future<void> setShowFavoritesOnly(bool value) async {
     _showFavoritesOnly = value;
     _applyFilters();
 
@@ -131,7 +136,7 @@ class RoutesProvider extends ChangeNotifier {
 
   Future<void> _loadFavoriteRouteIds() async {
     final prefs = await SharedPreferences.getInstance();
-    final jsonString = prefs.getString('favoriteRouteMap');
+    final jsonString = prefs.getString('favoriteRouteMap_$_agencyId');
 
     if (jsonString != null) {
       final decoded = jsonDecode(jsonString) as Map<String, dynamic>;
@@ -148,7 +153,7 @@ class RoutesProvider extends ChangeNotifier {
       _favoriteRouteIds.map((k, v) => MapEntry(k.toString(), v)),
     );
 
-    await prefs.setString('favoriteRouteMap', encoded);
+    await prefs.setString('favoriteRouteMap_$_agencyId', encoded);
     log.d('Saved favorite route map: $_favoriteRouteIds');
   }
 

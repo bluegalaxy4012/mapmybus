@@ -14,6 +14,8 @@ class VehiclesProvider extends ChangeNotifier {
   Timer? _vehicleFetchTimer;
   bool isTimerActive = false;
 
+  String? _currentAgencyId;
+
   List<Vehicle> get vehicles => _vehicles;
 
   VehiclesProvider({required this.dbService});
@@ -42,12 +44,19 @@ class VehiclesProvider extends ChangeNotifier {
   }
 
   Future<void> startVehicleFetchTimer(String agencyId) async {
-    if (isTimerActive) return;
+    if (isTimerActive && agencyId == _currentAgencyId) {
+      return;
+    }
+
+    stopVehicleFetchTimer();
+
+    _currentAgencyId = agencyId;
 
     final isAnyToDraw = await isAnyVehicleToDraw();
     if (!isAnyToDraw) return;
 
     await fetchVehiclesAndNotify(agencyId);
+
     _vehicleFetchTimer = Timer.periodic(const Duration(seconds: 20), (
       timer,
     ) async {
@@ -63,7 +72,7 @@ class VehiclesProvider extends ChangeNotifier {
 
   Future<bool> isAnyVehicleToDraw() async {
     final prefs = await SharedPreferences.getInstance();
-    final jsonString = prefs.getString('favoriteRouteMap');
+    final jsonString = prefs.getString('favoriteRouteMap_$_currentAgencyId');
 
     if (jsonString != null) {
       final decoded = jsonDecode(jsonString) as Map<String, dynamic>;

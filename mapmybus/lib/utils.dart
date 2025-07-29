@@ -1,6 +1,7 @@
 import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_map/flutter_map.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:logger/logger.dart';
@@ -8,51 +9,82 @@ import 'package:mapmybus/models.dart';
 
 final log = Logger(level: kReleaseMode ? Level.off : Level.debug);
 
-/// constants
-///
-// const String routesAssetPath = 'data/routes.json';
-// const String stopsAssetPath = 'data/stops.json';
-// const String tripStopsAssetPath = 'data/trip_stops.json';
-// const String shapesAssetPath = 'data/shapes.json';
+class Constants {
+  /// constants
+  /// comentat = nemaifolosite
 
-const String tranzyApiBaseUrl = 'https://api.tranzy.ai/v1/opendata';
-const String tranzyVehiclesEndpoint = '$tranzyApiBaseUrl/vehicles';
-const String mapTileProviderUrl =
-    'https://{s}.basemaps.cartocdn.com/rastertiles/light_all/{z}/{x}/{y}.png';
+  // const String routesAssetPath = 'data/routes.json';
+  // const String stopsAssetPath = 'data/stops.json';
+  // const String tripStopsAssetPath = 'data/trip_stops.json';
+  // const String shapesAssetPath = 'data/shapes.json';
 
-const Duration snackBarDuration = Duration(milliseconds: 2500);
+  static const String tranzyApiBaseUrl = 'https://api.tranzy.ai/v1/opendata';
+  static const String tranzyVehiclesEndpoint = '$tranzyApiBaseUrl/vehicles';
+  static const String mapTileProviderUrl =
+      'https://{s}.basemaps.cartocdn.com/rastertiles/light_all/{z}/{x}/{y}.png';
 
-typedef Seconds = int;
-const Seconds defaultRefreshInterval = 20;
+  static const Duration snackBarDuration = Duration(milliseconds: 2500);
 
-const String tripDirectionInSuffix = '_0';
-// const String tripDirectionOutSuffix = '_1';
+  // typedef Seconds = int;
+  static const int defaultRefreshInterval = 20;
 
-const String appTitle = 'Map My Bus';
-const String copyrightText = '© OpenStreetMap contributors, © CARTO';
+  static const String tripDirectionInSuffix = '_0';
+  // const String tripDirectionOutSuffix = '_1';
 
-// fontSizes candva
-///
-///
+  static const String appTitle = 'Map My Bus';
+  static const String copyrightText = '© OpenStreetMap contributors, © CARTO';
 
-sealed class Result<S, E extends Exception> {
-  const Result();
+  // fontSizes candva
+
+  static final List<CityConfig> cities = [
+    CityConfig(
+      name: "Iasi",
+      center: LatLng(47.162121, 27.587573),
+      initialZoom: 14.25,
+      minZoom: 13,
+      maxZoom: 19,
+      bounds: LatLngBounds(LatLng(47.35, 27.35), LatLng(47.00, 27.80)),
+      agencyId: '1',
+    ),
+    CityConfig(
+      name: "Cluj-Napoca",
+      center: LatLng(46.770439, 23.591423),
+      initialZoom: 14,
+      minZoom: 13,
+      maxZoom: 19,
+      bounds: LatLngBounds(LatLng(46.89, 23.35), LatLng(46.64, 23.83)),
+      agencyId: '2',
+    ),
+
+    CityConfig(
+      name: "Timisoara",
+      center: LatLng(45.756659, 21.235592),
+      initialZoom: 14,
+      minZoom: 13,
+      maxZoom: 19,
+      bounds: LatLngBounds(LatLng(45.95, 21.00), LatLng(45.55, 21.50)),
+      agencyId: '8',
+    ),
+  ];
+
+  static const List<String> availableCityNames = [
+    'Cluj-Napoca',
+    'Iasi',
+    'Timisoara',
+  ];
+
+  ///
 }
 
-final class Success<S, E extends Exception> extends Result<S, E> {
-  const Success(this.data);
-  final S data;
+CityConfig getCityConfig(String cityName) {
+  return Constants.cities.firstWhere(
+    (city) => city.name == cityName,
+    orElse: () => Constants.cities.first,
+  );
 }
 
-final class Failure<S, E extends Exception> extends Result<S, E> {
-  const Failure(this.exception);
-  final E exception;
-}
-
-class ApiException implements Exception {
-  final String message;
-  final int statusCode;
-  ApiException(this.message, this.statusCode);
+String getAgencyIdForCity(String cityName) {
+  return getCityConfig(cityName).agencyId;
 }
 
 IconData getIconForVehicleType(int vehicleType) {
@@ -130,14 +162,10 @@ double calculateBearing(LatLng start, LatLng end) {
 Map<String, String?> computeClosestStops(VehicleStopsInfo infoMap) {
   // presupunand ca nu exista statii la care e mai rapid sa cobori cu cateva inainte si sa mergi pe jos decat sa stai
 
-  // final double vehLat = infoMap['lat'];
-  // final double vehLon = infoMap['lon'];
   final double vehLat = infoMap.latitude;
   final double vehLon = infoMap.longitude;
 
   final List<Stop> stops = infoMap.stops;
-
-  // final List<dynamic> stops = infoMap['stops'];
 
   double minDist = double.infinity;
   int closestIndex = 0;

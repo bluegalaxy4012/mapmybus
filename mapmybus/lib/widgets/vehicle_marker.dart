@@ -51,7 +51,7 @@ class VehicleMarker extends StatelessWidget {
 
                     Icon(
                       Icons.navigation,
-                      color: v.tripId!.endsWith(tripDirectionInSuffix)
+                      color: v.tripId!.endsWith(Constants.tripDirectionInSuffix)
                           ? Colors.green
                           : Colors.red,
                       size: 20,
@@ -63,7 +63,7 @@ class VehicleMarker extends StatelessWidget {
           Container(
             padding: EdgeInsets.fromLTRB(8, 0, 8, 6),
             decoration: BoxDecoration(
-              color: v.tripId!.endsWith(tripDirectionInSuffix)
+              color: v.tripId!.endsWith(Constants.tripDirectionInSuffix)
                   ? Colors.green
                   : Colors.red,
               borderRadius: BorderRadius.circular(8),

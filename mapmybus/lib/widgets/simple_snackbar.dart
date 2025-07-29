@@ -8,7 +8,7 @@ void showSimpleSnackbar(BuildContext context, String message) {
   messenger.showSnackBar(
     SnackBar(
       content: Text(message),
-      duration: snackBarDuration,
+      duration: Constants.snackBarDuration,
       showCloseIcon: true,
     ),
   );

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:mapmybus/db_service.dart';
+import 'package:mapmybus/models.dart';
 import 'package:mapmybus/utils.dart';
 import 'package:provider/provider.dart';
 

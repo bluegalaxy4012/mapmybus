@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:mapmybus/providers/city_provider.dart';
+import 'package:mapmybus/utils.dart';
+import 'package:mapmybus/widgets/settings_page.dart';
+import 'package:provider/provider.dart';
 
-import '../models.dart';
 import 'favorites_page.dart';
 import 'map_page.dart';
 
@@ -16,8 +19,8 @@ class _MyHomePageState extends State<MyHomePage> {
 
   @override
   Widget build(BuildContext context) {
-    // momentan
-    final city = cities.firstWhere((c) => c.name == 'Cluj-Napoca');
+    final cityName = context.watch<CityProvider>().city;
+    final city = getCityConfig(cityName);
 
     Widget page;
     switch (currentIndex) {
@@ -26,6 +29,9 @@ class _MyHomePageState extends State<MyHomePage> {
         break;
       case 1:
         page = FavoritesPage(city: city);
+        break;
+      case 2:
+        page = SettingsPage();
         break;
       default:
         page = Center(child: Text('Index necunoscut: $currentIndex'));
@@ -44,6 +50,10 @@ class _MyHomePageState extends State<MyHomePage> {
             const BottomNavigationBarItem(
               icon: Icon(Icons.favorite),
               label: 'Linii favorite',
+            ),
+            const BottomNavigationBarItem(
+              icon: Icon(Icons.settings),
+              label: 'Setari',
             ),
           ],
           currentIndex: currentIndex,

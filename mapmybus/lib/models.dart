@@ -187,18 +187,6 @@ class CityConfig {
   });
 }
 
-final List<CityConfig> cities = [
-  CityConfig(
-    name: "Cluj-Napoca",
-    center: LatLng(46.770439, 23.591423),
-    initialZoom: 14,
-    minZoom: 13,
-    maxZoom: 19,
-    bounds: LatLngBounds(LatLng(46.89, 23.35), LatLng(46.64, 23.83)),
-    agencyId: '2',
-  ),
-];
-
 class Stop {
   final String stopId;
   final String stopName;
@@ -329,4 +317,26 @@ class EtaDisplayInfo {
   final String etaMessage;
 
   const EtaDisplayInfo({required this.stopName, required this.etaMessage});
+}
+
+// results
+
+sealed class Result<S, E extends Exception> {
+  const Result();
+}
+
+final class Success<S, E extends Exception> extends Result<S, E> {
+  const Success(this.data);
+  final S data;
+}
+
+final class Failure<S, E extends Exception> extends Result<S, E> {
+  const Failure(this.exception);
+  final E exception;
+}
+
+class ApiException implements Exception {
+  final String message;
+  final int statusCode;
+  ApiException(this.message, this.statusCode);
 }

@@ -3,21 +3,15 @@ import 'dart:async';
 import 'package:flutter/material.dart' hide Route;
 import 'package:mapmybus/config.dart';
 import 'package:mapmybus/db_service.dart';
+import 'package:mapmybus/providers/city_provider.dart';
 import 'package:mapmybus/providers/routes_provider.dart';
 import 'package:mapmybus/providers/vehicles_provider.dart';
 import 'package:mapmybus/utils.dart';
+import 'package:mapmybus/widgets/welcome_page.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'widgets/home_page.dart';
-
-//hover - imposibil
-//reenter fav ramane lista filtrata si tot inceata - mai incerc threading in rest OK
-//mai bine mut routes pe partea de api - OK
-//sa dau fetch cum trebuie la vehicule (doar cand e fix pe map_page si timeru o trecut si sa existe linii in favorites) - OK
-//threading pentru calculari
-//aia de click pe stop - nume si cele mai curand-ajungande vehicule acolo
-//dau store la file pe partea de api in loc sa fac requesturi si mi fac un script de reinnoire pe la 3 30 dimineata - OK
-//din nouuuu nu se da fetch bine la deschiderea aplicatiei(si de 2  ori) - OK
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -26,12 +20,30 @@ Future<void> main() async {
 
   final dbService = DbService();
 
-  runApp(MyApp(dbService: dbService));
+  final prefs = await SharedPreferences.getInstance();
+  final bool seenWelcome = prefs.getBool('seen_welcome') ?? false; // tutorial
+  final selectedCityName = prefs.getString('selected_city') ?? 'Cluj-Napoca';
+
+  runApp(
+    MyApp(
+      dbService: dbService,
+      seenWelcome: seenWelcome,
+      selectedCityName: selectedCityName,
+    ),
+  );
 }
 
 class MyApp extends StatelessWidget {
   final DbService dbService;
-  const MyApp({required this.dbService, super.key});
+  final bool seenWelcome;
+  final String selectedCityName;
+
+  const MyApp({
+    required this.dbService,
+    required this.seenWelcome,
+    required this.selectedCityName,
+    super.key,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -44,15 +56,24 @@ class MyApp extends StatelessWidget {
             return RoutesProvider(dbService: db);
           },
         ),
+
         ChangeNotifierProvider(
           create: (context) {
             final db = Provider.of<DbService>(context, listen: false);
             return VehiclesProvider(dbService: db);
           },
         ),
+
+        ChangeNotifierProvider(
+          create: (_) {
+            final provider = CityProvider();
+            provider.setCity(selectedCityName);
+            return provider;
+          },
+        ),
       ],
       child: MaterialApp(
-        title: appTitle,
+        title: Constants.appTitle,
         theme: ThemeData(
           colorScheme: ColorScheme.fromSeed(
             seedColor: Colors.orange,
@@ -60,7 +81,7 @@ class MyApp extends StatelessWidget {
             secondary: Colors.orangeAccent,
           ),
         ),
-        home: MyHomePage(),
+        home: seenWelcome ? MyHomePage() : const WelcomePage(),
       ),
     );
   }

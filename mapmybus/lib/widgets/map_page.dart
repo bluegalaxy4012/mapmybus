@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart' hide Route;
@@ -6,6 +7,7 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:mapmybus/db_service.dart';
+import 'package:mapmybus/providers/city_provider.dart';
 import 'package:mapmybus/providers/routes_provider.dart';
 import 'package:mapmybus/providers/vehicles_provider.dart';
 import 'package:mapmybus/utils.dart';
@@ -34,8 +36,6 @@ class _MapPageState extends State<MapPage> {
   void initState() {
     super.initState();
 
-    _initRoutes();
-    _initVehicles();
     _initUserPosition();
   }
 
@@ -44,15 +44,38 @@ class _MapPageState extends State<MapPage> {
     _startPositionStream();
   }
 
-  Future<void> _initVehicles() async {
+  String? _currentAgencyId;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+
+    final cityProvider = context.watch<CityProvider>();
+    final newAgencyId = getAgencyIdForCity(cityProvider.city);
+
+    // print("OLDE agencyId: $_currentAgencyId, NEW agencyId: $newAgencyId");
+
+    if (newAgencyId != _currentAgencyId) {
+      _currentAgencyId = newAgencyId;
+
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _initRoutes(newAgencyId);
+        _initVehicles(newAgencyId);
+      });
+    }
+  }
+
+  Future<void> _initVehicles(String agencyId) async {
     _vehicleProvider = context.read<VehiclesProvider>();
-    await _vehicleProvider.startVehicleFetchTimer(widget.city.agencyId);
+    _vehicleProvider.removeListener(_updateMenuOnVehicleFetch);
+
+    await _vehicleProvider.startVehicleFetchTimer(agencyId);
     _vehicleProvider.addListener(_updateMenuOnVehicleFetch);
   }
 
-  Future<void> _initRoutes() async {
+  Future<void> _initRoutes(String agencyId) async {
     final routesProvider = context.read<RoutesProvider>();
-    routesProvider.init(widget.city.agencyId);
+    routesProvider.init(agencyId);
   }
 
   StreamSubscription<Position>? _positionStreamSubscription;
@@ -264,21 +287,26 @@ class _MapPageState extends State<MapPage> {
         final fix = DateTime.now().difference(vehicle.timestamp);
         final eta = data.predictedEtaMinutes - fix.inSeconds / 60.0;
 
-        final minEta = eta.floor();
-        final maxEta = (eta + 1).ceil();
+        // doar in caz de erori cu nr negative care nu ar trebui sa apara
+        final minEta = max(0, eta.floor());
+        final maxEta = min(60, max(0, (eta + 1).ceil()));
 
-        etas.add(
-          EtaDisplayInfo(
-            stopName: stopName,
-            etaMessage: "$minEta - $maxEta min",
-          ),
-        );
+        String etaMessage = "$minEta - $maxEta min";
+
+        if (maxEta > 25 || minEta > 20) {
+          etaMessage = ">20 min";
+        }
+
+        etas.add(EtaDisplayInfo(stopName: stopName, etaMessage: etaMessage));
+
         // log.i("Dureaza intre $minEta si $maxEta minute pana la $stopName");
       } else if (data.message == "Vehicle has already passed this stop") {
         etas.add(EtaDisplayInfo(stopName: stopName, etaMessage: "Trecut"));
+
         // log.i('Vehiculul a trecut deja pe la $stopName');
       } else {
         log.w('Unexpected error while getting etas');
+
         if (mounted) {
           showSimpleSnackbar(context, 'Eroare la obtinerea timpii de sosire');
         }
@@ -374,7 +402,7 @@ class _MapPageState extends State<MapPage> {
 
           children: [
             TileLayer(
-              urlTemplate: mapTileProviderUrl,
+              urlTemplate: Constants.mapTileProviderUrl,
               userAgentPackageName: 'com.mapmybus.app',
 
               tileUpdateTransformer: TileUpdateTransformers.debounce(
@@ -567,7 +595,7 @@ class _MapPageState extends State<MapPage> {
           bottom: 10,
           left: 10,
           child: Text(
-            copyrightText,
+            Constants.copyrightText,
             style: TextStyle(fontSize: 12, color: Colors.black),
           ),
         ),
