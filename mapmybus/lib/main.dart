@@ -1,7 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart' hide Route;
-import 'package:mapmybus/config.dart';
+// import 'package:mapmybus/config.dart';
 import 'package:mapmybus/db_service.dart';
 import 'package:mapmybus/providers/city_provider.dart';
 import 'package:mapmybus/providers/routes_provider.dart';
@@ -15,8 +15,6 @@ import 'widgets/home_page.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-
-  await AppConfig.load();
 
   final dbService = DbService();
 
