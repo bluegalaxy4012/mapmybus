@@ -50,7 +50,7 @@ class _FavoritesPageState extends State<FavoritesPage> {
           padding: const EdgeInsets.all(8.0),
           child: TextField(
             decoration: InputDecoration(
-              hintText: 'Cauta numele liniilor...',
+              hintText: "Cauta numele liniilor...",
               prefixIcon: const Icon(Icons.search),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(10.0),
@@ -86,7 +86,7 @@ class _FavoritesPageState extends State<FavoritesPage> {
                   routeProvider.setShowFavoritesOnly(v);
                 },
               ),
-              const Text('Afiseaza doar favoritele'),
+              const Text("Afiseaza doar favoritele"),
             ],
           ),
         ),
@@ -102,7 +102,7 @@ class _FavoritesPageState extends State<FavoritesPage> {
               : filteredRoutes.isEmpty && searchQuery.isEmpty
               ? Center(
                   child: const Text(
-                    'Nicio ruta disponibila.',
+                    "Nicio ruta disponibila.",
                     style: TextStyle(fontSize: 18),
                   ),
                 )

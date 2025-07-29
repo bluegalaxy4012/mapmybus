@@ -12,15 +12,21 @@ class SettingsPage extends StatelessWidget {
     final currentCity = cityProvider.city;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Setari')),
+      appBar: AppBar(title: const Text("Setari")),
       body: Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text('Alege orasul:'),
+            const Text("Alege orasul:"),
 
             DropdownButton<String>(
               value: currentCity,
+
+              dropdownColor: Theme.of(context).colorScheme.surface,
+              focusColor: Colors.transparent,
+
+              underline: const SizedBox(),
+
               items: Constants.availableCityNames.map((city) {
                 return DropdownMenuItem(value: city, child: Text(city));
               }).toList(),

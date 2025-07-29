@@ -32,6 +32,7 @@ class _WelcomePageState extends State<WelcomePage> {
         child: SafeArea(
           child: Padding(
             padding: const EdgeInsets.all(24),
+
             child: Column(
               mainAxisAlignment: MainAxisAlignment.start,
 
@@ -41,14 +42,14 @@ class _WelcomePageState extends State<WelcomePage> {
                 const SizedBox(height: 40),
 
                 const Text(
-                  'Bine ai venit la MapMyBus!',
+                  "Bine ai venit la MapMyBus!",
                   style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold),
                 ),
 
                 const SizedBox(height: 16),
 
                 const Text(
-                  'Urmareste transportul public in timp real.',
+                  "Urmareste transportul public in timp real.",
                   textAlign: TextAlign.center,
                   style: TextStyle(fontSize: 16, color: Colors.grey),
                 ),
@@ -56,12 +57,12 @@ class _WelcomePageState extends State<WelcomePage> {
                 const SizedBox(height: 60),
 
                 const Text(
-                  'Selecteaza orasul:',
+                  "Selecteaza orasul:",
                   style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
                 ),
 
                 const Text(
-                  '(Se poate schimba in setari ulterior)',
+                  "(Se poate schimba in setari ulterior)",
                   style: TextStyle(fontSize: 10, color: Colors.grey),
                 ),
 
@@ -72,14 +73,14 @@ class _WelcomePageState extends State<WelcomePage> {
                   underline: const SizedBox(),
                   items: const [
                     DropdownMenuItem(
-                      value: 'Cluj-Napoca',
-                      child: Text('Cluj-Napoca'),
+                      value: "Cluj-Napoca",
+                      child: Text("Cluj-Napoca"),
                     ),
                     DropdownMenuItem(
-                      value: 'Timisoara',
-                      child: Text('Timisoara'),
+                      value: "Timisoara",
+                      child: Text("Timisoara"),
                     ),
-                    DropdownMenuItem(value: 'Iasi', child: Text('Iasi')),
+                    DropdownMenuItem(value: "Iasi", child: Text("Iasi")),
                   ],
                   onChanged: (value) {
                     if (value == null) return;
@@ -100,8 +101,10 @@ class _WelcomePageState extends State<WelcomePage> {
                       borderRadius: BorderRadius.circular(12),
                     ),
                   ),
+
                   onPressed: _continueToApp,
-                  child: const Text('Start'),
+
+                  child: const Text("Start"),
                 ),
               ],
             ),

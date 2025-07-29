@@ -22,6 +22,7 @@ class VehiclesProvider extends ChangeNotifier {
 
   Future<void> fetchVehiclesAndNotify(String agencyId) async {
     final isAnyToDraw = await isAnyVehicleToDraw();
+
     if (!isAnyToDraw) {
       _vehicles = [];
       notifyListeners();

@@ -45,13 +45,13 @@ class VehicleMenu extends StatelessWidget {
             children: [
               Icon(getIconForVehicleType(selectedVehicle!.vehicleType)),
               Text(
-                'Detalii traseu: Linia $selectedRouteName',
+                "Detalii traseu: Linia $selectedRouteName",
                 style: TextStyle(fontWeight: FontWeight.bold),
               ),
 
-              Text('Statia anterioara: $previousStopName'),
+              Text("Statia anterioara: $previousStopName"),
 
-              Text('Statia urmatoare: $nextStopName'),
+              Text("Statia urmatoare: $nextStopName"),
 
               ElevatedButton(
                 onPressed: () {
@@ -67,7 +67,7 @@ class VehicleMenu extends StatelessWidget {
                     );
                   }
                 },
-                child: Text('Afiseaza orar'),
+                child: Text("Afiseaza orar"),
               ),
 
               ElevatedButton(
@@ -84,8 +84,8 @@ class VehicleMenu extends StatelessWidget {
                     // better alternative ?
                     : Column(
                         children: [
-                          Text('Estimeaza timpurile de sosire'),
-                          Text('la statiile de pe traseu'),
+                          Text("Estimeaza timpurile de sosire"),
+                          Text("la statiile de pe traseu"),
                         ],
                       ),
               ),
@@ -96,6 +96,7 @@ class VehicleMenu extends StatelessWidget {
 
                   child: Scrollbar(
                     thumbVisibility: true,
+
                     child: SingleChildScrollView(
                       child: DataTable(
                         headingRowColor: WidgetStateProperty.all(
@@ -109,13 +110,13 @@ class VehicleMenu extends StatelessWidget {
                         columns: const [
                           DataColumn(
                             label: Text(
-                              'Nume statie',
+                              "Nume statie",
                               style: TextStyle(fontSize: 13),
                             ),
                           ),
                           DataColumn(
                             label: Text(
-                              'Timp estimat',
+                              "Timp estimat",
                               style: TextStyle(fontSize: 13),
                             ),
                           ),
@@ -145,7 +146,7 @@ class VehicleMenu extends StatelessWidget {
                 ),
               ],
 
-              ElevatedButton(onPressed: onClose, child: Text('Inchide')),
+              ElevatedButton(onPressed: onClose, child: Text("Inchide")),
             ],
           ),
         ),

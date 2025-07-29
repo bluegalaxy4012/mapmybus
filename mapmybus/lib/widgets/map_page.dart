@@ -585,7 +585,7 @@ class _MapPageState extends State<MapPage> {
               ),
 
               child: Text(
-                'Vinerea Verde',
+                "Vinerea Verde",
                 style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
               ),
             ),

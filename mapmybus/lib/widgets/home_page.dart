@@ -34,7 +34,7 @@ class _MyHomePageState extends State<MyHomePage> {
         page = SettingsPage();
         break;
       default:
-        page = Center(child: Text('Index necunoscut: $currentIndex'));
+        page = Center(child: Text("Index necunoscut: $currentIndex"));
     }
 
     return Scaffold(

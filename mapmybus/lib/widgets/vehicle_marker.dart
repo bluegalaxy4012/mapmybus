@@ -71,7 +71,7 @@ class VehicleMarker extends StatelessWidget {
             ),
 
             child: Text(
-              routeShortName ?? 'Unknown',
+              routeShortName ?? "?",
               style: TextStyle(
                 fontSize: isSelected ? 14 : 13,
                 fontWeight: FontWeight.bold,
