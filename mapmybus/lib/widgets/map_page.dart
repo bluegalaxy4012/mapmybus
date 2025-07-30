@@ -299,12 +299,8 @@ class _MapPageState extends State<MapPage> {
         }
 
         etas.add(EtaDisplayInfo(stopName: stopName, etaMessage: etaMessage));
-
-        // log.i("Dureaza intre $minEta si $maxEta minute pana la $stopName");
       } else if (data.message == "Vehicle has already passed this stop") {
         etas.add(EtaDisplayInfo(stopName: stopName, etaMessage: "Trecut"));
-
-        // log.i('Vehiculul a trecut deja pe la $stopName');
       } else {
         log.w('Unexpected error while getting etas');
 

@@ -141,6 +141,7 @@ class DbService {
     }
   }
 
+  // momentan doar pentru Cluj-Napoca
   Future<Result<List<List<String>>, Exception>> getTimetable(
     String routeShortName,
     String dayType,

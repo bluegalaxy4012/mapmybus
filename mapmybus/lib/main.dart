@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:flutter/material.dart' hide Route;
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-// import 'package:mapmybus/config.dart';
 import 'package:mapmybus/db_service.dart';
 import 'package:mapmybus/providers/city_provider.dart';
 import 'package:mapmybus/providers/routes_provider.dart';
@@ -13,6 +12,12 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'widgets/home_page.dart';
+
+/// todo later
+// setari la culoare traseu/statii/inbound/outbound
+// minimizare la tabel
+// click statie - care busuri trec prin ea si care curand
+// unele exceptii ar trebui prinse mai spre ui (ex la routes)
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -25,6 +30,7 @@ Future<void> main() async {
 
   runApp(
     ScreenUtilInit(
+      // de referinta
       designSize: const Size(1920, 1080),
       minTextAdapt: true,
       splitScreenMode: true,
@@ -36,11 +42,6 @@ Future<void> main() async {
         );
       },
     ),
-    // MyApp(
-    //   dbService: dbService,
-    //   seenWelcome: seenWelcome,
-    //   selectedCityName: selectedCityName,
-    // ),
   );
 }
 
