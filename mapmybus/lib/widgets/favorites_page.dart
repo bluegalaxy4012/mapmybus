@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:mapmybus/models.dart';
 import 'package:mapmybus/providers/routes_provider.dart';
+import 'package:mapmybus/widgets/simple_snackbar.dart';
 import 'package:provider/provider.dart';
 
 import 'route_list_item.dart';
@@ -24,10 +25,24 @@ class _FavoritesPageState extends State<FavoritesPage> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
       _routesProvider = context.read<RoutesProvider>();
-      _routesProvider?.init(widget.city.agencyId);
-      _routesProvider?.refreshFilters();
+
+      var result = await _routesProvider?.init(widget.city.agencyId);
+
+      switch (result) {
+        case Success():
+          _routesProvider?.refreshFilters();
+          break;
+
+        case Failure():
+          if (mounted) {
+            showSimpleSnackbar(context, "Nu s-au putut incarca liniile");
+          }
+          break;
+        default:
+          break;
+      }
     });
   }
 

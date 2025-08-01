@@ -316,7 +316,7 @@ class EtaDisplayInfo {
   final String stopName;
   final String etaMessage;
 
-  const EtaDisplayInfo({required this.stopName, required this.etaMessage});
+  EtaDisplayInfo({required this.stopName, required this.etaMessage});
 }
 
 // results

@@ -17,7 +17,6 @@ import 'widgets/home_page.dart';
 // setari la culoare traseu/statii/inbound/outbound
 // minimizare la tabel
 // click statie - care busuri trec prin ea si care curand
-// unele exceptii ar trebui prinse mai spre ui (ex la routes)
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();

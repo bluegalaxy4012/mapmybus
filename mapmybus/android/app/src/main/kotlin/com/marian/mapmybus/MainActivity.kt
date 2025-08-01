@@ -1,4 +1,4 @@
-package com.example.mapmybus
+package com.marian.mapmybus
 
 import io.flutter.embedding.android.FlutterActivity
 

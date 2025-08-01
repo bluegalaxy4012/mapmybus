@@ -1,6 +1,6 @@
 {
-    "name": "mapmybus",
-    "short_name": "mapmybus",
+    "name": "Map My Bus",
+    "short_name": "MapMyBus",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",

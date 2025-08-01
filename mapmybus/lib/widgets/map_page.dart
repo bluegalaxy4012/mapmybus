@@ -58,9 +58,9 @@ class _MapPageState extends State<MapPage> {
     if (newAgencyId != _currentAgencyId) {
       _currentAgencyId = newAgencyId;
 
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        _initRoutes(newAgencyId);
-        _initVehicles(newAgencyId);
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        await _initRoutes(newAgencyId);
+        await _initVehicles(newAgencyId);
       });
     }
   }
@@ -75,7 +75,21 @@ class _MapPageState extends State<MapPage> {
 
   Future<void> _initRoutes(String agencyId) async {
     final routesProvider = context.read<RoutesProvider>();
-    routesProvider.init(agencyId);
+    final result = await routesProvider.init(agencyId);
+
+    switch (result) {
+      case Failure():
+        if (mounted) {
+          showSimpleSnackbar(
+            context,
+            "Nu s-au putut incarca datele, incearca sa repornesti aplicatia",
+          );
+        }
+        break;
+
+      default:
+        break;
+    }
   }
 
   StreamSubscription<Position>? _positionStreamSubscription;
@@ -91,6 +105,8 @@ class _MapPageState extends State<MapPage> {
   String? nextStopName;
   Vehicle? selectedVehicle;
 
+  String? _lastVehicleLabel;
+  DateTime? _lastEtaFetchTime;
   List<EtaDisplayInfo> _currentEtaDisplayInfo = [];
 
   bool _isLoading = false;
@@ -211,7 +227,6 @@ class _MapPageState extends State<MapPage> {
       selectedRouteName = routeShortName;
       previousStopName = result['previous'] ?? '-';
       nextStopName = result['next'] ?? '-';
-      _currentEtaDisplayInfo = [];
     });
   }
 
@@ -220,13 +235,20 @@ class _MapPageState extends State<MapPage> {
       selectedVehicle = vehicle;
     });
 
-    setState(() {
-      _isLoading = true;
-    });
-    await _loadMapDetails(vehicle.tripId!);
-    setState(() {
-      _isLoading = false;
-    });
+    if (_lastVehicleLabel != vehicle.label) {
+      _currentEtaDisplayInfo.clear();
+
+      // sa nu dam load iar la mapDetails sau tabel de etas
+      _lastVehicleLabel = vehicle.label;
+
+      setState(() {
+        _isLoading = true;
+      });
+      await _loadMapDetails(vehicle.tripId!);
+      setState(() {
+        _isLoading = false;
+      });
+    }
 
     await Future.delayed(Duration(milliseconds: 10));
 
@@ -313,6 +335,7 @@ class _MapPageState extends State<MapPage> {
     if (mounted) {
       setState(() {
         _currentEtaDisplayInfo = etas;
+        _lastEtaFetchTime = DateTime.now();
       });
     }
   }
@@ -552,6 +575,7 @@ class _MapPageState extends State<MapPage> {
             isLoading: _isLoading,
             selectedVehicle: selectedVehicle,
             etasInfo: _currentEtaDisplayInfo,
+            lastEtaFetchTime: _lastEtaFetchTime,
 
             onRequestStopArrivalTimes: () {
               if (selectedVehicle != null && !_isLoading) {
@@ -566,6 +590,10 @@ class _MapPageState extends State<MapPage> {
                 previousStopName = null;
                 nextStopName = null;
                 selectedVehicle = null;
+
+                _currentEtaDisplayInfo.clear();
+                _lastVehicleLabel = null;
+                _lastEtaFetchTime = null;
               });
             },
           ),

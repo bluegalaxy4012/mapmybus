@@ -23,8 +23,10 @@ class RoutesProvider extends ChangeNotifier {
 
   RoutesProvider({required this.dbService});
 
-  void init(String agencyId) async {
-    if (_allRoutes.isNotEmpty && _agencyId == agencyId) return;
+  Future<Result<void, Exception>> init(String agencyId) async {
+    if (_allRoutes.isNotEmpty && _agencyId == agencyId) {
+      return const Success(null);
+    }
 
     _agencyId = agencyId;
 
@@ -35,16 +37,12 @@ class RoutesProvider extends ChangeNotifier {
 
     await setShowFavoritesOnly(false);
 
-    await _loadData();
-  }
-
-  Future<void> _loadData() async {
     await _loadSettings();
     await _loadFavoriteRouteIds();
-    await _loadRoutes(_agencyId);
+    return await _loadRoutes(_agencyId);
   }
 
-  Future<void> _loadRoutes(String agencyId) async {
+  Future<Result<void, Exception>> _loadRoutes(String agencyId) async {
     try {
       final result = await dbService.fetchRoutes(agencyId);
 
@@ -62,15 +60,18 @@ class RoutesProvider extends ChangeNotifier {
           log.e("Failed to fetch routes: $e");
           _allRoutes = [];
           _filteredRoutes = [];
-          break;
+          return Failure(e);
       }
     } catch (e) {
       log.e("Unexpected error while loading routes: $e");
       _allRoutes = [];
       _filteredRoutes = [];
+      return Failure(Exception(e));
     } finally {
       _applyFilters();
     }
+
+    return const Success(null);
   }
 
   Future<void> _loadSettings() async {
