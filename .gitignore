@@ -1,6 +1,21 @@
 temp
 temp/
+vps
+vps/
 .env
+
+__pycache__/
+*.py[cod]
+
+venv/
+
+data/
+vehicle_jsons/
+csv/
+
+*.swp
+
+run.sh
 
 # Miscellaneous
 *.class
