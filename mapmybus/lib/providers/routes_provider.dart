@@ -169,7 +169,7 @@ class RoutesProvider extends ChangeNotifier {
 
   bool isFavorite(int routeId) => _favoriteRouteIds[routeId] ?? false;
 
-  String? getRouteShortName(int routeId, String agencyId) {
+  String? getRouteShortNameFromRouteId(int routeId, String agencyId) {
     return _allRoutes
         .firstWhere(
           (r) => r.routeId == routeId && r.agencyId == agencyId,
@@ -184,5 +184,14 @@ class RoutesProvider extends ChangeNotifier {
           ),
         )
         .routeShortName;
+  }
+
+  String? getRouteShortNameFromTripId(String tripId, String agencyId) {
+    if (tripId.length < 2) return null;
+
+    final routeId = int.tryParse(tripId.substring(0, tripId.length - 2));
+    if (routeId == null) return null;
+
+    return getRouteShortNameFromRouteId(routeId, agencyId);
   }
 }

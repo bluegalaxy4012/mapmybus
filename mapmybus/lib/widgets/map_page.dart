@@ -12,7 +12,9 @@ import 'package:mapmybus/providers/routes_provider.dart';
 import 'package:mapmybus/providers/vehicles_provider.dart';
 import 'package:mapmybus/utils.dart';
 import 'package:mapmybus/widgets/simple_snackbar.dart';
+import 'package:mapmybus/widgets/stop_arrivals_table.dart';
 import 'package:mapmybus/widgets/stop_marker.dart';
+import 'package:mapmybus/widgets/stops_page.dart';
 import 'package:mapmybus/widgets/vehicle_marker.dart';
 import 'package:mapmybus/widgets/vehicle_menu.dart';
 import 'package:provider/provider.dart';
@@ -99,6 +101,9 @@ class _MapPageState extends State<MapPage> {
   List<Stop> _drawnStops = [];
   List<LatLng> _drawnPoints = [];
 
+  List<Vehicle> _validVehicles = [];
+  List<Vehicle> _visibleVehicles = [];
+
   bool showMenu = false;
   String selectedRouteName = "";
   String? previousStopName;
@@ -108,6 +113,9 @@ class _MapPageState extends State<MapPage> {
   String? _lastVehicleLabel;
   DateTime? _lastEtaFetchTime;
   List<EtaDisplayInfo> _currentEtaDisplayInfo = [];
+
+  String? _selectedStopName;
+  List<StopArrivalDisplayInfo> _arrivalsDisplayInfo = [];
 
   bool _isLoading = false;
 
@@ -298,6 +306,20 @@ class _MapPageState extends State<MapPage> {
     }
   }
 
+  String getEtaMessage(double eta) {
+    // doar in caz de erori cu nr negative care nu ar trebui sa apara
+    final minEta = max(0, eta.floor());
+    final maxEta = min(60, max(0, (eta + 1).ceil()));
+
+    String etaMessage = "$minEta - $maxEta min";
+
+    if (maxEta > 25 || minEta > 20) {
+      etaMessage = ">20 min";
+    }
+
+    return etaMessage;
+  }
+
   void _handleEtas(List<Eta> results, Vehicle vehicle) {
     final etas = <EtaDisplayInfo>[];
 
@@ -310,15 +332,7 @@ class _MapPageState extends State<MapPage> {
         final fix = DateTime.now().difference(vehicle.timestamp);
         final eta = data.predictedEtaMinutes - fix.inSeconds / 60.0;
 
-        // doar in caz de erori cu nr negative care nu ar trebui sa apara
-        final minEta = max(0, eta.floor());
-        final maxEta = min(60, max(0, (eta + 1).ceil()));
-
-        String etaMessage = "$minEta - $maxEta min";
-
-        if (maxEta > 25 || minEta > 20) {
-          etaMessage = ">20 min";
-        }
+        final String etaMessage = getEtaMessage(eta);
 
         etas.add(EtaDisplayInfo(stopName: stopName, etaMessage: etaMessage));
       } else if (data.message == "Vehicle has already passed this stop") {
@@ -340,6 +354,91 @@ class _MapPageState extends State<MapPage> {
     }
   }
 
+  void _onStopTap(Stop stop) async {
+    if (_isLoading) return;
+
+    showSimpleSnackbar(
+      context,
+      "Statia apasata: ${stop.stopName}. Se incarca urmatoarele sosiri...",
+    );
+
+    setState(() {
+      _arrivalsDisplayInfo.clear();
+      _selectedStopName = null;
+      _isLoading = true;
+    });
+
+    final routeProvider = context.read<RoutesProvider>();
+
+    final positions = _validVehicles
+        .map(
+          (v) => {
+            'trip_id': v.tripId!,
+            'lat': v.latitude!,
+            'lon': v.longitude!,
+            'label': v.label,
+          },
+        )
+        .toList();
+
+    final db = context.read<DbService>();
+    final result = await db.getSoonArrivalsForStop(
+      widget.city.agencyId,
+      stop.stopId,
+      positions,
+      n: 5,
+    );
+
+    switch (result) {
+      case Success(data: final arrivals):
+        List<StopArrivalDisplayInfo> arrivalsDisplayInfo = [];
+
+        for (final arrival in arrivals) {
+          if (arrival.tripId.isEmpty) continue;
+
+          final routeShortName = routeProvider.getRouteShortNameFromTripId(
+            arrival.tripId,
+            widget.city.agencyId,
+          );
+
+          final String etaMessage = getEtaMessage(arrival.etaMinutes);
+
+          arrivalsDisplayInfo.add(
+            StopArrivalDisplayInfo(routeShortName ?? "?", etaMessage),
+          );
+        }
+
+        if (arrivalsDisplayInfo.isEmpty) {
+          if (mounted) {
+            showSimpleSnackbar(
+              context,
+              "Nu exista inca vehicule care au pornit spre statia ${stop.stopName}",
+            );
+          }
+        } else {
+          setState(() {
+            _arrivalsDisplayInfo = arrivalsDisplayInfo;
+            _selectedStopName = stop.stopName;
+          });
+        }
+
+        break;
+
+      case Failure():
+        if (mounted) {
+          showSimpleSnackbar(
+            context,
+            "Eroare la obtinerea sosirilor in statia ${stop.stopName}",
+          );
+        }
+        return;
+    }
+
+    setState(() {
+      _isLoading = false;
+    });
+  }
+
   void _updateMenuOnVehicleFetch() async {
     if (!mounted || !showMenu || selectedVehicle == null) return;
 
@@ -352,7 +451,7 @@ class _MapPageState extends State<MapPage> {
         (v) => v.label == vehicleLabel,
       );
 
-      final routeShortName = routeProvider.getRouteShortName(
+      final routeShortName = routeProvider.getRouteShortNameFromRouteId(
         vehicle.routeId!,
         widget.city.agencyId,
       );
@@ -388,16 +487,19 @@ class _MapPageState extends State<MapPage> {
     final visibleRoutesIds = routeProvider.favoriteRouteIdsSet;
     final dateTimeNow = DateTime.now();
 
-    final visibleVehicles = vehicleProvider.vehicles
+    _validVehicles = vehicleProvider.vehicles
         .where(
           (v) =>
               v.latitude != null &&
               v.longitude != null &&
               v.routeId != null &&
               v.tripId != null &&
-              dateTimeNow.difference(v.timestamp).inMinutes <= 3 &&
-              visibleRoutesIds.contains(v.routeId!),
+              dateTimeNow.difference(v.timestamp).inMinutes <= 3,
         )
+        .toList();
+
+    _visibleVehicles = _validVehicles
+        .where((v) => visibleRoutesIds.contains(v.routeId!))
         .toList();
 
     return Stack(
@@ -425,7 +527,7 @@ class _MapPageState extends State<MapPage> {
           children: [
             TileLayer(
               urlTemplate: Constants.mapTileProviderUrl,
-              userAgentPackageName: 'com.mapmybus.app',
+              userAgentPackageName: 'com.marian.mapmybus',
 
               tileUpdateTransformer: TileUpdateTransformers.debounce(
                 const Duration(milliseconds: 300),
@@ -451,10 +553,7 @@ class _MapPageState extends State<MapPage> {
                     width: 30,
                     height: 30,
                     child: GestureDetector(
-                      onTap: () => showSimpleSnackbar(
-                        context,
-                        "Statia apasata: ${stop.stopName}",
-                      ),
+                      onTap: () => _onStopTap(stop),
                       child: stop.stopId == _drawnStops.first.stopId
                           ? StopMarker(name: "Start")
                           : stop.stopId == _drawnStops.last.stopId
@@ -482,11 +581,12 @@ class _MapPageState extends State<MapPage> {
               ),
 
             MarkerLayer(
-              markers: visibleVehicles.map((v) {
-                final routeShortName = routeProvider.getRouteShortName(
-                  v.routeId!,
-                  widget.city.agencyId,
-                );
+              markers: _visibleVehicles.map((v) {
+                final routeShortName = routeProvider
+                    .getRouteShortNameFromRouteId(
+                      v.routeId!,
+                      widget.city.agencyId,
+                    );
 
                 double bearing = 0.0;
                 bool isSelected =
@@ -535,6 +635,15 @@ class _MapPageState extends State<MapPage> {
         ),
 
         Positioned(
+          bottom: 5,
+          left: 5,
+          child: Text(
+            Constants.copyrightText,
+            style: TextStyle(fontSize: 10, color: Colors.black),
+          ),
+        ),
+
+        Positioned(
           top: 10,
           right: 10,
           child: FloatingActionButton(
@@ -561,6 +670,47 @@ class _MapPageState extends State<MapPage> {
                 _drawnStops.clear();
                 _drawnPoints.clear();
               });
+            },
+          ),
+        ),
+
+        Positioned(
+          top: 110,
+          right: 10,
+          child: FloatingActionButton(
+            heroTag: "searchStopButton",
+            tooltip: "Cauta o statie",
+            mini: true,
+            child: const Icon(Icons.search),
+            onPressed: () async {
+              final selectedStop = await Navigator.push<Stop>(
+                context,
+                MaterialPageRoute(builder: (_) => StopsPage(city: widget.city)),
+              );
+
+              if (selectedStop != null) {
+                // better alternative ? sa astept vehicle fetchul
+                setState(() {
+                  _isLoading = true;
+                });
+
+                await Future.delayed(const Duration(milliseconds: 1200));
+
+                setState(() {
+                  _isLoading = false;
+                });
+
+                if (_validVehicles.isEmpty) {
+                  if (mounted) {
+                    showSimpleSnackbar(
+                      context,
+                      "Trebuie sa ai minim un vehicul la favorite pentru a vedea sosirile",
+                    );
+                  }
+                } else {
+                  _onStopTap(selectedStop);
+                }
+              }
             },
           ),
         ),
@@ -618,14 +768,17 @@ class _MapPageState extends State<MapPage> {
             ),
           ),
 
-        Positioned(
-          bottom: 5,
-          left: 5,
-          child: Text(
-            Constants.copyrightText,
-            style: TextStyle(fontSize: 10, color: Colors.black),
+        if (_arrivalsDisplayInfo.isNotEmpty && _selectedStopName != null)
+          StopArrivalsTable(
+            arrivals: _arrivalsDisplayInfo,
+            stopName: _selectedStopName!,
+            onClose: () {
+              setState(() {
+                _arrivalsDisplayInfo.clear();
+                _selectedStopName = null;
+              });
+            },
           ),
-        ),
       ],
     );
   }

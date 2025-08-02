@@ -15,8 +15,7 @@ import 'widgets/home_page.dart';
 
 /// todo later
 // setari la culoare traseu/statii/inbound/outbound
-// minimizare la tabel
-// click statie - care busuri trec prin ea si care curand
+// sa nu mearga predict cand e la inceput/final, si avertizare
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();

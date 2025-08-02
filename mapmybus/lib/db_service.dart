@@ -72,6 +72,31 @@ class DbService {
         return Success(data.map((stop) => Stop.fromJson(stop)).toList());
       } else {
         return Failure(
+          ApiException(
+            "Server error during stops for trip fetch",
+            response.statusCode,
+          ),
+        );
+      }
+    } catch (e) {
+      return Failure(Exception("Unexpected error: $e"));
+    }
+  }
+
+  Future<Result<List<Stop>, Exception>> getStops(String agencyId) async {
+    final uri = Uri.parse('${AppConfig.stopsApiUrl}/$agencyId');
+
+    try {
+      final response = await http.get(uri);
+
+      if (response.statusCode == 200) {
+        final List<dynamic> data = jsonDecode(response.body);
+
+        log.d("Fetched ${data.length} stops");
+
+        return Success(data.map((stop) => Stop.fromJson(stop)).toList());
+      } else {
+        return Failure(
           ApiException("Server error during stops fetch", response.statusCode),
         );
       }
@@ -163,6 +188,44 @@ class DbService {
       } else {
         return Failure(
           ApiException("Server error during timetables fetch", res.statusCode),
+        );
+      }
+    } catch (e) {
+      return Failure(Exception("Unexpected error: $e"));
+    }
+  }
+
+  Future<Result<List<Arrival>, Exception>> getSoonArrivalsForStop(
+    String agencyId,
+    String stopId,
+    List<Map<String, dynamic>> vehiclePositions, {
+    int n = 5,
+  }) async {
+    final url = Uri.parse(
+      '${AppConfig.arrivalsApiUrl}/$agencyId/arrivals/$stopId',
+    );
+
+    try {
+      final response = await http.post(
+        url.replace(queryParameters: {'n': n.toString()}),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode(vehiclePositions),
+      );
+
+      if (response.statusCode == 200) {
+        final List<dynamic> data = jsonDecode(response.body);
+
+        log.d(
+          "Fetched ${data.length} soon-arrival predictions for stop $stopId",
+        );
+
+        return Success(data.map((json) => Arrival.fromJson(json)).toList());
+      } else {
+        return Failure(
+          ApiException(
+            "Server error during arrivals for stop fetch",
+            response.statusCode,
+          ),
         );
       }
     } catch (e) {

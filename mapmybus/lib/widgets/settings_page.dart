@@ -42,6 +42,13 @@ class SettingsPage extends StatelessWidget {
               "Momentan doar Cluj-Napoca este suportat complet.",
               style: TextStyle(fontStyle: FontStyle.italic, color: Colors.grey),
             ),
+
+            const SizedBox(height: 40),
+
+            const Text(
+              "Disclaimer: Aproximarile de timp nu vor fi mereu complet corecte.",
+              style: TextStyle(fontStyle: FontStyle.italic, color: Colors.grey),
+            ),
           ],
         ),
       ),

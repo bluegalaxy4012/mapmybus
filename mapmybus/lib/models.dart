@@ -300,6 +300,29 @@ class Eta {
   );
 }
 
+class Arrival {
+  final String tripId;
+  final String? vehicleLabel;
+  final double etaMinutes;
+  final String message;
+
+  const Arrival({
+    required this.tripId,
+    this.vehicleLabel,
+    required this.etaMinutes,
+    required this.message,
+  });
+
+  factory Arrival.fromJson(Map<String, dynamic> json) {
+    return Arrival(
+      tripId: json['trip_id'] as String,
+      vehicleLabel: json['vehicle_label'] as String?,
+      etaMinutes: (json['predicted_eta_minutes'] as num).toDouble(),
+      message: json['message'] as String,
+    );
+  }
+}
+
 class VehicleStopsInfo {
   final double latitude;
   final double longitude;
@@ -317,6 +340,13 @@ class EtaDisplayInfo {
   final String etaMessage;
 
   EtaDisplayInfo({required this.stopName, required this.etaMessage});
+}
+
+class StopArrivalDisplayInfo {
+  final String routeShortName;
+  final String etaMessage;
+
+  StopArrivalDisplayInfo(this.routeShortName, this.etaMessage);
 }
 
 // results

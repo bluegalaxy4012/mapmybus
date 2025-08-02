@@ -3,6 +3,10 @@ class AppConfig {
     'ETAS_API_URL',
     defaultValue: '',
   );
+  static final String arrivalsApiUrl = const String.fromEnvironment(
+    'ETAS_API_URL',
+    defaultValue: '',
+  );
   static final String stopsApiUrl = const String.fromEnvironment(
     'STOPS_API_URL',
     defaultValue: '',

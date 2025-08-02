@@ -47,10 +47,17 @@ class _VehicleMenuState extends State<VehicleMenu> {
   final double largeScreenBonusSize = 2;
 
   bool _isMinimized = false;
+  bool _isTableMinimized = false;
 
   void _toggleMinimize() {
     setState(() {
       _isMinimized = !_isMinimized;
+    });
+  }
+
+  void _toggleTableMinimize() {
+    setState(() {
+      _isTableMinimized = !_isTableMinimized;
     });
   }
 
@@ -125,7 +132,7 @@ class _VehicleMenuState extends State<VehicleMenu> {
     // clamp
     _position = Offset(
       _position.dx.clamp(-200.w, screenWidth - 200.w),
-      _position.dy.clamp(0, screenHeight - 200.h),
+      _position.dy.clamp(-200.h, screenHeight - 200.h),
     );
 
     return Positioned(
@@ -157,6 +164,7 @@ class _VehicleMenuState extends State<VehicleMenu> {
                             "Linia ${widget.selectedRouteName}",
                             style: const TextStyle(fontSize: 20),
                           ),
+
                           IconButton(
                             icon: const Icon(Icons.expand_more, size: 34),
                             onPressed: _toggleMinimize,
@@ -230,6 +238,7 @@ class _VehicleMenuState extends State<VehicleMenu> {
                                 ? SizedBox(
                                     height: 16,
                                     width: 16,
+
                                     child: CircularProgressIndicator(
                                       color: Theme.of(
                                         context,
@@ -245,6 +254,7 @@ class _VehicleMenuState extends State<VehicleMenu> {
                                           fontSize: calculateFontSize(18),
                                         ),
                                       ),
+
                                       Text(
                                         "la statiile de pe traseu",
                                         style: TextStyle(
@@ -255,97 +265,150 @@ class _VehicleMenuState extends State<VehicleMenu> {
                                   ),
                           ),
 
-                          if (widget.etasInfo.isNotEmpty) ...[
-                            Text(
-                              "Actualizat la: ${widget.lastEtaFetchTime != null ? "${widget.lastEtaFetchTime!.hour.toString().padLeft(2, '0')}:"
-                                        "${widget.lastEtaFetchTime!.minute.toString().padLeft(2, '0')}:"
-                                        "${widget.lastEtaFetchTime!.second.toString().padLeft(2, '0')}" : "?"}",
+                          if (widget.etasInfo.isNotEmpty) // ...[
+                            Column(
+                              // spacing mai putin
+                              children: [
+                                Text(
+                                  "Actualizat la: ${widget.lastEtaFetchTime != null ? "${widget.lastEtaFetchTime!.hour.toString().padLeft(2, '0')}:"
+                                            "${widget.lastEtaFetchTime!.minute.toString().padLeft(2, '0')}:"
+                                            "${widget.lastEtaFetchTime!.second.toString().padLeft(2, '0')}" : "?"}",
 
-                              style: TextStyle(
-                                fontSize: calculateFontSize(14),
-                                color: Colors.grey,
-                              ),
-                            ),
+                                  style: TextStyle(
+                                    fontSize: calculateFontSize(14),
+                                    color: Colors.grey,
+                                  ),
+                                ),
 
-                            SizedBox(
-                              height: 120,
+                                if (_isTableMinimized)
+                                  Row(
+                                    mainAxisSize: MainAxisSize.min,
 
-                              child: Scrollbar(
-                                thumbVisibility: true,
-                                controller: _scrollController,
-                                child: SingleChildScrollView(
-                                  controller: _scrollController,
-                                  child: DataTable(
-                                    headingRowColor: WidgetStateProperty.all(
-                                      Theme.of(
-                                        context,
-                                      ).colorScheme.surfaceContainerLow,
-                                    ),
-
-                                    dataRowMinHeight: 18.h,
-                                    dataRowMaxHeight: 26.h,
-                                    headingRowHeight: 32.h,
-
-                                    columns: [
-                                      DataColumn(
-                                        label: Text(
-                                          "Nume statie",
-                                          style: TextStyle(
-                                            fontSize: calculateFontSize(16),
-                                          ),
+                                    children: [
+                                      Text(
+                                        "Tabel timpi",
+                                        style: TextStyle(
+                                          fontSize: calculateFontSize(19),
+                                          color: Colors.grey.shade600,
                                         ),
                                       ),
-                                      DataColumn(
-                                        label: Text(
-                                          "Timp estimat",
-                                          style: TextStyle(
-                                            fontSize: calculateFontSize(16),
+
+                                      IconButton(
+                                        icon: Icon(
+                                          Icons.expand_more,
+                                          size: 48.sp,
+                                        ),
+                                        onPressed: _toggleTableMinimize,
+                                      ),
+                                    ],
+                                  )
+                                else
+                                  Column(
+                                    children: [
+                                      IconButton(
+                                        icon: Icon(
+                                          Icons.expand_less,
+                                          size: 48.sp,
+                                        ),
+                                        onPressed: _toggleTableMinimize,
+                                      ),
+
+                                      SizedBox(
+                                        height: 120,
+
+                                        child: Scrollbar(
+                                          thumbVisibility: true,
+                                          controller: _scrollController,
+                                          child: SingleChildScrollView(
+                                            controller: _scrollController,
+                                            child: DataTable(
+                                              headingRowColor:
+                                                  WidgetStateProperty.all(
+                                                    Theme.of(context)
+                                                        .colorScheme
+                                                        .surfaceContainerLow,
+                                                  ),
+
+                                              dataRowMinHeight: 18.h,
+                                              dataRowMaxHeight: 26.h,
+                                              headingRowHeight: 32.h,
+
+                                              columns: [
+                                                DataColumn(
+                                                  label: Text(
+                                                    "Nume statie",
+                                                    style: TextStyle(
+                                                      fontSize:
+                                                          calculateFontSize(16),
+                                                    ),
+                                                  ),
+                                                ),
+                                                DataColumn(
+                                                  label: Text(
+                                                    "Timp estimat",
+                                                    style: TextStyle(
+                                                      fontSize:
+                                                          calculateFontSize(16),
+                                                    ),
+                                                  ),
+                                                ),
+                                              ],
+
+                                              rows: widget.etasInfo.map((e) {
+                                                return DataRow(
+                                                  color:
+                                                      e.stopName ==
+                                                          widget.nextStopName
+                                                      ? WidgetStateProperty.all(
+                                                          Theme.of(context)
+                                                              .colorScheme
+                                                              .surfaceContainerLow,
+                                                        )
+                                                      : null,
+
+                                                  cells: [
+                                                    DataCell(
+                                                      Text(
+                                                        e.stopName,
+                                                        style: TextStyle(
+                                                          fontSize:
+                                                              calculateFontSize(
+                                                                13,
+                                                              ),
+                                                          fontWeight:
+                                                              e.stopName ==
+                                                                  widget
+                                                                      .nextStopName
+                                                              ? FontWeight.bold
+                                                              : FontWeight
+                                                                    .normal,
+                                                        ),
+                                                      ),
+                                                    ),
+                                                    DataCell(
+                                                      Text(
+                                                        e.etaMessage,
+                                                        style: TextStyle(
+                                                          fontSize:
+                                                              calculateFontSize(
+                                                                14,
+                                                              ),
+                                                        ),
+                                                      ),
+                                                    ),
+                                                  ],
+                                                );
+                                              }).toList(),
+                                            ),
                                           ),
                                         ),
                                       ),
                                     ],
-
-                                    rows: widget.etasInfo.map((e) {
-                                      return DataRow(
-                                        color: e.stopName == widget.nextStopName
-                                            ? WidgetStateProperty.all(
-                                                Theme.of(context)
-                                                    .colorScheme
-                                                    .surfaceContainerLow,
-                                              )
-                                            : null,
-
-                                        cells: [
-                                          DataCell(
-                                            Text(
-                                              e.stopName,
-                                              style: TextStyle(
-                                                fontSize: calculateFontSize(13),
-                                                fontWeight:
-                                                    e.stopName ==
-                                                        widget.nextStopName
-                                                    ? FontWeight.bold
-                                                    : FontWeight.normal,
-                                              ),
-                                            ),
-                                          ),
-                                          DataCell(
-                                            Text(
-                                              e.etaMessage,
-                                              style: TextStyle(
-                                                fontSize: calculateFontSize(14),
-                                              ),
-                                            ),
-                                          ),
-                                        ],
-                                      );
-                                    }).toList(),
                                   ),
-                                ),
-                              ),
+                              ],
                             ),
-                          ],
 
+                          //  ],
                           ElevatedButton(
                             onPressed: widget.onClose,
                             child: Text(
