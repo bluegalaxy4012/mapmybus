@@ -21,7 +21,7 @@ class StopArrivalsTable extends StatefulWidget {
 }
 
 class _StopArrivalsTableState extends State<StopArrivalsTable> {
-  Offset _position = Offset(10.w, 100.h);
+  Offset _position = Offset(10.w, 60.h);
 
   late double screenWidth;
   late double screenHeight;
@@ -43,7 +43,7 @@ class _StopArrivalsTableState extends State<StopArrivalsTable> {
       child: GestureDetector(
         onPanUpdate: (dragDetails) {
           setState(() {
-            _position += dragDetails.delta;
+            _position -= dragDetails.delta;
           });
         },
 
