@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:mapmybus/models.dart';
+import 'package:mapmybus/utils.dart';
 
 class StopArrivalsTable extends StatefulWidget {
   final String stopName;
@@ -20,40 +21,29 @@ class StopArrivalsTable extends StatefulWidget {
 }
 
 class _StopArrivalsTableState extends State<StopArrivalsTable> {
-  Offset _position = Offset(10.w, 55.h);
+  Offset _position = Offset(10.w, 100.h);
 
   late double screenWidth;
   late double screenHeight;
-  final double smallScreenBonusSize = 17.5;
-  final double largeScreenBonusSize = 2;
-
-  double calculateFontSize(double baseSize) {
-    if (screenWidth >= 1080) return (baseSize + largeScreenBonusSize).sp;
-
-    return (baseSize + smallScreenBonusSize).sp;
-  }
 
   @override
   Widget build(BuildContext context) {
     screenWidth = MediaQuery.sizeOf(context).width;
     screenHeight = MediaQuery.sizeOf(context).height;
 
-    _position = Offset(
+    final clampedPosition = Offset(
       _position.dx.clamp(-200.w, screenWidth - 200.w),
       _position.dy.clamp(-200.h, screenHeight - 200.h),
     );
 
     return Positioned(
-      left: _position.dx,
-      bottom: _position.dy,
+      right: clampedPosition.dx,
+      bottom: clampedPosition.dy,
 
       child: GestureDetector(
         onPanUpdate: (dragDetails) {
           setState(() {
-            _position = Offset(
-              _position.dx + dragDetails.delta.dx,
-              _position.dy - dragDetails.delta.dy,
-            );
+            _position += dragDetails.delta;
           });
         },
 
@@ -76,7 +66,7 @@ class _StopArrivalsTableState extends State<StopArrivalsTable> {
                         Text(
                           "Urmatoarele sosiri la",
                           style: TextStyle(
-                            fontSize: calculateFontSize(22),
+                            fontSize: calculateFontSize(screenWidth, 22),
                             fontWeight: FontWeight.bold,
                           ),
                         ),
@@ -84,7 +74,7 @@ class _StopArrivalsTableState extends State<StopArrivalsTable> {
                         Text(
                           widget.stopName,
                           style: TextStyle(
-                            fontSize: calculateFontSize(22),
+                            fontSize: calculateFontSize(screenWidth, 22),
                             fontWeight: FontWeight.bold,
                           ),
                         ),
@@ -104,13 +94,17 @@ class _StopArrivalsTableState extends State<StopArrivalsTable> {
                         DataColumn(
                           label: Text(
                             "Linia",
-                            style: TextStyle(fontSize: calculateFontSize(18)),
+                            style: TextStyle(
+                              fontSize: calculateFontSize(screenWidth, 18),
+                            ),
                           ),
                         ),
                         DataColumn(
                           label: Text(
                             "Estimat sosire",
-                            style: TextStyle(fontSize: calculateFontSize(18)),
+                            style: TextStyle(
+                              fontSize: calculateFontSize(screenWidth, 18),
+                            ),
                           ),
                         ),
                       ],
@@ -122,7 +116,7 @@ class _StopArrivalsTableState extends State<StopArrivalsTable> {
                               Text(
                                 arrival.routeShortName,
                                 style: TextStyle(
-                                  fontSize: calculateFontSize(15),
+                                  fontSize: calculateFontSize(screenWidth, 15),
                                 ),
                               ),
                             ),
@@ -130,7 +124,7 @@ class _StopArrivalsTableState extends State<StopArrivalsTable> {
                               Text(
                                 arrival.etaMessage,
                                 style: TextStyle(
-                                  fontSize: calculateFontSize(15),
+                                  fontSize: calculateFontSize(screenWidth, 15),
                                 ),
                               ),
                             ),
@@ -145,7 +139,9 @@ class _StopArrivalsTableState extends State<StopArrivalsTable> {
                       onPressed: widget.onClose,
                       child: Text(
                         "Inchide",
-                        style: TextStyle(fontSize: calculateFontSize(22)),
+                        style: TextStyle(
+                          fontSize: calculateFontSize(screenWidth, 22),
+                        ),
                       ),
                     ),
                   ],

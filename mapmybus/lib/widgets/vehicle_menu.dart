@@ -11,6 +11,8 @@ class VehicleMenu extends StatefulWidget {
   final String? nextStopName;
   final bool isLoading;
   final Vehicle? selectedVehicle;
+  final bool? isSelectedVehicleOnRoute;
+  final bool? isSelectedVehicleAtEnds;
   final List<EtaDisplayInfo> etasInfo;
   final DateTime? lastEtaFetchTime;
 
@@ -21,10 +23,12 @@ class VehicleMenu extends StatefulWidget {
     super.key,
     required this.agencyId,
     required this.selectedRouteName,
-    this.previousStopName,
-    this.nextStopName,
+    required this.previousStopName,
+    required this.nextStopName,
     required this.isLoading,
-    this.selectedVehicle,
+    required this.selectedVehicle,
+    required this.isSelectedVehicleOnRoute,
+    required this.isSelectedVehicleAtEnds,
     required this.etasInfo,
     required this.lastEtaFetchTime,
     required this.onRequestStopArrivalTimes,
@@ -43,8 +47,6 @@ class _VehicleMenuState extends State<VehicleMenu> {
   // ar trebui si la alte widget-uri de astea dar nu stiu cum e optim de lucrat
   late double screenWidth;
   late double screenHeight;
-  final double smallScreenBonusSize = 17.5;
-  final double largeScreenBonusSize = 2;
 
   bool _isMinimized = false;
   bool _isTableMinimized = false;
@@ -59,12 +61,6 @@ class _VehicleMenuState extends State<VehicleMenu> {
     setState(() {
       _isTableMinimized = !_isTableMinimized;
     });
-  }
-
-  double calculateFontSize(double baseSize) {
-    if (screenWidth >= 1080) return (baseSize + largeScreenBonusSize).sp;
-
-    return (baseSize + smallScreenBonusSize).sp;
   }
 
   @override
@@ -124,20 +120,41 @@ class _VehicleMenuState extends State<VehicleMenu> {
     super.dispose();
   }
 
+  String _formattedTime(DateTime? time) {
+    if (time == null) return "?";
+    return "${time.hour.toString().padLeft(2, '0')}:"
+        "${time.minute.toString().padLeft(2, '0')}:"
+        "${time.second.toString().padLeft(2, '0')}";
+  }
+
   @override
   Widget build(BuildContext context) {
     screenWidth = MediaQuery.sizeOf(context).width;
     screenHeight = MediaQuery.sizeOf(context).height;
 
     // clamp
-    _position = Offset(
-      _position.dx.clamp(-200.w, screenWidth - 200.w),
-      _position.dy.clamp(-200.h, screenHeight - 200.h),
+    double dxLowerLimit = -200.w;
+    double dxUpperLimit = screenWidth - 200.w;
+    double dyLowerLimit = -200.h;
+    double dyUpperLimit = screenHeight - 200.h;
+
+    if (_isMinimized) {
+      dxLowerLimit = 0;
+      dyLowerLimit = 0;
+    }
+
+    final clampedPosition = Offset(
+      _position.dx.clamp(dxLowerLimit, dxUpperLimit),
+      _position.dy.clamp(dyLowerLimit, dyUpperLimit),
     );
 
+    final isAtEndAndOnRoute =
+        widget.isSelectedVehicleOnRoute == true &&
+        widget.isSelectedVehicleAtEnds == true;
+
     return Positioned(
-      left: _position.dx,
-      top: _position.dy,
+      left: clampedPosition.dx,
+      top: clampedPosition.dy,
       child: GestureDetector(
         onPanUpdate: (dragDetails) {
           setState(() {
@@ -185,7 +202,7 @@ class _VehicleMenuState extends State<VehicleMenu> {
 
                               Icon(
                                 getIconForVehicleType(
-                                  widget.selectedVehicle!.vehicleType,
+                                  widget.selectedVehicle?.vehicleType ?? 3,
                                 ),
                                 size: 58.sp,
                               ),
@@ -196,215 +213,117 @@ class _VehicleMenuState extends State<VehicleMenu> {
                             "Detalii traseu: Linia ${widget.selectedRouteName}",
                             style: TextStyle(
                               fontWeight: FontWeight.bold,
-                              fontSize: calculateFontSize(24),
+                              fontSize: calculateFontSize(screenWidth, 24),
                             ),
                           ),
 
-                          Text(
-                            "Statia anterioara: ${widget.previousStopName}",
-                            style: TextStyle(fontSize: calculateFontSize(18)),
-                          ),
-
-                          Text(
-                            "Statia urmatoare: ${widget.nextStopName}",
-                            style: TextStyle(fontSize: calculateFontSize(18)),
-                          ),
-
-                          ElevatedButton(
-                            onPressed: () {
-                              if (widget.selectedVehicle != null &&
-                                  widget.selectedRouteName.isNotEmpty) {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) => TimetablePage(
-                                      agencyId: widget.agencyId,
-                                      routeShortName: widget.selectedRouteName,
-                                    ),
-                                  ),
-                                );
-                              }
-                            },
-                            child: Text(
-                              "Afiseaza orar",
-                              style: TextStyle(fontSize: calculateFontSize(18)),
-                            ),
-                          ),
-
-                          ElevatedButton(
-                            onPressed: widget.onRequestStopArrivalTimes,
-
-                            child: widget.isLoading
-                                ? SizedBox(
-                                    height: 16,
-                                    width: 16,
-
-                                    child: CircularProgressIndicator(
-                                      color: Theme.of(
-                                        context,
-                                      ).colorScheme.primary,
-                                    ),
-                                  )
-                                // better alternative ?
-                                : Column(
-                                    children: [
-                                      Text(
-                                        "Estimeaza timpurile de sosire",
-                                        style: TextStyle(
-                                          fontSize: calculateFontSize(18),
-                                        ),
-                                      ),
-
-                                      Text(
-                                        "la statiile de pe traseu",
-                                        style: TextStyle(
-                                          fontSize: calculateFontSize(18),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                          ),
-
-                          if (widget.etasInfo.isNotEmpty) // ...[
+                          if (widget.isSelectedVehicleOnRoute == false)
+                            Text(
+                              "Datele vehiculului ales sunt eronate",
+                              style: TextStyle(
+                                fontSize: calculateFontSize(screenWidth, 22),
+                              ),
+                            )
+                          else
                             Column(
-                              // spacing mai putin
+                              spacing: 18.w,
+
                               children: [
                                 Text(
-                                  "Actualizat la: ${widget.lastEtaFetchTime != null ? "${widget.lastEtaFetchTime!.hour.toString().padLeft(2, '0')}:"
-                                            "${widget.lastEtaFetchTime!.minute.toString().padLeft(2, '0')}:"
-                                            "${widget.lastEtaFetchTime!.second.toString().padLeft(2, '0')}" : "?"}",
-
+                                  "Statia anterioara: ${widget.previousStopName}",
                                   style: TextStyle(
-                                    fontSize: calculateFontSize(14),
-                                    color: Colors.grey,
+                                    fontSize: calculateFontSize(
+                                      screenWidth,
+                                      18,
+                                    ),
                                   ),
                                 ),
 
-                                if (_isTableMinimized)
-                                  Row(
-                                    mainAxisSize: MainAxisSize.min,
+                                Text(
+                                  "Statia urmatoare: ${widget.nextStopName}",
+                                  style: TextStyle(
+                                    fontSize: calculateFontSize(
+                                      screenWidth,
+                                      18,
+                                    ),
+                                  ),
+                                ),
 
-                                    children: [
-                                      Text(
-                                        "Tabel timpi",
-                                        style: TextStyle(
-                                          fontSize: calculateFontSize(19),
-                                          color: Colors.grey.shade600,
-                                        ),
-                                      ),
-
-                                      IconButton(
-                                        icon: Icon(
-                                          Icons.expand_more,
-                                          size: 48.sp,
-                                        ),
-                                        onPressed: _toggleTableMinimize,
-                                      ),
-                                    ],
-                                  )
-                                else
-                                  Column(
-                                    children: [
-                                      IconButton(
-                                        icon: Icon(
-                                          Icons.expand_less,
-                                          size: 48.sp,
-                                        ),
-                                        onPressed: _toggleTableMinimize,
-                                      ),
-
-                                      SizedBox(
-                                        height: 120,
-
-                                        child: Scrollbar(
-                                          thumbVisibility: true,
-                                          controller: _scrollController,
-                                          child: SingleChildScrollView(
-                                            controller: _scrollController,
-                                            child: DataTable(
-                                              headingRowColor:
-                                                  WidgetStateProperty.all(
-                                                    Theme.of(context)
-                                                        .colorScheme
-                                                        .surfaceContainerLow,
-                                                  ),
-
-                                              dataRowMinHeight: 18.h,
-                                              dataRowMaxHeight: 26.h,
-                                              headingRowHeight: 32.h,
-
-                                              columns: [
-                                                DataColumn(
-                                                  label: Text(
-                                                    "Nume statie",
-                                                    style: TextStyle(
-                                                      fontSize:
-                                                          calculateFontSize(16),
-                                                    ),
-                                                  ),
-                                                ),
-                                                DataColumn(
-                                                  label: Text(
-                                                    "Timp estimat",
-                                                    style: TextStyle(
-                                                      fontSize:
-                                                          calculateFontSize(16),
-                                                    ),
-                                                  ),
-                                                ),
-                                              ],
-
-                                              rows: widget.etasInfo.map((e) {
-                                                return DataRow(
-                                                  color:
-                                                      e.stopName ==
-                                                          widget.nextStopName
-                                                      ? WidgetStateProperty.all(
-                                                          Theme.of(context)
-                                                              .colorScheme
-                                                              .surfaceContainerLow,
-                                                        )
-                                                      : null,
-
-                                                  cells: [
-                                                    DataCell(
-                                                      Text(
-                                                        e.stopName,
-                                                        style: TextStyle(
-                                                          fontSize:
-                                                              calculateFontSize(
-                                                                13,
-                                                              ),
-                                                          fontWeight:
-                                                              e.stopName ==
-                                                                  widget
-                                                                      .nextStopName
-                                                              ? FontWeight.bold
-                                                              : FontWeight
-                                                                    .normal,
-                                                        ),
-                                                      ),
-                                                    ),
-                                                    DataCell(
-                                                      Text(
-                                                        e.etaMessage,
-                                                        style: TextStyle(
-                                                          fontSize:
-                                                              calculateFontSize(
-                                                                14,
-                                                              ),
-                                                        ),
-                                                      ),
-                                                    ),
-                                                  ],
-                                                );
-                                              }).toList(),
-                                            ),
+                                ElevatedButton(
+                                  onPressed: () {
+                                    if (widget.selectedVehicle != null &&
+                                        widget.selectedRouteName.isNotEmpty) {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (context) => TimetablePage(
+                                            agencyId: widget.agencyId,
+                                            routeShortName:
+                                                widget.selectedRouteName,
                                           ),
                                         ),
+                                      );
+                                    }
+                                  },
+                                  child: Text(
+                                    "Afiseaza orar",
+                                    style: TextStyle(
+                                      fontSize: calculateFontSize(
+                                        screenWidth,
+                                        18,
                                       ),
-                                    ],
+                                    ),
                                   ),
+                                ),
+
+                                ElevatedButton(
+                                  onPressed: isAtEndAndOnRoute
+                                      ? null
+                                      : widget.onRequestStopArrivalTimes,
+
+                                  child: widget.isLoading
+                                      ? SizedBox(
+                                          height: 16,
+                                          width: 16,
+
+                                          child: CircularProgressIndicator(
+                                            color: Theme.of(
+                                              context,
+                                            ).colorScheme.primary,
+                                          ),
+                                        )
+                                      // better alternative ?
+                                      : Column(
+                                          children: [
+                                            Text(
+                                              isAtEndAndOnRoute
+                                                  ? "Timpii de sosire nu se pot"
+                                                  : "Estimeaza timpii de sosire",
+                                              style: TextStyle(
+                                                fontSize: calculateFontSize(
+                                                  screenWidth,
+                                                  18,
+                                                ),
+                                              ),
+                                            ),
+
+                                            Text(
+                                              isAtEndAndOnRoute
+                                                  ? "estima la capete de linie"
+                                                  : "la statiile de pe traseu",
+                                              style: TextStyle(
+                                                fontSize: calculateFontSize(
+                                                  screenWidth,
+                                                  18,
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                ),
+
+                                if (widget.etasInfo.isNotEmpty) // ...[
+                                  _buildEtasTable(context),
                               ],
                             ),
 
@@ -413,7 +332,9 @@ class _VehicleMenuState extends State<VehicleMenu> {
                             onPressed: widget.onClose,
                             child: Text(
                               "Inchide",
-                              style: TextStyle(fontSize: calculateFontSize(18)),
+                              style: TextStyle(
+                                fontSize: calculateFontSize(screenWidth, 18),
+                              ),
                             ),
                           ),
                         ],
@@ -437,6 +358,125 @@ class _VehicleMenuState extends State<VehicleMenu> {
           ),
         ),
       ),
+    );
+  }
+
+  Column _buildEtasTable(BuildContext context) {
+    return Column(
+      // spacing mai putin
+      children: [
+        Text(
+          "Actualizat la: ${_formattedTime(widget.lastEtaFetchTime)}",
+
+          style: TextStyle(
+            fontSize: calculateFontSize(screenWidth, 14),
+            color: Colors.grey,
+          ),
+        ),
+
+        if (_isTableMinimized)
+          Row(
+            mainAxisSize: MainAxisSize.min,
+
+            children: [
+              Text(
+                "Tabel timpi",
+                style: TextStyle(
+                  fontSize: calculateFontSize(screenWidth, 19),
+                  color: Colors.grey.shade600,
+                ),
+              ),
+
+              IconButton(
+                icon: Icon(Icons.expand_more, size: 48.sp),
+                onPressed: _toggleTableMinimize,
+              ),
+            ],
+          )
+        else
+          Column(
+            children: [
+              IconButton(
+                icon: Icon(Icons.expand_less, size: 48.sp),
+                onPressed: _toggleTableMinimize,
+              ),
+
+              SizedBox(
+                height: 120,
+
+                child: Scrollbar(
+                  thumbVisibility: true,
+                  controller: _scrollController,
+                  child: SingleChildScrollView(
+                    controller: _scrollController,
+                    child: DataTable(
+                      headingRowColor: WidgetStateProperty.all(
+                        Theme.of(context).colorScheme.surfaceContainerLow,
+                      ),
+
+                      dataRowMinHeight: 18.h,
+                      dataRowMaxHeight: 26.h,
+                      headingRowHeight: 32.h,
+
+                      columns: [
+                        DataColumn(
+                          label: Text(
+                            "Nume statie",
+                            style: TextStyle(
+                              fontSize: calculateFontSize(screenWidth, 16),
+                            ),
+                          ),
+                        ),
+                        DataColumn(
+                          label: Text(
+                            "Timp estimat",
+                            style: TextStyle(
+                              fontSize: calculateFontSize(screenWidth, 16),
+                            ),
+                          ),
+                        ),
+                      ],
+
+                      rows: widget.etasInfo.map((e) {
+                        return DataRow(
+                          color: e.stopName == widget.nextStopName
+                              ? WidgetStateProperty.all(
+                                  Theme.of(
+                                    context,
+                                  ).colorScheme.surfaceContainerLow,
+                                )
+                              : null,
+
+                          cells: [
+                            DataCell(
+                              Text(
+                                e.stopName,
+                                style: TextStyle(
+                                  fontSize: calculateFontSize(screenWidth, 13),
+                                  fontWeight: e.stopName == widget.nextStopName
+                                      ? FontWeight.bold
+                                      : FontWeight.normal,
+                                ),
+                              ),
+                            ),
+                            DataCell(
+                              Text(
+                                e.etaMessage,
+                                style: TextStyle(
+                                  fontSize: calculateFontSize(screenWidth, 14),
+                                ),
+                              ),
+                            ),
+                          ],
+                        );
+                      }).toList(),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+      ],
     );
   }
 }

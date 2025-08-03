@@ -7,7 +7,12 @@ void showSimpleSnackbar(BuildContext context, String message) {
 
   messenger.showSnackBar(
     SnackBar(
-      content: Text(message),
+      content: Text(
+        message,
+        style: Theme.of(
+          context,
+        ).textTheme.titleMedium?.copyWith(color: Colors.white),
+      ),
       duration: Constants.snackBarDuration,
       showCloseIcon: true,
     ),

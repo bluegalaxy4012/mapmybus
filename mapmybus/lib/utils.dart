@@ -2,6 +2,7 @@ import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:logger/logger.dart';
@@ -28,6 +29,11 @@ class Constants {
   // typedef Seconds = int;
   static const int defaultRefreshInterval = 20;
 
+  static const double stopEndsRadius = 80;
+  static const double routeProximityRadius = 120;
+
+  static const int maxArrivalsCount = 5;
+
   static const String tripDirectionInSuffix = '_0';
   // const String tripDirectionOutSuffix = '_1';
 
@@ -35,13 +41,16 @@ class Constants {
   static const String copyrightText = '© OpenStreetMap contributors, © CARTO';
 
   // fontSizes candva
+  static const double smallScreenBonusSize = 17.5;
+  static const double largeScreenBonusSize = 2;
+  //
 
   static final List<CityConfig> cities = [
     CityConfig(
       name: "Iasi",
       center: LatLng(47.162121, 27.587573),
       initialZoom: 14.25,
-      minZoom: 13,
+      minZoom: 13.25,
       maxZoom: 19,
       bounds: LatLngBounds(LatLng(47.35, 27.35), LatLng(47.00, 27.80)),
       agencyId: '1',
@@ -74,6 +83,28 @@ class Constants {
   ];
 
   ///
+}
+
+double calculateFontSize(double screenWidth, double baseSize) {
+  if (screenWidth >= 1080) {
+    return (baseSize + Constants.largeScreenBonusSize).sp;
+  }
+
+  return (baseSize + Constants.smallScreenBonusSize).sp;
+}
+
+String getEtaMessage(double eta) {
+  // doar in caz de erori cu nr negative care nu ar trebui sa apara
+  final minEta = max(0, eta.floor());
+  final maxEta = min(60, max(0, (eta + 1).ceil()));
+
+  String etaMessage = "$minEta - $maxEta min";
+
+  if (maxEta > 25 || minEta > 20) {
+    etaMessage = ">20 min";
+  }
+
+  return etaMessage;
 }
 
 CityConfig getCityConfig(String cityName) {

@@ -31,8 +31,107 @@ class MapPage extends StatefulWidget {
 }
 
 class _MapPageState extends State<MapPage> {
+  // main
   final MapController _mapController = MapController();
   late final VehiclesProvider _vehicleProvider;
+  String? _currentAgencyId;
+
+  // user position
+  StreamSubscription<Position>? _positionStreamSubscription;
+  Position? _currentPosition;
+
+  // map drawings
+  List<Stop> _drawnStops = [];
+  List<LatLng> _drawnPoints = [];
+  List<Vehicle> _validVehicles = [];
+  List<Vehicle> _visibleVehicles = [];
+
+  // vehicle menu
+  bool showMenu = false;
+  String selectedRouteName = "";
+  String? previousStopName;
+  String? nextStopName;
+  Vehicle? selectedVehicle;
+  bool? isSelectedVehicleOnRoute;
+  bool? isSelectedVehicleAtEnds;
+
+  // state for etas and stop arrivals
+  String? _lastVehicleLabel;
+
+  DateTime? _lastEtaFetchTime;
+  List<EtaDisplayInfo> _currentEtaDisplayInfo = [];
+
+  List<StopArrivalDisplayInfo> _arrivalsDisplayInfo = [];
+  Stop? _selectedStop;
+
+  // some display state
+  bool _isLoading = false;
+  bool _showStopNames = true;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+
+    final cityProvider = context.watch<CityProvider>();
+    final newAgencyId = getAgencyIdForCity(cityProvider.city);
+
+    if (newAgencyId != _currentAgencyId) {
+      _currentAgencyId = newAgencyId;
+
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        await _initRoutes(newAgencyId);
+        await _initVehicles(newAgencyId);
+      });
+    }
+  }
+
+  // user position related
+  Future<void> _getCurrentPosition() async {
+    try {
+      Position position = await determinePosition();
+
+      if (mounted) {
+        setState(() {
+          _currentPosition = position;
+        });
+      }
+    } catch (e) {
+      log.e("Error getting current position: $e");
+
+      if (mounted) {
+        showSimpleSnackbar(context, "Nu s-a putut obtine locatia");
+      }
+    }
+  }
+
+  void _startPositionStream() {
+    final LocationSettings locationSettings = LocationSettings(
+      accuracy: LocationAccuracy.high,
+      distanceFilter: 3,
+    );
+    _positionStreamSubscription =
+        Geolocator.getPositionStream(locationSettings: locationSettings).listen(
+          (Position? position) {
+            if (position != null && mounted) {
+              setState(() {
+                _currentPosition = position;
+              });
+            }
+          },
+        );
+  }
+
+  void _centerMapOnCurrentPosition() {
+    if (_currentPosition != null) {
+      _mapController.move(
+        LatLng(_currentPosition!.latitude, _currentPosition!.longitude),
+        widget.city.initialZoom,
+      );
+    } else {
+      log.w("Current position unavailable");
+    }
+  }
+  //
 
   @override
   void initState() {
@@ -44,27 +143,6 @@ class _MapPageState extends State<MapPage> {
   void _initUserPosition() {
     _getCurrentPosition();
     _startPositionStream();
-  }
-
-  String? _currentAgencyId;
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-
-    final cityProvider = context.watch<CityProvider>();
-    final newAgencyId = getAgencyIdForCity(cityProvider.city);
-
-    // print("OLDE agencyId: $_currentAgencyId, NEW agencyId: $newAgencyId");
-
-    if (newAgencyId != _currentAgencyId) {
-      _currentAgencyId = newAgencyId;
-
-      WidgetsBinding.instance.addPostFrameCallback((_) async {
-        await _initRoutes(newAgencyId);
-        await _initVehicles(newAgencyId);
-      });
-    }
   }
 
   Future<void> _initVehicles(String agencyId) async {
@@ -91,75 +169,6 @@ class _MapPageState extends State<MapPage> {
 
       default:
         break;
-    }
-  }
-
-  StreamSubscription<Position>? _positionStreamSubscription;
-
-  LatLng? _currentPosition;
-
-  List<Stop> _drawnStops = [];
-  List<LatLng> _drawnPoints = [];
-
-  List<Vehicle> _validVehicles = [];
-  List<Vehicle> _visibleVehicles = [];
-
-  bool showMenu = false;
-  String selectedRouteName = "";
-  String? previousStopName;
-  String? nextStopName;
-  Vehicle? selectedVehicle;
-
-  String? _lastVehicleLabel;
-  DateTime? _lastEtaFetchTime;
-  List<EtaDisplayInfo> _currentEtaDisplayInfo = [];
-
-  String? _selectedStopName;
-  List<StopArrivalDisplayInfo> _arrivalsDisplayInfo = [];
-
-  bool _isLoading = false;
-
-  List<Stop> get drawnStops => _drawnStops;
-
-  Future<void> _getCurrentPosition() async {
-    try {
-      Position position = await determinePosition();
-      if (mounted) {
-        setState(() {
-          _currentPosition = LatLng(position.latitude, position.longitude);
-        });
-      }
-    } catch (e) {
-      log.e("Error getting current position: $e");
-
-      if (mounted) {
-        showSimpleSnackbar(context, "Nu s-a putut obtine locatia");
-      }
-    }
-  }
-
-  void _startPositionStream() {
-    final LocationSettings locationSettings = LocationSettings(
-      accuracy: LocationAccuracy.high,
-      distanceFilter: 3,
-    );
-    _positionStreamSubscription =
-        Geolocator.getPositionStream(
-          locationSettings: locationSettings,
-        ).listen((Position? position) {
-          if (position != null && mounted) {
-            setState(() {
-              _currentPosition = LatLng(position.latitude, position.longitude);
-            });
-          }
-        });
-  }
-
-  void _centerMapOnCurrentPosition() {
-    if (_currentPosition != null) {
-      _mapController.move(_currentPosition!, widget.city.initialZoom);
-    } else {
-      log.w("Current position unavailable");
     }
   }
 
@@ -238,6 +247,47 @@ class _MapPageState extends State<MapPage> {
     });
   }
 
+  bool _isVehicleAtEnds(Vehicle vehicle) {
+    final firstStop = _drawnStops.first;
+    final lastStop = _drawnStops.last;
+
+    final distToFirstStop = Geolocator.distanceBetween(
+      vehicle.latitude!,
+      vehicle.longitude!,
+      firstStop.latitude,
+      firstStop.longitude,
+    );
+
+    final distToLastStop = Geolocator.distanceBetween(
+      vehicle.latitude!,
+      vehicle.longitude!,
+      lastStop.latitude,
+      lastStop.longitude,
+    );
+
+    return distToFirstStop < Constants.stopEndsRadius ||
+        distToLastStop < Constants.stopEndsRadius;
+  }
+
+  bool _isVehicleOnRoute(Vehicle vehicle) {
+    double minDist = double.infinity;
+
+    for (final point in _drawnPoints) {
+      final dist = Geolocator.distanceBetween(
+        vehicle.latitude!,
+        vehicle.longitude!,
+        point.latitude,
+        point.longitude,
+      );
+
+      if (dist < minDist) {
+        minDist = dist;
+      }
+    }
+
+    return minDist < Constants.routeProximityRadius;
+  }
+
   Future<void> _onVehicleTap(Vehicle vehicle, String? routeShortName) async {
     setState(() {
       selectedVehicle = vehicle;
@@ -260,7 +310,51 @@ class _MapPageState extends State<MapPage> {
 
     await Future.delayed(Duration(milliseconds: 10));
 
+    if (_drawnPoints.isEmpty || _drawnStops.isEmpty) return;
+
+    bool isVehicleOnRoute = _isVehicleOnRoute(vehicle);
+    bool isVehicleAtEnds = _isVehicleAtEnds(vehicle);
+
+    setState(() {
+      isSelectedVehicleOnRoute = isVehicleOnRoute;
+      isSelectedVehicleAtEnds = isVehicleAtEnds;
+    });
+
     await _showMenu(vehicle, routeShortName);
+  }
+
+  void _updateMenuOnVehicleFetch() async {
+    if (!mounted || !showMenu || selectedVehicle == null) return;
+
+    final routeProvider = context.read<RoutesProvider>();
+
+    final String vehicleLabel = selectedVehicle!.label;
+
+    try {
+      final vehicle = _vehicleProvider.vehicles.firstWhere(
+        (v) => v.label == vehicleLabel,
+      );
+
+      final routeShortName = routeProvider.getRouteShortNameFromRouteId(
+        vehicle.routeId!,
+        widget.city.agencyId,
+      );
+
+      await _onVehicleTap(vehicle, routeShortName);
+    } catch (e) {
+      // nu mai este vehiculul
+      setState(() {
+        showMenu = false;
+        selectedRouteName = "";
+        previousStopName = null;
+        nextStopName = null;
+        selectedVehicle = null;
+        isSelectedVehicleOnRoute = null;
+        isSelectedVehicleAtEnds = null;
+        _drawnStops.clear();
+        _drawnPoints.clear();
+      });
+    }
   }
 
   void requestStopArrivalTimes(Vehicle vehicle) async {
@@ -306,20 +400,6 @@ class _MapPageState extends State<MapPage> {
     }
   }
 
-  String getEtaMessage(double eta) {
-    // doar in caz de erori cu nr negative care nu ar trebui sa apara
-    final minEta = max(0, eta.floor());
-    final maxEta = min(60, max(0, (eta + 1).ceil()));
-
-    String etaMessage = "$minEta - $maxEta min";
-
-    if (maxEta > 25 || minEta > 20) {
-      etaMessage = ">20 min";
-    }
-
-    return etaMessage;
-  }
-
   void _handleEtas(List<Eta> results, Vehicle vehicle) {
     final etas = <EtaDisplayInfo>[];
 
@@ -363,12 +443,26 @@ class _MapPageState extends State<MapPage> {
     );
 
     setState(() {
-      _arrivalsDisplayInfo.clear();
-      _selectedStopName = null;
       _isLoading = true;
+      _arrivalsDisplayInfo.clear();
+      _selectedStop = stop;
+
+      // reset la vehicul
+      showMenu = false;
+      selectedRouteName = "";
+      previousStopName = null;
+      nextStopName = null;
+      selectedVehicle = null;
+      isSelectedVehicleOnRoute = null;
+      isSelectedVehicleAtEnds = null;
+    });
+
+    setState(() {
+      _arrivalsDisplayInfo = [StopArrivalDisplayInfo("-", "-")];
     });
 
     final routeProvider = context.read<RoutesProvider>();
+    final db = context.read<DbService>();
 
     final positions = _validVehicles
         .map(
@@ -381,12 +475,11 @@ class _MapPageState extends State<MapPage> {
         )
         .toList();
 
-    final db = context.read<DbService>();
     final result = await db.getSoonArrivalsForStop(
       widget.city.agencyId,
       stop.stopId,
       positions,
-      n: 5,
+      n: Constants.maxArrivalsCount,
     );
 
     switch (result) {
@@ -417,8 +510,8 @@ class _MapPageState extends State<MapPage> {
           }
         } else {
           setState(() {
+            _selectedStop = stop;
             _arrivalsDisplayInfo = arrivalsDisplayInfo;
-            _selectedStopName = stop.stopName;
           });
         }
 
@@ -431,44 +524,17 @@ class _MapPageState extends State<MapPage> {
             "Eroare la obtinerea sosirilor in statia ${stop.stopName}",
           );
         }
-        return;
+
+        setState(() {
+          _selectedStop = stop;
+        });
+
+        break;
     }
 
     setState(() {
       _isLoading = false;
     });
-  }
-
-  void _updateMenuOnVehicleFetch() async {
-    if (!mounted || !showMenu || selectedVehicle == null) return;
-
-    final routeProvider = context.read<RoutesProvider>();
-
-    final String vehicleLabel = selectedVehicle!.label;
-
-    try {
-      final vehicle = _vehicleProvider.vehicles.firstWhere(
-        (v) => v.label == vehicleLabel,
-      );
-
-      final routeShortName = routeProvider.getRouteShortNameFromRouteId(
-        vehicle.routeId!,
-        widget.city.agencyId,
-      );
-
-      await _onVehicleTap(vehicle, routeShortName);
-    } catch (e) {
-      // nu mai este vehiculul
-      setState(() {
-        showMenu = false;
-        selectedRouteName = "";
-        previousStopName = null;
-        nextStopName = null;
-        selectedVehicle = null;
-        _drawnStops.clear();
-        _drawnPoints.clear();
-      });
-    }
   }
 
   @override
@@ -506,6 +572,7 @@ class _MapPageState extends State<MapPage> {
       children: [
         FlutterMap(
           mapController: _mapController,
+
           options: MapOptions(
             initialCenter: widget.city.center,
             initialZoom: widget.city.initialZoom,
@@ -534,103 +601,15 @@ class _MapPageState extends State<MapPage> {
               ),
             ),
 
-            if (_drawnPoints.isNotEmpty)
-              PolylineLayer(
-                polylines: [
-                  Polyline(
-                    points: _drawnPoints,
-                    color: const Color.fromARGB(95, 127, 125, 255),
-                    strokeWidth: 4.0,
-                  ),
-                ],
-              ),
+            if (_drawnPoints.isNotEmpty) _shapePointsLayer(),
 
-            if (_drawnStops.isNotEmpty)
-              MarkerLayer(
-                markers: _drawnStops.map((stop) {
-                  return Marker(
-                    point: LatLng(stop.latitude, stop.longitude),
-                    width: 30,
-                    height: 30,
-                    child: GestureDetector(
-                      onTap: () => _onStopTap(stop),
-                      child: stop.stopId == _drawnStops.first.stopId
-                          ? StopMarker(name: "Start")
-                          : stop.stopId == _drawnStops.last.stopId
-                          ? StopMarker(name: "End")
-                          : Icon(
-                              Icons.place,
-                              color: const Color.fromARGB(255, 68, 137, 216),
-                              size: 20,
-                            ),
-                    ),
-                  );
-                }).toList(),
-              ),
+            if (_drawnStops.isNotEmpty) _stopsLayer(),
 
-            if (_currentPosition != null)
-              MarkerLayer(
-                markers: [
-                  Marker(
-                    point: _currentPosition!,
-                    width: 40,
-                    height: 40,
-                    child: Icon(Icons.location_on, color: Colors.red, size: 40),
-                  ),
-                ],
-              ),
+            if (_currentPosition != null) _userPositionLayer(),
 
-            MarkerLayer(
-              markers: _visibleVehicles.map((v) {
-                final routeShortName = routeProvider
-                    .getRouteShortNameFromRouteId(
-                      v.routeId!,
-                      widget.city.agencyId,
-                    );
+            _vehiclesLayer(routeProvider),
 
-                double bearing = 0.0;
-                bool isSelected =
-                    selectedVehicle != null &&
-                    v.label == selectedVehicle!.label;
-
-                if (isSelected && _drawnPoints.length > 1) {
-                  double minDist = double.infinity;
-                  int nextShapePoint = 0;
-
-                  for (int i = 0; i < _drawnPoints.length; i++) {
-                    final dist = Geolocator.distanceBetween(
-                      v.latitude!,
-                      v.longitude!,
-                      _drawnPoints[i].latitude,
-                      _drawnPoints[i].longitude,
-                    );
-                    if (dist < minDist) {
-                      minDist = dist;
-                      nextShapePoint = i;
-                    }
-                  }
-
-                  if (nextShapePoint < _drawnPoints.length - 1) {
-                    LatLng startPoint = _drawnPoints[nextShapePoint];
-                    LatLng endPoint = _drawnPoints[nextShapePoint + 1];
-                    bearing = calculateBearing(startPoint, endPoint);
-                  }
-                }
-
-                return Marker(
-                  point: LatLng(v.latitude!, v.longitude!),
-                  width: 50,
-                  height: 40,
-                  child: VehicleMarker(
-                    v: v,
-                    routeShortName: routeShortName,
-                    isSelected: isSelected,
-                    bearing: bearing,
-                    onTap: () => _onVehicleTap(v, routeShortName),
-                  ),
-                );
-              }).toList(),
-            ),
+            if (_selectedStop != null) _selectedStopLayer(),
           ],
         ),
 
@@ -689,24 +668,26 @@ class _MapPageState extends State<MapPage> {
               );
 
               if (selectedStop != null) {
-                // better alternative ? sa astept vehicle fetchul
+                if (!context.mounted) return;
+
                 setState(() {
                   _isLoading = true;
                 });
 
+                // better alternative ? sa astept vehicle fetchul
                 await Future.delayed(const Duration(milliseconds: 1200));
+
+                if (!context.mounted) return;
 
                 setState(() {
                   _isLoading = false;
                 });
 
                 if (_validVehicles.isEmpty) {
-                  if (mounted) {
-                    showSimpleSnackbar(
-                      context,
-                      "Trebuie sa ai minim un vehicul la favorite pentru a vedea sosirile",
-                    );
-                  }
+                  showSimpleSnackbar(
+                    context,
+                    "Trebuie sa ai minim un vehicul la favorite pentru a vedea sosirile",
+                  );
                 } else {
                   _onStopTap(selectedStop);
                 }
@@ -715,40 +696,23 @@ class _MapPageState extends State<MapPage> {
           ),
         ),
 
-        if (_isLoading) Center(child: CircularProgressIndicator()),
-        if (showMenu)
-          VehicleMenu(
-            agencyId: widget.city.agencyId,
-            selectedRouteName: selectedRouteName,
-            previousStopName: previousStopName,
-            nextStopName: nextStopName,
-            isLoading: _isLoading,
-            selectedVehicle: selectedVehicle,
-            etasInfo: _currentEtaDisplayInfo,
-            lastEtaFetchTime: _lastEtaFetchTime,
-
-            onRequestStopArrivalTimes: () {
-              if (selectedVehicle != null && !_isLoading) {
-                requestStopArrivalTimes(selectedVehicle!);
-              }
-            },
-
-            onClose: () {
+        Positioned(
+          top: 160,
+          right: 10,
+          child: FloatingActionButton(
+            heroTag: "toggleStopNamesButton",
+            tooltip: "Arata/ascunde numele statiilor",
+            mini: true,
+            child: const Icon(Icons.text_fields),
+            onPressed: () {
               setState(() {
-                showMenu = false;
-                selectedRouteName = "";
-                previousStopName = null;
-                nextStopName = null;
-                selectedVehicle = null;
-
-                _currentEtaDisplayInfo.clear();
-                _lastVehicleLabel = null;
-                _lastEtaFetchTime = null;
+                _showStopNames = !_showStopNames;
               });
             },
           ),
+        ),
 
-        //daca e vineri
+        //daca e vineri verde
         if (DateTime.now().weekday == DateTime.friday)
           Positioned(
             bottom: 10,
@@ -768,17 +732,244 @@ class _MapPageState extends State<MapPage> {
             ),
           ),
 
-        if (_arrivalsDisplayInfo.isNotEmpty && _selectedStopName != null)
-          StopArrivalsTable(
-            arrivals: _arrivalsDisplayInfo,
-            stopName: _selectedStopName!,
+        if (_isLoading) Center(child: CircularProgressIndicator()),
+
+        if (showMenu)
+          VehicleMenu(
+            agencyId: widget.city.agencyId,
+            selectedRouteName: selectedRouteName,
+            previousStopName: previousStopName,
+            nextStopName: nextStopName,
+
+            isLoading: _isLoading,
+
+            selectedVehicle: selectedVehicle,
+            isSelectedVehicleOnRoute: isSelectedVehicleOnRoute,
+            isSelectedVehicleAtEnds: isSelectedVehicleAtEnds,
+
+            etasInfo: _currentEtaDisplayInfo,
+            lastEtaFetchTime: _lastEtaFetchTime,
+
+            onRequestStopArrivalTimes: () {
+              if (selectedVehicle != null && !_isLoading) {
+                requestStopArrivalTimes(selectedVehicle!);
+              }
+            },
+
             onClose: () {
               setState(() {
-                _arrivalsDisplayInfo.clear();
-                _selectedStopName = null;
+                showMenu = false;
+                selectedRouteName = "";
+                previousStopName = null;
+                nextStopName = null;
+                selectedVehicle = null;
+                isSelectedVehicleOnRoute = null;
+                isSelectedVehicleAtEnds = null;
+
+                _currentEtaDisplayInfo.clear();
+                _lastVehicleLabel = null;
+                _lastEtaFetchTime = null;
               });
             },
           ),
+
+        if (_arrivalsDisplayInfo.isNotEmpty && _selectedStop != null)
+          StopArrivalsTable(
+            arrivals: _arrivalsDisplayInfo,
+            stopName: _selectedStop!.stopName,
+            onClose: () {
+              setState(() {
+                _arrivalsDisplayInfo.clear();
+                _selectedStop = null;
+              });
+            },
+          ),
+      ],
+    );
+  }
+
+  MarkerLayer _selectedStopLayer() {
+    return MarkerLayer(
+      markers: [
+        Marker(
+          width: 50,
+          height: 50,
+          alignment: Alignment.topCenter,
+          point: LatLng(_selectedStop!.latitude, _selectedStop!.longitude),
+          child: IgnorePointer(
+            child: const Icon(Icons.place, color: Colors.orange, size: 50),
+          ),
+        ),
+      ],
+    );
+  }
+
+  MarkerLayer _vehiclesLayer(RoutesProvider routeProvider) {
+    return MarkerLayer(
+      markers: _visibleVehicles.map((v) {
+        final routeShortName = routeProvider.getRouteShortNameFromRouteId(
+          v.routeId!,
+          widget.city.agencyId,
+        );
+
+        double bearing = 0.0;
+        bool isSelected =
+            selectedVehicle != null && v.label == selectedVehicle!.label;
+
+        if (isSelected && _drawnPoints.length > 1) {
+          double minDist = double.infinity;
+          int nextShapePoint = 0;
+
+          for (int i = 0; i < _drawnPoints.length; i++) {
+            final dist = Geolocator.distanceBetween(
+              v.latitude!,
+              v.longitude!,
+              _drawnPoints[i].latitude,
+              _drawnPoints[i].longitude,
+            );
+            if (dist < minDist) {
+              minDist = dist;
+              nextShapePoint = i;
+            }
+          }
+
+          if (nextShapePoint < _drawnPoints.length - 1) {
+            LatLng startPoint = _drawnPoints[nextShapePoint];
+            LatLng endPoint = _drawnPoints[nextShapePoint + 1];
+            bearing = calculateBearing(startPoint, endPoint);
+          }
+        }
+
+        return Marker(
+          point: LatLng(v.latitude!, v.longitude!),
+          width: 50,
+          height: 40,
+          child: VehicleMarker(
+            v: v,
+            routeShortName: routeShortName,
+            isSelected: isSelected,
+            bearing: bearing,
+            onTap: () => _onVehicleTap(v, routeShortName),
+          ),
+        );
+      }).toList(),
+    );
+  }
+
+  MarkerLayer _userPositionLayer() {
+    if (_currentPosition == null) {
+      return MarkerLayer(markers: []);
+    }
+
+    final latLng = LatLng(
+      _currentPosition!.latitude,
+      _currentPosition!.longitude,
+    );
+    double heading = _currentPosition!.heading;
+
+    return MarkerLayer(
+      markers: [
+        Marker(
+          point: latLng,
+
+          width: 40,
+          height: 40,
+          child: Stack(
+            alignment: Alignment.center,
+
+            children: [
+              Container(
+                width: 20,
+                height: 20,
+                decoration: BoxDecoration(
+                  color: Colors.lightBlue,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.blueGrey, width: 2),
+                ),
+              ),
+
+              if (heading != 0.0) // invalid de obicei
+                Transform.rotate(
+                  angle: heading * (pi / 180),
+
+                  child: Transform.translate(
+                    offset: const Offset(0, -10),
+                    child: const Icon(
+                      Icons.navigation,
+                      color: Colors.blue,
+                      size: 20,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  MarkerLayer _stopsLayer() {
+    return MarkerLayer(
+      markers: _drawnStops.expand((stop) {
+        final bool isStart = stop.stopId == _drawnStops.first.stopId;
+        final bool isEnd = stop.stopId == _drawnStops.last.stopId;
+
+        final bool isStopMarker = isStart || isEnd;
+
+        final double iconSize = isStopMarker ? 36 : 24;
+
+        return [
+          if (_showStopNames)
+            Marker(
+              point: LatLng(stop.latitude - 0.0001, stop.longitude),
+              width: 150,
+              height: 20,
+              alignment: Alignment.topCenter,
+
+              child: Text(
+                stop.stopName,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 11,
+                  color: Color.fromARGB(255, 85, 85, 85),
+                ),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+
+          Marker(
+            point: LatLng(stop.latitude, stop.longitude),
+            width: iconSize,
+            height: iconSize,
+            alignment: isStopMarker ? Alignment.center : Alignment.topCenter,
+
+            child: GestureDetector(
+              onTap: () => _onStopTap(stop),
+
+              child: isStart
+                  ? StopMarker(name: "Start")
+                  : isEnd
+                  ? StopMarker(name: "End")
+                  : const Icon(
+                      Icons.place,
+                      color: Color.fromARGB(255, 68, 137, 216),
+                      size: 24,
+                    ),
+            ),
+          ),
+        ];
+      }).toList(),
+    );
+  }
+
+  PolylineLayer<Object> _shapePointsLayer() {
+    return PolylineLayer(
+      polylines: [
+        Polyline(
+          points: _drawnPoints,
+          color: const Color.fromARGB(95, 127, 125, 255),
+          strokeWidth: 4.0,
+        ),
       ],
     );
   }

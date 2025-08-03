@@ -43,11 +43,11 @@ class VehicleMarker extends StatelessWidget {
             Transform.rotate(
               angle: bearing,
               child: Transform.translate(
-                offset: Offset(0, -18),
+                offset: const Offset(0, -18),
                 child: Stack(
                   alignment: Alignment.center,
                   children: [
-                    Icon(Icons.navigation, color: Colors.black, size: 27),
+                    const Icon(Icons.navigation, color: Colors.black, size: 27),
 
                     Icon(
                       Icons.navigation,
@@ -72,6 +72,7 @@ class VehicleMarker extends StatelessWidget {
 
             child: Text(
               routeShortName ?? "?",
+
               style: TextStyle(
                 fontSize: isSelected ? 14 : 13,
                 fontWeight: FontWeight.bold,
