@@ -111,7 +111,8 @@ class _FavoritesPageState extends State<FavoritesPage> {
               ? Center(
                   child: Text(
                     'Nicio ruta gasita pentru "$searchQuery"',
-                    style: TextStyle(fontSize: 18),
+                    style: const TextStyle(fontSize: 18),
+                    textAlign: TextAlign.center,
                   ),
                 )
               : filteredRoutes.isEmpty && searchQuery.isEmpty
@@ -119,6 +120,7 @@ class _FavoritesPageState extends State<FavoritesPage> {
                   child: const Text(
                     "Nicio ruta disponibila.",
                     style: TextStyle(fontSize: 18),
+                    textAlign: TextAlign.center,
                   ),
                 )
               : ListView.builder(

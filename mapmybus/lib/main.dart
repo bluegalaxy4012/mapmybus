@@ -15,6 +15,7 @@ import 'widgets/home_page.dart';
 
 /// todo later
 // setari la culoare traseu/statii/inbound/outbound
+// welcome page frumos
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();

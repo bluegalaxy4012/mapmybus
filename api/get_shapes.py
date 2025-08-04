@@ -14,15 +14,20 @@ HEADERS = {
     "X-API-KEY": os.getenv("DEV_API_KEY")
 }
 
-def fetch_stop_times():
-    r = requests.get(f"{BASE_URL}/stop_times", headers=HEADERS)
-    if r.status_code == 200:
-        return r.json()
-    print(f"Failed to fetch stop_times: {r.status_code}")
-    return []
+AGENCY_IDS = ["1", "2", "4", "6", "8"]
 
-def fetch_shapes_for_trip(trip_id):
-    time.sleep(0.7)
+def fetch_stop_times(agency_id: str):
+    path = f"data/agency{agency_id}_trip_stops.json"
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception as e:
+        print(f"Failed to load stop_times from file: {e}")
+        return []
+
+def fetch_shapes_for_trip(trip_id, agency_id: str):
+    HEADERS["X-Agency-Id"] = agency_id
+    time.sleep(1.0)
     r = requests.get(f"{BASE_URL}/shapes", headers=HEADERS, params={"shape_id": trip_id})
     if r.status_code == 200:
         return [{
@@ -35,20 +40,22 @@ def fetch_shapes_for_trip(trip_id):
     return []
 
 def main():
-    stop_times = fetch_stop_times()
-    trip_ids = set(st['trip_id'] for st in stop_times)
-    all_shapes = []
-    
-    # anti-429
-    with ThreadPoolExecutor(max_workers=2) as executor:
-        futures = [executor.submit(fetch_shapes_for_trip, tid) for tid in trip_ids]
-        for future in futures:
-            points = future.result()
-            if points:
-                all_shapes.extend(points)
-    with open('data/shapes.json', 'w') as f:
-        json.dump(all_shapes, f)
-    print(f"Saved {len(all_shapes)} shape points to shapes.json")
+    for agency_id in AGENCY_IDS:
+        stop_times = fetch_stop_times(agency_id)
+        trip_ids = set(st['trip_id'] for st in stop_times)
+        all_shapes = []
+        
+        # anti-429
+        with ThreadPoolExecutor(max_workers=2) as executor:
+            futures = [executor.submit(fetch_shapes_for_trip, tid, agency_id) for tid in trip_ids]
+            for future in futures:
+                points = future.result()
+                if points:
+                    all_shapes.extend(points)
+
+        with open(f'data/agency{agency_id}_shapes.json', 'w') as f:
+            json.dump(all_shapes, f)
+        print(f"Saved {len(all_shapes)} shape points to agency{agency_id}_shapes.json")
 
 if __name__ == "__main__":
     main()

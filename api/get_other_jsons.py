@@ -12,21 +12,26 @@ HEADERS = {
     "X-API-KEY": os.getenv("DEV_API_KEY")
 }
 
-def fetch_routes():
+AGENCY_IDS = ["1", "2", "4", "6", "8"]
+
+def fetch_routes(agency_id: str):
+    HEADERS["X-Agency-Id"] = agency_id
     r = requests.get(f"{BASE_URL}/routes", headers=HEADERS)
     if r.status_code == 200:
         return r.json()
     print(f"Failed to fetch routes: {r.status_code}")
     return []
 
-def fetch_stops():
+def fetch_stops(agency_id: str):
+    HEADERS["X-Agency-Id"] = agency_id
     r = requests.get(f"{BASE_URL}/stops", headers=HEADERS)
     if r.status_code == 200:
         return r.json()
     print(f"Failed to fetch stops: {r.status_code}")
     return []
 
-def fetch_trip_stops():
+def fetch_trip_stops(agency_id: str):
+    HEADERS["X-Agency-Id"] = agency_id
     r = requests.get(f"{BASE_URL}/stop_times", headers=HEADERS)
     if r.status_code == 200:
         return r.json()
@@ -34,18 +39,21 @@ def fetch_trip_stops():
     return []
 
 def main():
-    with open('data/routes.json', 'w') as f:
-        routes = fetch_routes()
-        json.dump(routes, f)
-        print(f"Saved {len(routes)} routes to routes.json")
-    with open('data/stops.json', 'w') as f:
-        stops = fetch_stops()
-        json.dump(stops, f)
-        print(f"Saved {len(stops)} stops to stops.json")
-    with open('data/trip_stops.json', 'w') as f:
-        trip_stops = fetch_trip_stops()
-        json.dump(trip_stops, f)
-        print(f"Saved {len(trip_stops)} trip stops to trip_stops.json")
+    for agency_id in AGENCY_IDS:
+        with open(f'data/agency{agency_id}_routes.json', 'w') as f:
+            routes = fetch_routes(agency_id)
+            json.dump(routes, f)
+            print(f"Saved {len(routes)} routes to agency{agency_id}_routes.json")
+
+        with open(f'data/agency{agency_id}_stops.json', 'w') as f:
+            stops = fetch_stops(agency_id)
+            json.dump(stops, f)
+            print(f"Saved {len(stops)} stops to agency{agency_id}_stops.json")
+
+        with open(f'data/agency{agency_id}_trip_stops.json', 'w') as f:
+            trip_stops = fetch_trip_stops(agency_id)
+            json.dump(trip_stops, f)
+            print(f"Saved {len(trip_stops)} trip stops to agency{agency_id}_trip_stops.json")
 
 if __name__ == "__main__":
     main()

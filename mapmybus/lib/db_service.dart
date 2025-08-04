@@ -1,20 +1,31 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:csv/csv.dart';
 import 'package:mapmybus/config.dart';
 import 'package:mapmybus/utils.dart';
 import 'package:http/http.dart' as http;
+import 'package:retry/retry.dart';
 
 import 'models.dart';
 
 class DbService {
+  // in caz de timeout-uri
+  static const retryOptions = RetryOptions(
+    maxAttempts: 3,
+    delayFactor: Duration(seconds: 5),
+  );
+
   Future<Result<List<Vehicle>, Exception>> fetchVehicles(
     String agencyId,
   ) async {
     final uri = Uri.parse('${AppConfig.vehiclesApiUrl}/$agencyId');
 
     try {
-      final response = await http.get(uri);
+      final response = await retryOptions.retry(
+        () => http.get(uri),
+        retryIf: (e) => e is http.ClientException || e is TimeoutException,
+      );
 
       if (response.statusCode == 200) {
         final List<dynamic> jsonData = jsonDecode(response.body);
@@ -37,7 +48,10 @@ class DbService {
     final uri = Uri.parse('${AppConfig.routesApiUrl}/$agencyId');
 
     try {
-      final response = await http.get(uri);
+      final response = await retryOptions.retry(
+        () => http.get(uri),
+        retryIf: (e) => e is http.ClientException || e is TimeoutException,
+      );
 
       if (response.statusCode == 200) {
         final List<dynamic> jsonData = jsonDecode(response.body);
@@ -48,7 +62,9 @@ class DbService {
         log.d("Fetched ${routes.length} routes for agency $agencyId");
         return Success(routes);
       } else {
-        return Failure(ApiException("Server error", response.statusCode));
+        return Failure(
+          ApiException("Server error during routes fetch", response.statusCode),
+        );
       }
     } catch (e) {
       return Failure(Exception("Unexpected error: $e"));
@@ -62,7 +78,10 @@ class DbService {
     final uri = Uri.parse('${AppConfig.stopsApiUrl}/$agencyId?trip_id=$tripId');
 
     try {
-      final response = await http.get(uri);
+      final response = await retryOptions.retry(
+        () => http.get(uri),
+        retryIf: (e) => e is http.ClientException || e is TimeoutException,
+      );
 
       if (response.statusCode == 200) {
         final List<dynamic> data = jsonDecode(response.body);
@@ -87,7 +106,10 @@ class DbService {
     final uri = Uri.parse('${AppConfig.stopsApiUrl}/$agencyId');
 
     try {
-      final response = await http.get(uri);
+      final response = await retryOptions.retry(
+        () => http.get(uri),
+        retryIf: (e) => e is http.ClientException || e is TimeoutException,
+      );
 
       if (response.statusCode == 200) {
         final List<dynamic> data = jsonDecode(response.body);
@@ -114,7 +136,10 @@ class DbService {
     );
 
     try {
-      final response = await http.get(uri);
+      final response = await retryOptions.retry(
+        () => http.get(uri),
+        retryIf: (e) => e is http.ClientException || e is TimeoutException,
+      );
 
       if (response.statusCode == 200) {
         final List<dynamic> data = jsonDecode(response.body);
@@ -149,7 +174,10 @@ class DbService {
     );
 
     try {
-      final response = await http.get(uri);
+      final response = await retryOptions.retry(
+        () => http.get(uri),
+        retryIf: (e) => e is http.ClientException || e is TimeoutException,
+      );
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body) as List<dynamic>;
@@ -166,28 +194,41 @@ class DbService {
     }
   }
 
-  // momentan doar pentru Cluj-Napoca
   Future<Result<List<List<String>>, Exception>> getTimetable(
+    String agencyId,
     String routeShortName,
     String dayType,
   ) async {
-    final url = '${AppConfig.timetablesApiUrl}/$routeShortName/$dayType';
+    final uri = '${AppConfig.timetablesApiUrl}/$agencyId';
 
     try {
-      final res = await http.get(Uri.parse(url));
+      final response = await retryOptions.retry(
+        () => http.get(
+          Uri.parse(uri).replace(
+            queryParameters: {
+              'route_short_name': routeShortName,
+              'day_type': dayType,
+            },
+          ),
+        ),
+        retryIf: (e) => e is http.ClientException || e is TimeoutException,
+      );
 
-      if (res.statusCode == 200) {
+      if (response.statusCode == 200) {
         log.d("Fetched timetable for route $routeShortName on day $dayType");
 
         return Success(
           const CsvToListConverter(
             eol: "\n",
             shouldParseNumbers: false,
-          ).convert(utf8.decode(res.bodyBytes)),
+          ).convert(utf8.decode(response.bodyBytes)),
         );
       } else {
         return Failure(
-          ApiException("Server error during timetables fetch", res.statusCode),
+          ApiException(
+            "Server error during timetables fetch",
+            response.statusCode,
+          ),
         );
       }
     } catch (e) {
@@ -201,15 +242,18 @@ class DbService {
     List<Map<String, dynamic>> vehiclePositions, {
     int n = 5,
   }) async {
-    final url = Uri.parse(
+    final uri = Uri.parse(
       '${AppConfig.arrivalsApiUrl}/$agencyId/arrivals/$stopId',
     );
 
     try {
-      final response = await http.post(
-        url.replace(queryParameters: {'n': n.toString()}),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode(vehiclePositions),
+      final response = await retryOptions.retry(
+        () => http.post(
+          uri.replace(queryParameters: {'n': n.toString()}),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode(vehiclePositions),
+        ),
+        retryIf: (e) => e is http.ClientException || e is TimeoutException,
       );
 
       if (response.statusCode == 200) {

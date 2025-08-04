@@ -12,6 +12,7 @@ from pymongo import MongoClient
 from pathlib import Path
 import httpx
 import logging
+import random
 
 # importam functii utile si constante din preprocess
 from preprocess import (
@@ -20,18 +21,21 @@ from preprocess import (
     project_route as project_onto_route,
     hour_congestion_index,
     weekend_index,
+    timezone_offset,
 )
 
 # incarcam variabilele din .env
 load_dotenv()
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+logging.basicBasicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger(__name__)
 
 # configuri din .env
 MONGO_URL = os.getenv("MONGO_URL")
 DB_NAME = os.getenv("DB_NAME")
-CSV_DIR = Path(os.getenv("CSV_DIR"))
+CSV_DIR = Path("csv")
+
+AGENCY_IDS = ["1", "2", "4", "6", "8"]
 
 # cache local pt modele, statii, rute, distante
 models_cache = {}
@@ -42,8 +46,6 @@ stop_to_trips = {}
 stop_dists_by_trip = {}
 stop_distances = {}
 
-# momentan doar agentia 2(cluj) are date public disponibile
-valid_agency_ids = ["2"]
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -72,43 +74,44 @@ def init_data():
 
     global shapes, stop_locs, trip_stops, stop_to_trips, stop_dists_by_trip, stop_distances
 
-    logger.info("Loading shapes...")
-    shapes = load_shapes("data/shapes.json")
+    for agency_id in AGENCY_IDS:
+        logger.info("Loading shapes for agency %s...", agency_id)
+        shapes[agency_id] = load_shapes(agency_id)
 
-    logger.info("Loading stops & trip sequences...")
-    stop_locs, trip_stops = load_stops("data/trip_stops.json", "data/stops.json")
+        logger.info("Loading stops & trip sequences for agency %s...", agency_id)
+        stop_locs[agency_id], trip_stops[agency_id] = load_stops(agency_id)
 
-    logger.info("Loading stop_to_trips.pkl...")
-    with open("models/stop_to_trips.pkl", "rb") as f:
-        stop_to_trips = pickle.load(f)
+        logger.info("Loading stop_to_trips.pkl for agency %s...", agency_id)
+        with open(f"models/agency{agency_id}_stop_to_trips.pkl", "rb") as f:
+            stop_to_trips[agency_id] = pickle.load(f)
 
-    logger.info("Loading stop_dists_by_trip.pkl...")
-    with open("models/stop_dists_by_trip.pkl", "rb") as f:
-        stop_dists_by_trip = pickle.load(f)
+        logger.info("Loading stop_dists_by_trip.pkl for agency %s...", agency_id)
+        with open(f"models/agency{agency_id}_stop_dists_by_trip.pkl", "rb") as f:
+            stop_dists_by_trip[agency_id] = pickle.load(f)
 
-    stop_distances = stop_dists_by_trip
+        stop_distances[agency_id] = stop_dists_by_trip[agency_id]
 
-    logger.info(
-        "Data ready: %s shapes, %s stops, %s trips, %s stop→trip mappings",
-        len(shapes), len(stop_locs), len(trip_stops), len(stop_to_trips)
-    )
+        logger.info(
+            "Data ready for agency %s: %s shapes, %s stops, %s trips, %s stop->trip mappings",
+            agency_id, len(shapes[agency_id]), len(stop_locs[agency_id]), len(trip_stops[agency_id]), len(stop_to_trips[agency_id])
+        )
 
-def get_model(trip_id: str):
+def get_model(agency_id: str, trip_id: str):
     # intoarce modelul kNN pt un anumit trip_id (din cache sau il incarca)
 
-    if trip_id in models_cache:
-        return models_cache[trip_id]
+    if (agency_id, trip_id) in models_cache:
+        return models_cache[(agency_id, trip_id)]
     
-    path = f"models/{trip_id}_knn.pkl"
+    path = f"models/agency{agency_id}_{trip_id}_knn.pkl"
     try:
         with open(path, "rb") as f:
             m = pickle.load(f)
-            models_cache[trip_id] = m
+            models_cache[(agency_id, trip_id)] = m
             return m
     except FileNotFoundError:
         return None
 
-def get_prediction(trip_id: str, lat: float, lon: float, stop_id: str):
+def get_prediction(agency_id: str, trip_id: str, lat: float, lon: float, stop_id: str):
     # face efectiv predictia ETA pt un vehicul aflat pe ruta
 
     # validam formatul trip_id si lat/lon
@@ -117,14 +120,14 @@ def get_prediction(trip_id: str, lat: float, lon: float, stop_id: str):
     if not (10 <= lat <= 50 and 10 <= lon <= 50):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST)
 
-    md = get_model(trip_id)
-    shp = shapes.get(trip_id)
+    md = get_model(agency_id, trip_id)
+    shp = shapes.get(agency_id, {}).get(trip_id)
     if md is None or shp is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No data to make prediction for trip")
 
     # proiectam vehiculul pe ruta, statia avem deja
     veh_d = project_onto_route(lat, lon, shp)
-    stop_d = stop_distances.get(trip_id, {}).get(stop_id)
+    stop_d = stop_distances.get(agency_id, {}).get(trip_id, {}).get(stop_id)
     if veh_d is None or stop_d is None:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Cannot project vehicle or stop onto route")
 
@@ -172,7 +175,7 @@ def get_prediction(trip_id: str, lat: float, lon: float, stop_id: str):
     if total_w == 0:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No data to make prediction for trip")
 
-    now = datetime.now()
+    now = datetime.now() + timezone_offset
     cong = hour_congestion_index[now.hour] if now.weekday() < 5 else weekend_index[now.hour]
     eta = (total_eta / total_w) * cong
 
@@ -181,10 +184,10 @@ def get_prediction(trip_id: str, lat: float, lon: float, stop_id: str):
 # pentru aproximat urmatoarele sosiri la o statie
 @app.post("/predict/{agency_id}/arrivals/{stop_id}")
 def get_arrivals_for_stop(agency_id: str, stop_id: str, vehicle_positions: List[dict] = Body(...), n: int = 5):
-    if agency_id not in valid_agency_ids:
+    if agency_id not in AGENCY_IDS:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST)
 
-    trips = stop_to_trips.get(stop_id, [])
+    trips = stop_to_trips.get(agency_id, {}).get(stop_id, [])
     if not trips:
         return []
 
@@ -193,19 +196,18 @@ def get_arrivals_for_stop(agency_id: str, stop_id: str, vehicle_positions: List[
     predictions = []
     for v in relevant:
         try:
-            eta_s, msg = get_prediction(v["trip_id"], v["lat"], v["lon"], stop_id)
+            eta_s, msg = get_prediction(agency_id, v["trip_id"], v["lat"], v["lon"], stop_id)
             if msg == "Success":
                 predictions.append({
                     "trip_id": v["trip_id"],
                     "vehicle_label": v.get("label"),
-                    "eta_seconds": eta_s,
                     "predicted_eta_minutes": round(eta_s / 60, 2),
                     "message": msg
                 })
         except HTTPException:
             continue
 
-    predictions.sort(key=lambda x: x["eta_seconds"])
+    predictions.sort(key=lambda x: x["predicted_eta_minutes"])
     return predictions[:n]
 
 # aproximari eta pentru o locatie de vehicul primita si statiile, normal, de pe ruta sa
@@ -213,16 +215,15 @@ def get_arrivals_for_stop(agency_id: str, stop_id: str, vehicle_positions: List[
 def predict_endpoint(agency_id: str, trip_id: str, lat: float, lon: float, stop_ids: List[str] = Query(...)):
     logger.info("received prediction request for agency %s, trip %s", agency_id, trip_id)
     
-    if agency_id not in valid_agency_ids:
+    if agency_id not in AGENCY_IDS:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST)
     
     results = []
     for stop_id in stop_ids:
-        eta, message = get_prediction(trip_id, lat, lon, stop_id)
+        eta, message = get_prediction(agency_id, trip_id, lat, lon, stop_id)
         results.append({
             "trip_id": trip_id,
             "stop_id": stop_id,
-            "predicted_eta_seconds": round(eta, 2),
             "predicted_eta_minutes": round(eta / 60, 2),
             "message": message
         })
@@ -233,20 +234,20 @@ def predict_endpoint(agency_id: str, trip_id: str, lat: float, lon: float, stop_
 def get_routes(agency_id: str):
     logger.info("fetching routes for agency %s", agency_id)
     
-    if agency_id not in valid_agency_ids:
+    if agency_id not in AGENCY_IDS:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST)
     
     client = MongoClient(MONGO_URL)
     db = client[DB_NAME]
     
-    routes = list(db.routes.find({"agency_id": agency_id}))
+    routes = list(db[f"agency{agency_id}_routes"].find({}))
     if not routes:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No routes found")
     
     result = []
     for route in routes:
         result.append({
-            "agency_id": route["agency_id"],
+            "agency_id": agency_id,
             "route_id": route["route_id"],
             "route_short_name": route["route_short_name"],
             "route_long_name": route["route_long_name"],
@@ -262,7 +263,7 @@ def get_routes(agency_id: str):
 def get_stops_for_trip(agency_id: str, trip_id: str = Query(default="")):
     logger.info("fetching stops, agency %s, optional trip %s", agency_id, trip_id)
     
-    if agency_id not in valid_agency_ids:
+    if agency_id not in AGENCY_IDS:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST)
 
     client = MongoClient(MONGO_URL)
@@ -270,7 +271,8 @@ def get_stops_for_trip(agency_id: str, trip_id: str = Query(default="")):
 
     if not trip_id:
         # returnam toate statiile
-        stops = list(db.stops.find({}))
+        stops = list(db[f"agency{agency_id}_stops"].find({}))
+        
         result = [{
             "stop_id": str(stop["stop_id"]),
             "stop_name": stop["stop_name"],
@@ -283,9 +285,9 @@ def get_stops_for_trip(agency_id: str, trip_id: str = Query(default="")):
         return result
 
     # returnam statiile in ordinea aparitiei pe ruta
-    trip_stops = list(db.trip_stops.find({"trip_id": trip_id}).sort("stop_sequence", 1))
+    trip_stops = list(db[f"agency{agency_id}_trip_stops"].find({"trip_id": trip_id}).sort("stop_sequence", 1))
     stop_ids = [ts["stop_id"] for ts in trip_stops]
-    stops = db.stops.find({"stop_id": {"$in": stop_ids}})
+    stops = db[f"agency{agency_id}_stops"].find({"stop_id": {"$in": stop_ids}})
     stop_dict = {s["stop_id"]: s for s in stops}
     
     result = []
@@ -306,15 +308,15 @@ def get_stops_for_trip(agency_id: str, trip_id: str = Query(default="")):
 def get_shapes_for_trip(agency_id: str, shape_id: str):
     logger.info("fetching shapes for shape_id %s, agency %s", shape_id, agency_id)
     
-    if agency_id not in valid_agency_ids:
+    if agency_id not in AGENCY_IDS:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST)
     
     client = MongoClient(MONGO_URL)
     db = client[DB_NAME]
     
-    shapes = db.shapes.find({"shape_id": shape_id}).sort("shape_pt_sequence", 1)
+    shapes = db[f"agency{agency_id}_shapes"].find({"shape_id": shape_id}).sort("shape_pt_sequence", 1)
     result = [
-        {
+        {   
             "shape_id": shape_id,
             "shape_pt_lat": s["shape_pt_lat"],
             "shape_pt_lon": s["shape_pt_lon"],
@@ -325,35 +327,44 @@ def get_shapes_for_trip(agency_id: str, shape_id: str):
     client.close()
     return result
 
+
+def get_random_api_key():
+    idx = random.randint(1, 5)
+    return os.getenv(f"API_KEY_{idx}")
+
 @app.get("/vehicles/{agency_id}")
 async def get_vehicles(agency_id: str):
     logger.info("fetching vehicles for agency %s", agency_id)
     
-    if agency_id not in valid_agency_ids:
+    if agency_id not in AGENCY_IDS:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST)
     
     headers = {
         "X-Agency-Id": agency_id,
         "Accept": "application/json",
-        "X-API-KEY": os.getenv("API_KEY")
+        "X-API-KEY": get_random_api_key()
     }
     async with httpx.AsyncClient() as client:
-        response = await client.get(f"{os.getenv('BASE_URL')}/vehicles", headers=headers)
+        response = await client.get(f"{os.getenv('BASE_URL')}/vehicles", headers=headers, timeout=5)
     
     if response.status_code == status.HTTP_200_OK:
         return response.json()
     
     raise HTTPException(status_code=response.status_code, detail=response.text)
 
-# intoarce orarul csv pt o ruta, in functie de tipul zilei, scraped de la ctp
-@app.get("/timetables/{route_short_name}/{day_type}")
-def get_timetable(route_short_name: str, day_type: str):
-    logger.info("fetching timetable for route %s, day type %s", route_short_name, day_type)
+
+# intoarce orarul csv pt o ruta+zi
+@app.get("/timetables/{agency_id}")
+def get_timetable(agency_id: str, route_short_name: str = Query(...), day_type: str = Query(..., enum=["lv", "s", "d"])):
+    logger.info("fetching timetable for agency %s, route %s, day type %s", agency_id, route_short_name, day_type)
     
+    if agency_id not in AGENCY_IDS:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST)
+
     if day_type not in ["lv", "s", "d"]:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST)
     
-    file_path = CSV_DIR / f"orar_{route_short_name}_{day_type}.csv"
+    file_path = CSV_DIR / f"agency{agency_id}_orar_{route_short_name}_{day_type}.csv"
     if not file_path.exists():
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Timetable not found")
     

@@ -35,6 +35,8 @@ class RoutesProvider extends ChangeNotifier {
     _searchQuery = '';
     _showFavoritesOnly = false;
 
+    _favoriteRouteIds = {};
+
     await setShowFavoritesOnly(false);
 
     await _loadSettings();

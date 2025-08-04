@@ -66,6 +66,26 @@ class Constants {
     ),
 
     CityConfig(
+      name: "Chisinau",
+      center: LatLng(47.023621, 28.833862),
+      initialZoom: 14,
+      minZoom: 13,
+      maxZoom: 19,
+      bounds: LatLngBounds(LatLng(47.25, 28.60), LatLng(46.80, 29.05)),
+      agencyId: '4',
+    ),
+
+    CityConfig(
+      name: "Botosani",
+      center: LatLng(47.739867, 26.663183),
+      initialZoom: 14,
+      minZoom: 13,
+      maxZoom: 19,
+      bounds: LatLngBounds(LatLng(47.95, 26.45), LatLng(47.50, 26.85)),
+      agencyId: '6',
+    ),
+
+    CityConfig(
       name: "Timisoara",
       center: LatLng(45.756659, 21.235592),
       initialZoom: 14,
@@ -77,9 +97,11 @@ class Constants {
   ];
 
   static const List<String> availableCityNames = [
-    'Cluj-Napoca',
-    'Iasi',
-    'Timisoara',
+    "Cluj-Napoca",
+    "Iasi",
+    "Timisoara",
+    "Chisinau",
+    "Botosani",
   ];
 
   ///

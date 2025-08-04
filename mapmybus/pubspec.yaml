@@ -19,6 +19,7 @@ dependencies:
   logger: ^2.6.1
   flutter_screenutil: ^5.9.3
   diacritic: ^0.1.6 
+  retry: ^3.1.2
 
 dev_dependencies:
   flutter_test:

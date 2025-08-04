@@ -81,6 +81,25 @@ class _StopArrivalsTableState extends State<StopArrivalsTable> {
                       ],
                     ),
 
+                    Column(
+                      children: [
+                        Text(
+                          "(se presupune ca vehiculele afisate sunt in curs de)",
+                          style: TextStyle(
+                            fontSize: calculateFontSize(screenWidth, 13),
+                            color: Colors.grey,
+                          ),
+                        ),
+                        Text(
+                          "(parcurgere a rutei si nu stationeaza la capat de linie)",
+                          style: TextStyle(
+                            fontSize: calculateFontSize(screenWidth, 13),
+                            color: Colors.grey,
+                          ),
+                        ),
+                      ],
+                    ),
+
                     DataTable(
                       headingRowColor: WidgetStateProperty.all(
                         Theme.of(context).colorScheme.surfaceContainerLow,

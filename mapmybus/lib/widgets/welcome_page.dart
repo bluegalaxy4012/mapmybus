@@ -82,6 +82,14 @@ class _WelcomePageState extends State<WelcomePage> {
                         child: Text("Timisoara"),
                       ),
                       DropdownMenuItem(value: "Iasi", child: Text("Iasi")),
+                      DropdownMenuItem(
+                        value: "Chisinau",
+                        child: Text("Chisinau"),
+                      ),
+                      DropdownMenuItem(
+                        value: "Botosani",
+                        child: Text("Botosani"),
+                      ),
                     ],
                     onChanged: (value) {
                       if (value == null) return;
@@ -90,7 +98,6 @@ class _WelcomePageState extends State<WelcomePage> {
                     },
                   ),
 
-                  // const Spacer(),
                   const SizedBox(height: 130),
 
                   ElevatedButton(
@@ -99,6 +106,7 @@ class _WelcomePageState extends State<WelcomePage> {
                         vertical: 24,
                         horizontal: 48,
                       ),
+
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),

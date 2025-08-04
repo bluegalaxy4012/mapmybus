@@ -118,6 +118,7 @@ class _StopsPageState extends State<StopsPage> {
                       ? "Nicio statie disponibila"
                       : 'Nicio statie gasita pentru "$_searchQuery"',
                   style: const TextStyle(fontSize: 24),
+                  textAlign: TextAlign.center,
                 ),
               ),
             )

@@ -17,16 +17,17 @@ class TimetablePage extends StatelessWidget {
   Future<Map<String, List<List<String>>?>> loadTimetables(
     BuildContext context,
   ) async {
-    // momentan
-    if (agencyId != "2") return {};
-
     final db = context.read<DbService>();
 
     const days = {"Luni - Vineri": "lv", "Sambata": "s", "Duminica": "d"};
     final data = <String, List<List<String>>?>{};
 
     for (final entry in days.entries) {
-      final result = await db.getTimetable(routeShortName, entry.value);
+      final result = await db.getTimetable(
+        agencyId,
+        routeShortName,
+        entry.value,
+      );
 
       switch (result) {
         case Success(data: final rows):
@@ -69,7 +70,7 @@ class TimetablePage extends StatelessWidget {
           final allEmpty = data.values.every((v) => v == null);
           if (allEmpty) {
             return const Center(
-              child: Text("Aceasta ruta nu are orarul disponibil"),
+              child: Text("Aceasta ruta nu are momentan orarul disponibil"),
             );
           }
 

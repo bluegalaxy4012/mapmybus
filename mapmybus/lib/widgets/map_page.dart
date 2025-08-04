@@ -567,6 +567,9 @@ class _MapPageState extends State<MapPage> {
         .where((v) => visibleRoutesIds.contains(v.routeId!))
         .toList();
 
+    // for (var v in _visibleVehicles)
+    //   print("Vehicle: ${v.label}, Route: ${v.tripId}, Lat: ${v.latitude}, Lon: ${v.longitude}");
+
     return Stack(
       children: [
         FlutterMap(
@@ -615,7 +618,7 @@ class _MapPageState extends State<MapPage> {
         Positioned(
           bottom: 5,
           left: 5,
-          child: Text(
+          child: const Text(
             Constants.copyrightText,
             style: TextStyle(fontSize: 10, color: Colors.black),
           ),
@@ -724,7 +727,7 @@ class _MapPageState extends State<MapPage> {
                 borderRadius: BorderRadius.circular(8.0),
               ),
 
-              child: Text(
+              child: const Text(
                 "Vinerea Verde",
                 style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
               ),

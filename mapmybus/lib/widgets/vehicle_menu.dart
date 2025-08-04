@@ -84,7 +84,6 @@ class _VehicleMenuState extends State<VehicleMenu> {
     );
 
     if (index != -1) {
-      // offset ?
       final double rowH = 26.h;
       final double headerH = 32.h;
 
@@ -322,12 +321,11 @@ class _VehicleMenuState extends State<VehicleMenu> {
                                         ),
                                 ),
 
-                                if (widget.etasInfo.isNotEmpty) // ...[
+                                if (widget.etasInfo.isNotEmpty)
                                   _buildEtasTable(context),
                               ],
                             ),
 
-                          //  ],
                           ElevatedButton(
                             onPressed: widget.onClose,
                             child: Text(
