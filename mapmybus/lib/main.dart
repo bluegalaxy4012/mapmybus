@@ -15,7 +15,6 @@ import 'widgets/home_page.dart';
 
 /// todo later
 // setari la culoare traseu/statii/inbound/outbound
-// welcome page frumos
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -85,6 +84,7 @@ class MyApp extends StatelessWidget {
       child: MaterialApp(
         title: Constants.appTitle,
         theme: ThemeData(
+          fontFamily: "Poppins",
           colorScheme: ColorScheme.fromSeed(
             seedColor: Colors.orange,
             primary: Colors.deepOrange,

@@ -133,11 +133,11 @@ def get_prediction(agency_id: str, trip_id: str, lat: float, lon: float, stop_id
 
     # daca vehiculul a trecut deja statia
     if stop_d <= veh_d:
-        return 0.0, "Vehicle has already passed this stop"
+        return 0.0, "Passed"
 
     # daca e aproape, o sa aproximam ca ajunge in urmatorul minut
     delta = stop_d - veh_d
-    if delta < 120:
+    if delta < 125:
         return 0.0, "Success"
 
     # incarcam knn-ul si vecinii
@@ -175,6 +175,7 @@ def get_prediction(agency_id: str, trip_id: str, lat: float, lon: float, stop_id
     if total_w == 0:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No data to make prediction for trip")
 
+    # now pe server e cu 3 ore in urma
     now = datetime.now() + timezone_offset
     cong = hour_congestion_index[now.hour] if now.weekday() < 5 else weekend_index[now.hour]
     eta = (total_eta / total_w) * cong

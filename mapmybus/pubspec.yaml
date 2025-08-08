@@ -20,6 +20,7 @@ dependencies:
   flutter_screenutil: ^5.9.3
   diacritic: ^0.1.6 
   retry: ^3.1.2
+  smooth_page_indicator: ^1.2.1
 
 dev_dependencies:
   flutter_test:
@@ -29,5 +30,15 @@ dev_dependencies:
 flutter:
   uses-material-design: true
 
+  fonts:
+    - family: Poppins
+      fonts:
+        - asset: fonts/Poppins-Regular.ttf
+        - asset: fonts/Poppins-Bold.ttf
+          weight: 700
+        - asset: fonts/Poppins-Italic.ttf
+          style: italic
+
   assets:
-    - assets/mapmybus.png
+    - assets/map_my_bus.png
+    - assets/map_my_bus_tutorial.png

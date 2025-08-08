@@ -63,6 +63,10 @@ class _MapPageState extends State<MapPage> {
   List<StopArrivalDisplayInfo> _arrivalsDisplayInfo = [];
   Stop? _selectedStop;
 
+  // for better localization of vehicles
+  List<double> _shapeCumDistances = [];
+  final List<StopDistanceInfo> _stopsDistanceInfo = [];
+
   // some display state
   bool _isLoading = false;
   bool _showStopNames = true;
@@ -219,7 +223,63 @@ class _MapPageState extends State<MapPage> {
     }
 
     if (mounted) {
-      setState(() {});
+      setState(() {
+        if (_stopsDistanceInfo.isEmpty || _shapeCumDistances.isEmpty) {
+          _precomputeDistances();
+        }
+      });
+    }
+  }
+
+  void _precomputeDistances() {
+    if (_drawnStops.isEmpty || _drawnPoints.isEmpty) return;
+
+    _shapeCumDistances = List<double>.filled(
+      _drawnPoints.length,
+      0,
+      growable: true,
+    );
+
+    for (int i = 1; i < _drawnPoints.length; i++) {
+      _shapeCumDistances[i] =
+          _shapeCumDistances[i - 1] +
+          Geolocator.distanceBetween(
+            _drawnPoints[i - 1].latitude,
+            _drawnPoints[i - 1].longitude,
+            _drawnPoints[i].latitude,
+            _drawnPoints[i].longitude,
+          );
+    }
+
+    // nu chiar exact dar mai mult mai safe decat sa presupunem ca i neintortochiat traseul
+    int shapePointStartIndex = 0;
+
+    for (final stop in _drawnStops) {
+      double minDist = double.infinity;
+      int closestPointIndex = shapePointStartIndex;
+
+      for (int i = shapePointStartIndex; i < _drawnPoints.length; i++) {
+        final dist = Geolocator.distanceBetween(
+          stop.latitude,
+          stop.longitude,
+          _drawnPoints[i].latitude,
+          _drawnPoints[i].longitude,
+        );
+
+        if (dist < minDist) {
+          minDist = dist;
+          closestPointIndex = i;
+        }
+      }
+
+      shapePointStartIndex = closestPointIndex;
+
+      _stopsDistanceInfo.add(
+        StopDistanceInfo(
+          stop: stop,
+          distanceAlongRoute: _shapeCumDistances[closestPointIndex],
+        ),
+      );
     }
   }
 
@@ -231,18 +291,20 @@ class _MapPageState extends State<MapPage> {
     final infoMap = VehicleStopsInfo(
       latitude: vehicle.latitude!,
       longitude: vehicle.longitude!,
-      stops: _drawnStops,
+      stopsDistanceInfo: _stopsDistanceInfo,
+      shapePoints: _drawnPoints,
+      shapeCumDistances: _shapeCumDistances,
     );
 
-    final result = await compute(computeClosestStops, infoMap);
+    final adjacentStops = await compute(computeClosestStops, infoMap);
 
     if (!mounted) return;
 
     setState(() {
       showMenu = true;
       selectedRouteName = routeShortName;
-      previousStopName = result['previous'] ?? '-';
-      nextStopName = result['next'] ?? '-';
+      previousStopName = adjacentStops['previous'] ?? "-";
+      nextStopName = adjacentStops['next'] ?? "-";
     });
   }
 
@@ -265,7 +327,9 @@ class _MapPageState extends State<MapPage> {
     );
 
     return distToFirstStop < Constants.stopEndsRadius ||
-        distToLastStop < Constants.stopEndsRadius;
+        distToLastStop < Constants.stopEndsRadius ||
+        _drawnStops.first.stopName == nextStopName ||
+        _drawnStops.last.stopName == previousStopName;
   }
 
   bool _isVehicleOnRoute(Vehicle vehicle) {
@@ -294,6 +358,8 @@ class _MapPageState extends State<MapPage> {
 
     if (_lastVehicleLabel != vehicle.label) {
       _currentEtaDisplayInfo.clear();
+      _stopsDistanceInfo.clear();
+      _shapeCumDistances.clear();
 
       // sa nu dam load iar la mapDetails sau tabel de etas
       _lastVehicleLabel = vehicle.label;
@@ -352,6 +418,8 @@ class _MapPageState extends State<MapPage> {
         isSelectedVehicleAtEnds = null;
         _drawnStops.clear();
         _drawnPoints.clear();
+        _stopsDistanceInfo.clear();
+        _shapeCumDistances.clear();
       });
     }
   }
@@ -414,7 +482,7 @@ class _MapPageState extends State<MapPage> {
         final String etaMessage = getEtaMessage(eta);
 
         etas.add(EtaDisplayInfo(stopName: stopName, etaMessage: etaMessage));
-      } else if (data.message == "Vehicle has already passed this stop") {
+      } else if (data.message == "Passed") {
         etas.add(EtaDisplayInfo(stopName: stopName, etaMessage: "Trecut"));
       } else {
         log.w('Unexpected error while getting etas');
@@ -650,6 +718,8 @@ class _MapPageState extends State<MapPage> {
               setState(() {
                 _drawnStops.clear();
                 _drawnPoints.clear();
+                _stopsDistanceInfo.clear();
+                _shapeCumDistances.clear();
               });
             },
           ),
@@ -818,7 +888,7 @@ class _MapPageState extends State<MapPage> {
         bool isSelected =
             selectedVehicle != null && v.label == selectedVehicle!.label;
 
-        if (isSelected && _drawnPoints.length > 1) {
+        if (isSelected && _drawnPoints.length > 1 && _drawnStops.isNotEmpty) {
           double minDist = double.infinity;
           int nextShapePoint = 0;
 

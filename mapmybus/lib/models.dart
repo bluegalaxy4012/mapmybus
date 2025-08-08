@@ -323,15 +323,29 @@ class Arrival {
   }
 }
 
+class StopDistanceInfo {
+  final Stop stop;
+  final double distanceAlongRoute;
+
+  const StopDistanceInfo({
+    required this.stop,
+    required this.distanceAlongRoute,
+  });
+}
+
 class VehicleStopsInfo {
   final double latitude;
   final double longitude;
-  final List<Stop> stops;
+  final List<StopDistanceInfo> stopsDistanceInfo;
+  final List<LatLng> shapePoints;
+  final List<double> shapeCumDistances;
 
   const VehicleStopsInfo({
     required this.latitude,
     required this.longitude,
-    required this.stops,
+    required this.stopsDistanceInfo,
+    required this.shapePoints,
+    required this.shapeCumDistances,
   });
 }
 

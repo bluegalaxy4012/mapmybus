@@ -360,6 +360,12 @@ class _VehicleMenuState extends State<VehicleMenu> {
   }
 
   Column _buildEtasTable(BuildContext context) {
+    bool circularCaseEtaMessage = false;
+
+    if (widget.etasInfo.first.stopName == widget.etasInfo.last.stopName) {
+      circularCaseEtaMessage = true;
+    }
+
     return Column(
       // spacing mai putin
       children: [
@@ -459,7 +465,13 @@ class _VehicleMenuState extends State<VehicleMenu> {
                             ),
                             DataCell(
                               Text(
-                                e.etaMessage,
+                                // better alternative sa antrenez altfel knn
+                                e.stopName == widget.etasInfo.last.stopName &&
+                                        circularCaseEtaMessage
+                                    ? widget
+                                          .etasInfo[widget.etasInfo.length - 2]
+                                          .etaMessage
+                                    : e.etaMessage,
                                 style: TextStyle(
                                   fontSize: calculateFontSize(screenWidth, 14),
                                 ),

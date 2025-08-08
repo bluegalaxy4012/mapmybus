@@ -35,12 +35,12 @@ weekend_index = {
 timezone_offset = timedelta(hours=3)  # totul e utc in datele colectate, romania are +3h
 
 # constante de configurare
-MIN_FEATURES_PER_TRIP = 300
+MIN_FEATURES_PER_TRIP = 250
 MAX_ETA_SECONDS = 2700
 NEIGHBORS_CONSIDERED = 10
 MAX_OFFROUTE_DIST = 150
-MAX_GAP_SECONDS = 120
-MIN_GAP_SECONDS = 5
+MAX_GAP_SECONDS = 125
+MIN_GAP_SECONDS = 8
 
 STOP_ENDS_RADIUS = 65
 MIN_JOURNEY_POINTS = 5

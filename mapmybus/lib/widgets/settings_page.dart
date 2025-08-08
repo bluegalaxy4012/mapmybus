@@ -37,13 +37,6 @@ class SettingsPage extends StatelessWidget {
                 }
               },
             ),
-
-            const SizedBox(height: 40),
-
-            const Text(
-              "Disclaimer: Aproximarile de timp nu vor fi mereu complet corecte.",
-              style: TextStyle(fontStyle: FontStyle.italic, color: Colors.grey),
-            ),
           ],
         ),
       ),

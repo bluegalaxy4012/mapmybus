@@ -19,4 +19,8 @@ Hostuit live pe:
 - **Hosting**: Nginx + Gunicorn pe un server personal
 - **Date**: GTFS, de la API Tranzy
 
+## Cum functioneaza pe scurt
+
+Aplicatia se bazeaza pe datele GTFS pentru a obtine informatii despre rutele de transport public. Aceste date sunt preluate in timp real si afisate pe harta, permitand utilizatorilor sa vada vehiculele in miscare. Modelul de predictie pentru estimari de timp e un k-nearest neighbors antrenat pe date istorice. Practic, cand vrem sa facem o predictie, luam pozitia actuala a vehiculului si ne uitam in trecut la momentele similare ca sa vedem cat a durat traseul atunci.
+
 ---

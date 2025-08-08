@@ -29,8 +29,8 @@ class Constants {
   // typedef Seconds = int;
   static const int defaultRefreshInterval = 20;
 
-  static const double stopEndsRadius = 80;
-  static const double routeProximityRadius = 120;
+  static const double stopEndsRadius = 110;
+  static const double routeProximityRadius = 150;
 
   static const int maxArrivalsCount = 5;
 
@@ -117,8 +117,8 @@ double calculateFontSize(double screenWidth, double baseSize) {
 
 String getEtaMessage(double eta) {
   // doar in caz de erori cu nr negative care nu ar trebui sa apara
-  final minEta = max(0, eta.floor());
-  final maxEta = min(60, max(0, (eta + 1).ceil()));
+  final minEta = max(0, (eta - 0.5).floor());
+  final maxEta = min(60, max(1, (eta + 1).ceil()));
 
   String etaMessage = "$minEta - $maxEta min";
 
@@ -213,56 +213,92 @@ double calculateBearing(LatLng start, LatLng end) {
 }
 
 Map<String, String?> computeClosestStops(VehicleStopsInfo infoMap) {
-  // presupunand ca nu exista statii la care e mai rapid sa cobori cu cateva inainte si sa mergi pe jos decat sa stai
-
   final double vehLat = infoMap.latitude;
   final double vehLon = infoMap.longitude;
 
-  final List<Stop> stops = infoMap.stops;
+  final List<StopDistanceInfo> stopsDistanceInfo = infoMap.stopsDistanceInfo;
+  final List<double> shapeCumDistances = infoMap.shapeCumDistances;
+  final List<LatLng> shapePoints = infoMap.shapePoints;
 
+  int closestPointIndex = 0;
   double minDist = double.infinity;
-  int closestIndex = 0;
 
-  for (int i = 0; i < stops.length; i++) {
-    final stop = stops[i];
+  for (int i = 0; i < shapePoints.length; i++) {
+    final point = shapePoints[i];
     final dist = Geolocator.distanceBetween(
       vehLat,
       vehLon,
-      stop.latitude,
-      stop.longitude,
+      point.latitude,
+      point.longitude,
     );
 
     if (dist < minDist) {
       minDist = dist;
-      closestIndex = i;
+      closestPointIndex = i;
     }
   }
 
-  final double dist1 = Geolocator.distanceBetween(
-    stops.first.latitude,
-    stops.first.longitude,
-    stops[closestIndex].latitude,
-    stops[closestIndex].longitude,
-  );
-
-  final double dist2 = Geolocator.distanceBetween(
-    stops.first.latitude,
-    stops.first.longitude,
-    vehLat,
-    vehLon,
-  );
+  final double distToVehicle = shapeCumDistances[closestPointIndex];
 
   String? previous, next;
 
-  if (dist1 >= dist2) {
-    next = stops[closestIndex].stopName;
-    previous = closestIndex > 0 ? stops[closestIndex - 1].stopName : null;
-  } else {
-    previous = stops[closestIndex].stopName;
-    next = closestIndex < stops.length - 1
-        ? stops[closestIndex + 1].stopName
-        : null;
+  // + 20 in caz ca e fix langa statie
+  int nextStopIndex = stopsDistanceInfo.indexWhere(
+    (info) => info.distanceAlongRoute >= distToVehicle + 20,
+  );
+
+  if (nextStopIndex >= 0) next = stopsDistanceInfo[nextStopIndex].stop.stopName;
+  if (nextStopIndex > 0) {
+    previous = stopsDistanceInfo[nextStopIndex - 1].stop.stopName;
   }
 
   return {'previous': previous, 'next': next};
+
+  // final List<Stop> stops = infoMap.stops;
+
+  // double minDist = double.infinity;
+  // int closestIndex = 0;
+
+  // for (int i = 0; i < stops.length; i++) {
+  //   final stop = stops[i];
+  //   final dist = Geolocator.distanceBetween(
+  //     vehLat,
+  //     vehLon,
+  //     stop.latitude,
+  //     stop.longitude,
+  //   );
+
+  //   if (dist < minDist) {
+  //     minDist = dist;
+  //     closestIndex = i;
+  //   }
+  // }
+
+  // final double dist1 = Geolocator.distanceBetween(
+  //   stops.first.latitude,
+  //   stops.first.longitude,
+  //   stops[closestIndex].latitude,
+  //   stops[closestIndex].longitude,
+  // );
+
+  // final double dist2 = Geolocator.distanceBetween(
+  //   stops.first.latitude,
+  //   stops.first.longitude,
+  //   vehLat,
+  //   vehLon,
+  // );
+
+  // String? previous, next;
+
+  // if (dist1 >= dist2) {
+  //   next = stops[closestIndex].stopName;
+  //   previous = closestIndex > 0 ? stops[closestIndex - 1].stopName : null;
+  // } else {
+  //   previous = stops[closestIndex].stopName;
+  //   next = closestIndex < stops.length - 1
+  //       ? stops[closestIndex + 1].stopName
+  //       : null;
+  // }
+
+  // return {'previous': previous, 'next': next};
 }
