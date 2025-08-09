@@ -1,6 +1,4 @@
-temp
 temp/
-vps
 vps/
 .env
 
@@ -10,10 +8,9 @@ __pycache__/
 venv/
 
 data/
+models/
 vehicle_jsons/
 csv/
-
-*.swp
 
 run.sh
 
