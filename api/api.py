@@ -27,7 +27,7 @@ from preprocess import (
 # incarcam variabilele din .env
 load_dotenv()
 
-logging.basicBasicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger(__name__)
 
 # configuri din .env
@@ -159,13 +159,14 @@ def get_prediction(agency_id: str, trip_id: str, lat: float, lon: float, stop_id
         # print(f"point {i}: hist_d={hist_d}, pdist={pdist}, delta={delta}")
 
 
-        # functie de calculat ponderea, daca e la mai putin de 50m, pondere mare, intre 50 si 150m mai mica, peste 150m ignoram
+        # functie de calculat ponderea, daca e la mai putin de 50m, pondere mare, intre 50 si 200m mai mica
+        # peste 200m mai bine nu consideram ca e inaccurate
         if pdist <= 50:
             w = 0.8 + 0.2 * (1 - pdist / 50)
-        elif pdist <= 150:
-            w = 0.7 - 0.45 * ((pdist - 50) / 100)
+        elif pdist <= 200:
+            w = 0.7 - (0.6 * ((pdist - 50) / 150))
         else:
-            continue 
+            continue
         
         # ca sa avem cat e "totalul" de ponderi
         total_w += w
@@ -198,6 +199,7 @@ def get_arrivals_for_stop(agency_id: str, stop_id: str, vehicle_positions: List[
     for v in relevant:
         try:
             eta_s, msg = get_prediction(agency_id, v["trip_id"], v["lat"], v["lon"], stop_id)
+
             if msg == "Success":
                 predictions.append({
                     "trip_id": v["trip_id"],
@@ -329,6 +331,7 @@ def get_shapes_for_trip(agency_id: str, shape_id: str):
     return result
 
 
+
 def get_random_api_key():
     idx = random.randint(1, 5)
     return os.getenv(f"API_KEY_{idx}")
@@ -346,7 +349,7 @@ async def get_vehicles(agency_id: str):
         "X-API-KEY": get_random_api_key()
     }
     async with httpx.AsyncClient() as client:
-        response = await client.get(f"{os.getenv('BASE_URL')}/vehicles", headers=headers, timeout=5)
+        response = await client.get(f"{os.getenv('BASE_URL')}/vehicles", headers=headers, timeout=10)
     
     if response.status_code == status.HTTP_200_OK:
         return response.json()

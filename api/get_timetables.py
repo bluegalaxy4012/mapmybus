@@ -18,6 +18,7 @@ def get_timetables_url(agency_id: str, short_name: str, day_type: str):
     if agency_id == "2":
         return f"https://ctpcj.ro/orare/csv/orar_{short_name}_{day_type}.csv"
     
+    # todo pt restul
     return ""
 
 
