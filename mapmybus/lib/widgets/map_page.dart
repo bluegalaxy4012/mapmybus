@@ -378,8 +378,6 @@ class _MapPageState extends State<MapPage> {
     bool isVehicleOnRoute = _isVehicleOnRoute(vehicle);
     bool isVehicleAtEnds = _isVehicleAtEnds(vehicle);
 
-    print(isVehicleAtEnds);
-
     setState(() {
       isSelectedVehicleOnRoute = isVehicleOnRoute;
       isSelectedVehicleAtEnds = isVehicleAtEnds;
@@ -634,9 +632,6 @@ class _MapPageState extends State<MapPage> {
     _visibleVehicles = _validVehicles
         .where((v) => visibleRoutesIds.contains(v.routeId!))
         .toList();
-
-    // for (var v in _visibleVehicles)
-    //   print("Vehicle: ${v.label}, Route: ${v.tripId}, Lat: ${v.latitude}, Lon: ${v.longitude}");
 
     return Stack(
       children: [

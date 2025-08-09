@@ -15,27 +15,57 @@ class SettingsPage extends StatelessWidget {
       appBar: AppBar(title: const Text("Setari")),
       body: Center(
         child: Column(
-          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const Text("Alege orasul:"),
+            const SizedBox(),
 
-            DropdownButton<String>(
-              value: currentCity,
+            Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text("Alege orasul:"),
 
-              dropdownColor: Theme.of(context).colorScheme.surface,
-              focusColor: Colors.transparent,
+                DropdownButton<String>(
+                  value: currentCity,
 
-              underline: const SizedBox(),
+                  dropdownColor: Theme.of(context).colorScheme.surface,
+                  focusColor: Colors.transparent,
 
-              items: Constants.availableCityNames.map((city) {
-                return DropdownMenuItem(value: city, child: Text(city));
-              }).toList(),
+                  underline: const SizedBox(),
 
-              onChanged: (newCity) {
-                if (newCity != null) {
-                  cityProvider.setCity(newCity);
-                }
-              },
+                  items: Constants.availableCityNames.map((city) {
+                    return DropdownMenuItem(value: city, child: Text(city));
+                  }).toList(),
+
+                  onChanged: (newCity) {
+                    if (newCity != null) {
+                      cityProvider.setCity(newCity);
+                    }
+                  },
+                ),
+              ],
+            ),
+
+            Padding(
+              padding: const EdgeInsets.all(16),
+
+              child: ElevatedButton(
+                onPressed: () {
+                  showDialog(
+                    context: context,
+
+                    builder: (ctx) => Dialog(
+                      child: InteractiveViewer(
+                        child: Image.asset(
+                          'assets/map_my_bus_tutorial.png',
+                          fit: BoxFit.contain,
+                        ),
+                      ),
+                    ),
+                  );
+                },
+
+                child: const Text("Explicatii"),
+              ),
             ),
           ],
         ),

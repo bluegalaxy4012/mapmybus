@@ -141,6 +141,7 @@ class _WelcomePageState extends State<WelcomePage> {
                           const Text(
                             "Uneori datele de pe harta pot sa nu corespunda cu realitatea.",
                             style: TextStyle(
+                              fontSize: 11,
                               fontStyle: FontStyle.italic,
                               color: Colors.grey,
                             ),
@@ -148,8 +149,9 @@ class _WelcomePageState extends State<WelcomePage> {
                           ),
 
                           const Text(
-                            "Aproximarile de timp nu vor fi mereu complet corecte.",
+                            "Aproximarile de timp nu vor fi mereu corecte.",
                             style: TextStyle(
+                              fontSize: 11,
                               fontStyle: FontStyle.italic,
                               color: Colors.grey,
                             ),
@@ -159,6 +161,7 @@ class _WelcomePageState extends State<WelcomePage> {
                           const Text(
                             "La rutele ciclice, functionalitatile de estimare pot esua.",
                             style: TextStyle(
+                              fontSize: 11,
                               fontStyle: FontStyle.italic,
                               color: Colors.grey,
                             ),
@@ -168,6 +171,7 @@ class _WelcomePageState extends State<WelcomePage> {
                           const Text(
                             "Pot exista statii diferite cu acelasi nume. Alege cu atentie.",
                             style: TextStyle(
+                              fontSize: 11,
                               fontStyle: FontStyle.italic,
                               color: Colors.grey,
                             ),
@@ -190,7 +194,7 @@ class _WelcomePageState extends State<WelcomePage> {
                         ),
                         onPressed: _continueToApp,
                         child: const Text(
-                          "Start",
+                          "Incepe",
                           style: TextStyle(fontStyle: FontStyle.italic),
                         ),
                       ),

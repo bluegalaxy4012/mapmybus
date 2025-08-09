@@ -112,19 +112,28 @@ class Route {
   factory Route.fromJson(Map<String, dynamic> json) {
     Color color;
 
-    // unele il au neparsabil oricum (#000)
     try {
       String hexString = json['route_color'].toString().replaceAll('#', '');
 
       if (hexString.length == 6) {
         hexString = 'FF$hexString';
+      } else if (hexString.length == 3) {
+        hexString =
+            'FF${hexString[0]}${hexString[0]}'
+            '${hexString[1]}${hexString[1]}'
+            '${hexString[2]}${hexString[2]}';
       } else if (hexString.length != 8) {
         throw FormatException(
-          'Lungime invalida a string-ului hex pentru culoare: $hexString',
+          "Lungime invalida a string-ului hex pentru culoare: $hexString",
         );
       }
 
       color = Color(int.parse(hexString, radix: 16));
+
+      // folosim portocaliu si in loc de negru si alb
+      if (color == Colors.black || color == Colors.white) {
+        color = Colors.orangeAccent;
+      }
     } catch (e) {
       color = Colors.orangeAccent;
       log.w(

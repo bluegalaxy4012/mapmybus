@@ -25,8 +25,9 @@ class RouteListItem extends StatelessWidget {
             style: const TextStyle(
               color: Colors.white,
               fontWeight: FontWeight.bold,
-              fontSize: 14.0,
+              fontSize: 13.0,
             ),
+            textAlign: TextAlign.center,
           ),
         ),
 
@@ -41,18 +42,19 @@ class RouteListItem extends StatelessWidget {
         ),
         trailing: Selector<RoutesProvider, bool>(
           selector: (_, provider) => provider.isFavorite(route.routeId),
+
           builder: (_, isFav, _) => IconButton(
             icon: Icon(
               isFav ? Icons.favorite : Icons.favorite_border,
               color: isFav ? Colors.red : Colors.grey,
-              size: 28.0,
+              size: 30.0,
             ),
 
             onPressed: () {
               context.read<RoutesProvider>().toggleFavorite(route);
               showSimpleSnackbar(
                 context,
-                "Linia ${route.routeShortName} a fost ${isFav ? 'scoasa de la' : 'adaugata la'} favorite.",
+                "Linia ${route.routeShortName} a fost ${isFav ? "scoasa de la" : "adaugata la"} favorite.",
               );
             },
           ),
