@@ -29,8 +29,8 @@ class Constants {
   // typedef Seconds = int;
   static const int defaultRefreshInterval = 20;
 
-  static const double stopEndsRadius = 110;
-  static const double routeProximityRadius = 150;
+  static const double stopEndsRadius = 125;
+  static const double routeProximityRadius = 125;
 
   static const int maxArrivalsCount = 5;
 
@@ -103,6 +103,8 @@ class Constants {
     "Chisinau",
     "Botosani",
   ];
+
+  static const List<String> cityNamesWithVineriVerde = ["Cluj-Napoca"];
 
   ///
 }

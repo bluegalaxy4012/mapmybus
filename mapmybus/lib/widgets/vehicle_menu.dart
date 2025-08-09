@@ -360,10 +360,10 @@ class _VehicleMenuState extends State<VehicleMenu> {
   }
 
   Column _buildEtasTable(BuildContext context) {
-    bool circularCaseEtaMessage = false;
+    bool cyclicCaseEtaMessage = false;
 
     if (widget.etasInfo.first.stopName == widget.etasInfo.last.stopName) {
-      circularCaseEtaMessage = true;
+      cyclicCaseEtaMessage = true;
     }
 
     return Column(
@@ -441,7 +441,13 @@ class _VehicleMenuState extends State<VehicleMenu> {
                         ),
                       ],
 
-                      rows: widget.etasInfo.map((e) {
+                      rows: widget.etasInfo.asMap().entries.map((entry) {
+                        final e = entry.value;
+
+                        final isNextStop = e.stopName == widget.nextStopName;
+                        final isLastStop =
+                            entry.key == widget.etasInfo.length - 1;
+
                         return DataRow(
                           color: e.stopName == widget.nextStopName
                               ? WidgetStateProperty.all(
@@ -457,7 +463,7 @@ class _VehicleMenuState extends State<VehicleMenu> {
                                 e.stopName,
                                 style: TextStyle(
                                   fontSize: calculateFontSize(screenWidth, 13),
-                                  fontWeight: e.stopName == widget.nextStopName
+                                  fontWeight: isNextStop
                                       ? FontWeight.bold
                                       : FontWeight.normal,
                                 ),
@@ -466,8 +472,7 @@ class _VehicleMenuState extends State<VehicleMenu> {
                             DataCell(
                               Text(
                                 // better alternative sa antrenez altfel knn
-                                e.stopName == widget.etasInfo.last.stopName &&
-                                        circularCaseEtaMessage
+                                isLastStop && cyclicCaseEtaMessage
                                     ? widget
                                           .etasInfo[widget.etasInfo.length - 2]
                                           .etaMessage

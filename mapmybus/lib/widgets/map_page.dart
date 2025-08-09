@@ -327,9 +327,7 @@ class _MapPageState extends State<MapPage> {
     );
 
     return distToFirstStop < Constants.stopEndsRadius ||
-        distToLastStop < Constants.stopEndsRadius ||
-        _drawnStops.first.stopName == nextStopName ||
-        _drawnStops.last.stopName == previousStopName;
+        distToLastStop < Constants.stopEndsRadius;
   }
 
   bool _isVehicleOnRoute(Vehicle vehicle) {
@@ -379,6 +377,8 @@ class _MapPageState extends State<MapPage> {
 
     bool isVehicleOnRoute = _isVehicleOnRoute(vehicle);
     bool isVehicleAtEnds = _isVehicleAtEnds(vehicle);
+
+    print(isVehicleAtEnds);
 
     setState(() {
       isSelectedVehicleOnRoute = isVehicleOnRoute;
@@ -785,7 +785,8 @@ class _MapPageState extends State<MapPage> {
         ),
 
         //daca e vineri verde
-        if (DateTime.now().weekday == DateTime.friday)
+        if (DateTime.now().weekday == DateTime.friday &&
+            Constants.cityNamesWithVineriVerde.contains(widget.city.name))
           Positioned(
             bottom: 10,
             right: 10,
