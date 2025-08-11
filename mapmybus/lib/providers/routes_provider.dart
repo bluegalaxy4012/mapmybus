@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:diacritic/diacritic.dart';
 import 'package:flutter/material.dart' hide Route;
 import 'package:mapmybus/db_service.dart';
 import 'package:mapmybus/utils.dart';
@@ -90,8 +91,16 @@ class RoutesProvider extends ChangeNotifier {
 
     if (_searchQuery.isNotEmpty) {
       tempRoutes = tempRoutes.where((route) {
-        return route.routeShortName.toLowerCase().contains(_searchQuery) ||
-            route.routeLongName.toLowerCase().contains(_searchQuery);
+        final simpleRouteShortName = removeDiacritics(
+          route.routeShortName.toLowerCase(),
+        );
+        final simpleRouteLongName = removeDiacritics(
+          route.routeLongName.toLowerCase(),
+        );
+        final simpleSearchQuery = removeDiacritics(_searchQuery.toLowerCase());
+
+        return simpleRouteShortName.contains(simpleSearchQuery) ||
+            simpleRouteLongName.contains(simpleSearchQuery);
       }).toList();
     }
 

@@ -6,6 +6,7 @@ import 'package:mapmybus/utils.dart';
 class StopArrivalsTable extends StatefulWidget {
   final String stopName;
   final List<StopArrivalDisplayInfo> arrivals;
+  final DateTime? tableCreateTime;
 
   final VoidCallback onClose;
 
@@ -13,6 +14,7 @@ class StopArrivalsTable extends StatefulWidget {
     super.key,
     required this.stopName,
     required this.arrivals,
+    required this.tableCreateTime,
     required this.onClose,
   });
 
@@ -84,14 +86,23 @@ class _StopArrivalsTableState extends State<StopArrivalsTable> {
                     Column(
                       children: [
                         Text(
-                          "(se presupune ca vehiculele afisate sunt in curs de)",
+                          "Actualizat la: ${formattedTime(widget.tableCreateTime)}",
+
+                          style: TextStyle(
+                            fontSize: calculateFontSize(screenWidth, 14),
+                            color: Colors.grey,
+                          ),
+                        ),
+
+                        Text(
+                          "(se presupune ca vehiculele afisate sunt in curs de",
                           style: TextStyle(
                             fontSize: calculateFontSize(screenWidth, 13),
                             color: Colors.grey,
                           ),
                         ),
                         Text(
-                          "(parcurgere a rutei si nu stationeaza la capat de linie)",
+                          "parcurgere a rutei si nu stationeaza la capat de linie)",
                           style: TextStyle(
                             fontSize: calculateFontSize(screenWidth, 13),
                             color: Colors.grey,

@@ -119,13 +119,6 @@ class _VehicleMenuState extends State<VehicleMenu> {
     super.dispose();
   }
 
-  String _formattedTime(DateTime? time) {
-    if (time == null) return "?";
-    return "${time.hour.toString().padLeft(2, '0')}:"
-        "${time.minute.toString().padLeft(2, '0')}:"
-        "${time.second.toString().padLeft(2, '0')}";
-  }
-
   @override
   Widget build(BuildContext context) {
     screenWidth = MediaQuery.sizeOf(context).width;
@@ -370,7 +363,7 @@ class _VehicleMenuState extends State<VehicleMenu> {
       // spacing mai putin
       children: [
         Text(
-          "Actualizat la: ${_formattedTime(widget.lastEtaFetchTime)}",
+          "Actualizat la: ${formattedTime(widget.lastEtaFetchTime)}",
 
           style: TextStyle(
             fontSize: calculateFontSize(screenWidth, 14),

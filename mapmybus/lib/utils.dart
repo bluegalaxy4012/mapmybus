@@ -131,6 +131,13 @@ String getEtaMessage(double eta) {
   return etaMessage;
 }
 
+String formattedTime(DateTime? time) {
+  if (time == null) return "?";
+  return "${time.hour.toString().padLeft(2, '0')}:"
+      "${time.minute.toString().padLeft(2, '0')}:"
+      "${time.second.toString().padLeft(2, '0')}";
+}
+
 CityConfig getCityConfig(String cityName) {
   return Constants.cities.firstWhere(
     (city) => city.name == cityName,
@@ -175,20 +182,20 @@ Future<Position> determinePosition() async {
 
   serviceEnabled = await Geolocator.isLocationServiceEnabled();
   if (!serviceEnabled) {
-    return Future.error('Location services are disabled.');
+    return Future.error("Location services are disabled.");
   }
 
   permission = await Geolocator.checkPermission();
   if (permission == LocationPermission.denied) {
     permission = await Geolocator.requestPermission();
     if (permission == LocationPermission.denied) {
-      return Future.error('Location permissions are denied.');
+      return Future.error("Location permissions are denied.");
     }
   }
 
   if (permission == LocationPermission.deniedForever) {
     return Future.error(
-      'Location permissions are permanently denied, we cannot request permissions.',
+      "Location permissions are permanently denied, we cannot request permissions.",
     );
   }
 
@@ -255,52 +262,4 @@ Map<String, String?> computeClosestStops(VehicleStopsInfo infoMap) {
   }
 
   return {'previous': previous, 'next': next};
-
-  // final List<Stop> stops = infoMap.stops;
-
-  // double minDist = double.infinity;
-  // int closestIndex = 0;
-
-  // for (int i = 0; i < stops.length; i++) {
-  //   final stop = stops[i];
-  //   final dist = Geolocator.distanceBetween(
-  //     vehLat,
-  //     vehLon,
-  //     stop.latitude,
-  //     stop.longitude,
-  //   );
-
-  //   if (dist < minDist) {
-  //     minDist = dist;
-  //     closestIndex = i;
-  //   }
-  // }
-
-  // final double dist1 = Geolocator.distanceBetween(
-  //   stops.first.latitude,
-  //   stops.first.longitude,
-  //   stops[closestIndex].latitude,
-  //   stops[closestIndex].longitude,
-  // );
-
-  // final double dist2 = Geolocator.distanceBetween(
-  //   stops.first.latitude,
-  //   stops.first.longitude,
-  //   vehLat,
-  //   vehLon,
-  // );
-
-  // String? previous, next;
-
-  // if (dist1 >= dist2) {
-  //   next = stops[closestIndex].stopName;
-  //   previous = closestIndex > 0 ? stops[closestIndex - 1].stopName : null;
-  // } else {
-  //   previous = stops[closestIndex].stopName;
-  //   next = closestIndex < stops.length - 1
-  //       ? stops[closestIndex + 1].stopName
-  //       : null;
-  // }
-
-  // return {'previous': previous, 'next': next};
 }

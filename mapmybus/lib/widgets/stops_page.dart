@@ -77,7 +77,7 @@ class _StopsPageState extends State<StopsPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Lista statii', style: TextStyle(fontSize: 28)),
+        title: const Text("Lista statii", style: TextStyle(fontSize: 28)),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () => Navigator.pop(context),

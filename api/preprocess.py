@@ -13,40 +13,42 @@ logger = logging.getLogger(__name__)
 
 # indici de congestie in functie de ora din zi, si pt weekend
 hour_congestion_index = {
-    0: 0.95, 1: 0.95, 2: 0.95, 3: 0.9,
-    4: 0.9, 5: 1.0,
-    6:1.05,7:1.15,8:1.2,9:1.15,
-    10:1.125,11:1.1,12:1.1,13:1.1,
+    0: 0.7, 1: 0.65, 2: 0.65, 3: 0.65,
+    4: 0.8, 5: 0.95,
+    6:1.1,7:1.25,8:1.3,9:1.2,
+    10:1.125,11:1.075,12:1.075,13:1.125,
     14:1.2,15:1.25,16:1.3,17:1.35,
-    18:1.3,19:1.15,20:1.1,21:1.05,
-    22:1.05,23:1.025
+    18:1.275,19:1.15,20:1.1,21:1.0,
+    22:0.9,23:0.8
 }
 
 weekend_index = {
-    0: 1.00, 1: 0.95, 2: 0.95, 3: 0.95,
-    4: 0.9, 5: 0.85,
-    6:0.90,7:1.00,8:1.05,9:1.00,
-    10:0.975,11:0.95,12:0.95,13:0.95,
-    14:1.05,15:1.10,16:1.15,17:1.20,
-    18:1.15,19:1.00,20:0.95,21:0.90,
-    22:0.90,23:0.875
+    0: 0.7, 1: 0.7, 2: 0.65, 3: 0.65,
+    4: 0.8, 5: 0.75,
+    6:0.8,7:0.9,8:1.00,9:1.025,
+    10:1.05,11:1.075,12:1.1,13:1.1,
+    14:1.125,15:1.125,16:1.1,17:1.05,
+    18:1.00,19:0.95,20:0.9,21:0.90,
+    22:0.8,23:0.775
 }
 
 timezone_offset = timedelta(hours=3)  # totul e utc in datele colectate, romania are +3h
 
 # constante de configurare
-MIN_FEATURES_PER_TRIP = 250
+MIN_FEATURES_PER_TRIP = 200
 MAX_ETA_SECONDS = 2700
-NEIGHBORS_CONSIDERED = 10
-MAX_OFFROUTE_DIST = 150
+NEIGHBORS_CONSIDERED = 12
+MAX_OFFROUTE_DIST = 140
 MAX_GAP_SECONDS = 125
 MIN_GAP_SECONDS = 8
 
-STOP_ENDS_RADIUS = 100
+STOP_ENDS_RADIUS = 120
 MIN_JOURNEY_POINTS = 8
 MIN_STATIONARY_DIST = 10
 
 AGENCY_IDS = ["1", "2", "4", "6", "8"]
+
+VEHICLE_TRAIN_DATA_PATHS = ["vehicle_jsons/set1", "vehicle_jsons/set2"]
 
 
 def load_shapes(agency_id: str, path="data/agency{agency_id}_shapes.json"):
@@ -148,15 +150,22 @@ if __name__=="__main__":
         logger.info("loading vehicle data for agency %s", agency_id)
 
         # incarcam datele vehiculelor in miscare, filtrand un pic 
-        for snap in json.load(open(f"vehicle_jsons/agency{agency_id}_data_vehicles.json")):
-            for v in snap.get("data", []):
-                if v.get("trip_id") and v.get("label") and v.get("latitude") and v.get("longitude") and v.get("timestamp") and v.get("speed"):
-                    history[v["trip_id"]].append({
-                        "label": v["label"],
-                        "ts": datetime.fromisoformat(v["timestamp"].replace('Z','')),
-                        "lat": v["latitude"],
-                        "lon": v["longitude"]
-                    })
+
+        for path in VEHICLE_TRAIN_DATA_PATHS:
+            if not os.path.exists(f"{path}/agency{agency_id}_data_vehicles.json"):
+                logger.warning("no vehicle data found for agency %s in path %s, skip", agency_id, path)
+                continue
+
+            with open(os.path.join(path, f"agency{agency_id}_data_vehicles.json")) as f:
+                for snap in json.load(f):
+                    for v in snap.get("data", []):
+                        if v.get("trip_id") and v.get("label") and v.get("latitude") and v.get("longitude") and v.get("timestamp") and v.get("speed"):
+                            history[v["trip_id"]].append({
+                                "label": v["label"],
+                                "ts": datetime.fromisoformat(v["timestamp"].replace('Z','')),
+                                "lat": v["latitude"],
+                                "lon": v["longitude"]
+                            })
 
         logger.info("loaded history for %d trips, agency %s", len(history), agency_id)
 
@@ -199,13 +208,15 @@ if __name__=="__main__":
                         if geodesic((prev['lat'], prev['lon']), (pt['lat'], pt['lon'])).meters < MIN_STATIONARY_DIST:
                             if pd < STOP_ENDS_RADIUS or end_dist < STOP_ENDS_RADIUS:
                                 continue
+
+                    pt['_pd'] = pd
                     filtered.append(pt)
 
                 # generam date de invatare pentru ETA
                 # timpul adevarat de sosire il calculam mergand prin calatorie si cautand urmatorul punct apropiat de statia curenta
                 # scadem cateva secunde in caz ca l-a depasit
                 for pt in filtered:
-                    pd = project_route(pt['lat'], pt['lon'], shp)
+                    pd = pt['_pd']
 
                     for sid, sd in stop_dists_by_trip[trip_id].items():
                         if sd <= pd:

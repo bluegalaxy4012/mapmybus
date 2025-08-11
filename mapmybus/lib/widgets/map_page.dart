@@ -62,6 +62,7 @@ class _MapPageState extends State<MapPage> {
 
   List<StopArrivalDisplayInfo> _arrivalsDisplayInfo = [];
   Stop? _selectedStop;
+  DateTime? _stopArrivalsCreateTime;
 
   // for better localization of vehicles
   List<double> _shapeCumDistances = [];
@@ -511,6 +512,7 @@ class _MapPageState extends State<MapPage> {
       _isLoading = true;
       _arrivalsDisplayInfo.clear();
       _selectedStop = stop;
+      _stopArrivalsCreateTime = null;
 
       // reset la vehicul
       showMenu = false;
@@ -575,6 +577,7 @@ class _MapPageState extends State<MapPage> {
           }
         } else {
           setState(() {
+            _stopArrivalsCreateTime = DateTime.now();
             _selectedStop = stop;
             _arrivalsDisplayInfo = arrivalsDisplayInfo;
           });
@@ -845,10 +848,12 @@ class _MapPageState extends State<MapPage> {
           StopArrivalsTable(
             arrivals: _arrivalsDisplayInfo,
             stopName: _selectedStop!.stopName,
+            tableCreateTime: _stopArrivalsCreateTime,
             onClose: () {
               setState(() {
                 _arrivalsDisplayInfo.clear();
                 _selectedStop = null;
+                _stopArrivalsCreateTime = null;
               });
             },
           ),
