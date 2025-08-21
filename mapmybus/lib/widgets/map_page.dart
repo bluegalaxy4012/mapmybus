@@ -14,8 +14,10 @@ import 'package:mapmybus/widgets/simple_snackbar.dart';
 import 'package:mapmybus/widgets/stop_arrivals_table.dart';
 import 'package:mapmybus/widgets/stop_marker.dart';
 import 'package:mapmybus/widgets/stops_page.dart';
+import 'package:mapmybus/widgets/user_location_marker.dart';
 import 'package:mapmybus/widgets/vehicle_marker.dart';
 import 'package:mapmybus/widgets/vehicle_menu.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:provider/provider.dart';
 
 import '../models.dart';
@@ -109,10 +111,15 @@ class _MapPageState extends State<MapPage> {
   }
 
   void _startPositionStream() {
+    if (defaultTargetPlatform == TargetPlatform.android) {
+      Permission.location.request();
+    }
+
     final LocationSettings locationSettings = LocationSettings(
-      accuracy: LocationAccuracy.high,
-      distanceFilter: 3,
+      accuracy: LocationAccuracy.bestForNavigation,
+      distanceFilter: 20,
     );
+
     _positionStreamSubscription =
         Geolocator.getPositionStream(locationSettings: locationSettings).listen(
           (Position? position) {
@@ -938,6 +945,8 @@ class _MapPageState extends State<MapPage> {
       _currentPosition!.latitude,
       _currentPosition!.longitude,
     );
+
+    // oribil pe web
     double heading = _currentPosition!.heading;
 
     return MarkerLayer(
@@ -947,35 +956,7 @@ class _MapPageState extends State<MapPage> {
 
           width: 40,
           height: 40,
-          child: Stack(
-            alignment: Alignment.center,
-
-            children: [
-              Container(
-                width: 20,
-                height: 20,
-                decoration: BoxDecoration(
-                  color: Colors.lightBlue,
-                  shape: BoxShape.circle,
-                  border: Border.all(color: Colors.blueGrey, width: 2),
-                ),
-              ),
-
-              if (heading != 0.0) // invalid de obicei
-                Transform.rotate(
-                  angle: heading * (pi / 180),
-
-                  child: Transform.translate(
-                    offset: const Offset(0, -10),
-                    child: const Icon(
-                      Icons.navigation,
-                      color: Colors.blue,
-                      size: 20,
-                    ),
-                  ),
-                ),
-            ],
-          ),
+          child: UserLocationMarker(heading: heading),
         ),
       ],
     );

@@ -3,6 +3,7 @@ import 'package:mapmybus/db_service.dart';
 import 'package:mapmybus/models.dart';
 import 'package:mapmybus/utils.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class TimetablePage extends StatelessWidget {
   final String agencyId;
@@ -106,6 +107,26 @@ class TimetablePage extends StatelessWidget {
 
   List<Widget> _buildTimetable(List<List<String>> rows, BuildContext context) {
     final widgets = <Widget>[];
+
+    if (rows.length == 1 && rows[0][0] == "EXTERNAL_URL") {
+      final url = rows[0][1];
+      return [
+        Padding(
+          padding: const EdgeInsets.all(16),
+          child: InkWell(
+            onTap: () async {
+              await launchUrl(Uri.parse(url));
+            },
+
+            child: Text(
+              "Orarul este disponibil momentan doar online. Apasa aici pentru a-l deschide.",
+              style: const TextStyle(color: Colors.blue),
+              textAlign: TextAlign.center,
+            ),
+          ),
+        ),
+      ];
+    }
 
     if (rows.length < 5) {
       return [const Text("Orarul este indisponibil")];

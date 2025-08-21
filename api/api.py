@@ -5,7 +5,7 @@ import numpy as np
 import os
 from fastapi import FastAPI, HTTPException, Query, status, Body
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 from typing import List
 from dotenv import load_dotenv
 from pymongo import MongoClient
@@ -36,6 +36,9 @@ DB_NAME = os.getenv("DB_NAME")
 CSV_DIR = Path("csv")
 
 AGENCY_IDS = ["1", "2", "4", "6", "8"]
+EXTERNAL_TIMETABLES_AGENCY_IDS = ["1", "4", "6", "8"]
+
+MIN_VALID_EXTERNAL_TIMETABLE_SIZE=100 # bytes
 
 # cache local pt modele, statii, rute, distante
 models_cache = {}
@@ -357,19 +360,52 @@ async def get_vehicles(agency_id: str):
     raise HTTPException(status_code=response.status_code, detail=response.text)
 
 
+def get_external_timetable_urls(agency_id: str, route_short_name: str, day_type: str):
+    # nu se poate mai bine fara foarte mult efort de scraping
+
+    match agency_id:
+        case "1":
+            # iasi
+            return [f"https://iasitimetable.tranzy.ai/pdfs/track-{route_short_name.lower()}.pdf"]
+        case "4":
+            # chisinau
+            return [f"https://www.autourban.md/index.php?page=orare&tip=all"]
+        case "6":
+            # botosani
+            return [f"https://www1.primariabt.ro/pdf/diverse/transport/microbus+autobus.pdf"]
+        case "8":
+            # timisoara
+            return [f"https://stpt.ro/{route_short_name.lower()}-2/", f"https://stpt.ro/{route_short_name.lower()}/"]
+        case _:
+            return []
+
+
+
 # intoarce orarul csv pt o ruta+zi
 @app.get("/timetables/{agency_id}")
-def get_timetable(agency_id: str, route_short_name: str = Query(...), day_type: str = Query(..., enum=["lv", "s", "d"])):
+async def get_timetable(agency_id: str, route_short_name: str = Query(...), day_type: str = Query(..., enum=["lv", "s", "d"])):
     logger.info("fetching timetable for agency %s, route %s, day type %s", agency_id, route_short_name, day_type)
-    
+
     if agency_id not in AGENCY_IDS:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST)
 
     if day_type not in ["lv", "s", "d"]:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST)
-    
-    file_path = CSV_DIR / f"agency{agency_id}_orar_{route_short_name}_{day_type}.csv"
-    if not file_path.exists():
+
+    if agency_id not in EXTERNAL_TIMETABLES_AGENCY_IDS:
+        file_path = CSV_DIR / f"agency{agency_id}_orar_{route_short_name}_{day_type}.csv"
+        if not file_path.exists():
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Timetable not found")
+
+        return FileResponse(file_path, media_type="text/csv", filename=file_path.name)
+    else:
+        urls = get_external_timetable_urls(agency_id=agency_id, route_short_name=route_short_name, day_type=day_type)
+
+        async with httpx.AsyncClient() as client:
+            for url in urls:
+                response = await client.get(url, timeout=3)
+
+                if response.status_code == status.HTTP_200_OK and len(response.content) >= MIN_VALID_EXTERNAL_TIMETABLE_SIZE:
+                    return JSONResponse({"url":url})
+
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Timetable not found")
-    
-    return FileResponse(file_path, media_type="text/csv", filename=file_path.name)

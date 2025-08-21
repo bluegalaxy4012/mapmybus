@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart' hide Route;
+import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:mapmybus/db_service.dart';
 import 'package:mapmybus/providers/city_provider.dart';
@@ -16,9 +17,15 @@ import 'widgets/home_page.dart';
 /// todo later
 // setari la culoare traseu/statii/inbound/outbound
 // sa mearga tot cu user location
+// orare
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  SystemChrome.setPreferredOrientations([
+    DeviceOrientation.portraitUp,
+    DeviceOrientation.portraitDown,
+  ]);
 
   final dbService = DbService();
 

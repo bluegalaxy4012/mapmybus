@@ -217,20 +217,30 @@ class DbService {
       if (response.statusCode == 200) {
         log.d("Fetched timetable for route $routeShortName on day $dayType");
 
-        return Success(
-          const CsvToListConverter(
-            eol: "\n",
-            shouldParseNumbers: false,
-          ).convert(utf8.decode(response.bodyBytes)),
-        );
-      } else {
-        return Failure(
-          ApiException(
-            "Server error during timetables fetch",
-            response.statusCode,
-          ),
-        );
+        final contentType = response.headers['content-type'] ?? '';
+
+        if (contentType.contains('text/csv')) {
+          return Success(
+            const CsvToListConverter(
+              eol: "\n",
+              shouldParseNumbers: false,
+            ).convert(utf8.decode(response.bodyBytes)),
+          );
+        } else if (contentType.contains('application/json')) {
+          final jsonData = jsonDecode(response.body);
+          final url = jsonData['url'] as String;
+          return Success([
+            ["EXTERNAL_URL", url],
+          ]);
+        }
       }
+
+      return Failure(
+        ApiException(
+          "Server error during timetables fetch",
+          response.statusCode,
+        ),
+      );
     } catch (e) {
       return Failure(Exception("Unexpected error: $e"));
     }
