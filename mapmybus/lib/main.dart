@@ -16,8 +16,6 @@ import 'widgets/home_page.dart';
 
 /// todo later
 // setari la culoare traseu/statii/inbound/outbound
-// sa mearga tot cu user location
-// orare
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();

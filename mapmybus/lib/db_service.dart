@@ -29,9 +29,17 @@ class DbService {
 
       if (response.statusCode == 200) {
         final List<dynamic> jsonData = jsonDecode(response.body);
-        final List<Vehicle> vehicles = jsonData.map((json) {
-          return Vehicle.fromJson(json);
-        }).toList();
+        // final List<Vehicle> vehicles = jsonData.map((json) {
+        //   return Vehicle.fromJson(json);
+        // }).toList();
+final List<Vehicle> vehicles = [];
+        for (var item in jsonData) {
+  try {
+    vehicles.add(Vehicle.fromJson(item));
+  } catch (e, st) {
+    log.e("Failed to parse vehicle JSON: $item, $e, $st");
+  }
+}
 
         log.d("Fetched ${vehicles.length} vehicles for agency $agencyId");
 

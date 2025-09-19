@@ -66,8 +66,19 @@ class Vehicle {
       }
     }
 
+    // safe parse la un presupus obiect int in int (aparent acum poate fi si string id)
+    int parseInt(dynamic integer) {
+      if (integer is int) return integer;
+      if (integer is num) return integer.toInt();
+      if (integer is String) {
+        return int.tryParse(integer) ?? 0;
+      }
+
+      return 0;
+    }
+
     return Vehicle(
-      id: json['id'] as int,
+      id: parseInt(json['id']),
       label: json['label'] as String,
       latitude: json['latitude'] != null
           ? (json['latitude'] as num).toDouble()
@@ -76,10 +87,10 @@ class Vehicle {
           ? (json['longitude'] as num).toDouble()
           : null,
       timestamp: parseTimestamp(json['timestamp'] as String?),
-      speed: json['speed'] != null ? (json['speed'] as num).toInt() : null,
-      routeId: json['route_id'] as int?,
+      speed: json['speed'] != null ? parseInt(json['speed']) : null,
+      routeId: json['route_id'] != null ? parseInt(json['route_id']) : null,
       tripId: json['trip_id'] as String?,
-      vehicleType: json['vehicle_type'] as int,
+      vehicleType: parseInt(json['vehicle_type']),
       bikeAccessible: parseAccessibility(json['bike_accessible'] as String?),
       wheelchairAccessible: parseAccessibility(
         json['wheelchair_accessible'] as String?,
