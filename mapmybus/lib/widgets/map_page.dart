@@ -12,7 +12,7 @@ import 'package:mapmybus/providers/vehicles_provider.dart';
 import 'package:mapmybus/utils.dart';
 import 'package:mapmybus/widgets/simple_snackbar.dart';
 import 'package:mapmybus/widgets/stop_arrivals_table.dart';
-import 'package:mapmybus/widgets/stop_marker.dart';
+import 'package:mapmybus/widgets/final_stop_marker.dart';
 import 'package:mapmybus/widgets/stops_page.dart';
 import 'package:mapmybus/widgets/user_location_marker.dart';
 import 'package:mapmybus/widgets/vehicle_marker.dart';
@@ -699,7 +699,7 @@ class _MapPageState extends State<MapPage> {
 
         Positioned(
           top: 10,
-          right: 10,
+          right: 110,
           child: FloatingActionButton(
             heroTag: "centerButton",
             tooltip: "Centreaza pe locatia ta",
@@ -710,8 +710,8 @@ class _MapPageState extends State<MapPage> {
         ),
 
         Positioned(
-          top: 60,
-          right: 10,
+          top: 10,
+          right: 60,
           child: FloatingActionButton(
             heroTag: "clearButton",
             tooltip: "Sterge traseul desenat",
@@ -731,11 +731,11 @@ class _MapPageState extends State<MapPage> {
         ),
 
         Positioned(
-          top: 110,
+          top: 10,
           right: 10,
           child: FloatingActionButton(
             heroTag: "searchStopButton",
-            tooltip: "Cauta o statie",
+            tooltip: "Cauta o statie si vezi sosirile",
             mini: true,
             child: const Icon(Icons.search),
             onPressed: () async {
@@ -774,8 +774,32 @@ class _MapPageState extends State<MapPage> {
         ),
 
         Positioned(
-          top: 160,
+          top: 60,
+          right: 60,
+          child: FloatingActionButton(
+            heroTag: "showNearbyStopsButton",
+            tooltip: "Afiseaza statiile din jurul tau",
+            mini: true,
+            child: const Icon(Icons.multiple_stop_outlined),
+            onPressed: () {},
+          ),
+        ),
+
+        Positioned(
+          top: 60,
           right: 10,
+          child: FloatingActionButton(
+            heroTag: "selectYourBusButton",
+            tooltip: "Selecteaza autobuzul in care te afli",
+            mini: true,
+            child: const Icon(Icons.bus_alert),
+            onPressed: () {},
+          ),
+        ),
+
+        Positioned(
+          top: 60,
+          right: 110,
           child: FloatingActionButton(
             heroTag: "toggleStopNamesButton",
             tooltip: "Arata/ascunde numele statiilor",
@@ -877,7 +901,29 @@ class _MapPageState extends State<MapPage> {
           alignment: Alignment.topCenter,
           point: LatLng(_selectedStop!.latitude, _selectedStop!.longitude),
           child: IgnorePointer(
-            child: const Icon(Icons.place, color: Colors.orange, size: 50),
+            child: Stack(
+              clipBehavior: Clip.none,
+              alignment: Alignment.center,
+
+              children: [
+                const Icon(Icons.place, color: Colors.orange, size: 50),
+
+                Positioned(
+                  top: 50,
+                  child: Text(
+                    _selectedStop!.stopName,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black,
+                      backgroundColor: Colors.orange,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ],
@@ -968,47 +1014,56 @@ class _MapPageState extends State<MapPage> {
         final bool isStart = stop.stopId == _drawnStops.first.stopId;
         final bool isEnd = stop.stopId == _drawnStops.last.stopId;
 
-        final bool isStopMarker = isStart || isEnd;
+        final bool isFinalStopMarker = isStart || isEnd;
 
-        final double iconSize = isStopMarker ? 36 : 24;
+        final double iconSize = isFinalStopMarker ? 36 : 24;
 
         return [
-          if (_showStopNames)
-            Marker(
-              point: LatLng(stop.latitude - 0.0001, stop.longitude),
-              width: 150,
-              height: 20,
-              alignment: Alignment.topCenter,
-
-              child: Text(
-                stop.stopName,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontSize: 11,
-                  color: Color.fromARGB(255, 85, 85, 85),
-                ),
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-
           Marker(
             point: LatLng(stop.latitude, stop.longitude),
-            width: iconSize,
+            width: iconSize + 80,
             height: iconSize,
-            alignment: isStopMarker ? Alignment.center : Alignment.topCenter,
+
+            // unul e cerc deci trebuie centrul sa fie in punctul acela de pe harta
+            // si unul marker deci trebuie varful de jos sa fie la acea pozitie,
+            alignment: isFinalStopMarker
+                ? Alignment.center
+                : Alignment.topCenter,
 
             child: GestureDetector(
               onTap: () => _onStopTap(stop),
 
-              child: isStart
-                  ? StopMarker(name: "Start")
-                  : isEnd
-                  ? StopMarker(name: "End")
-                  : const Icon(
-                      Icons.place,
-                      color: Color.fromARGB(255, 68, 137, 216),
-                      size: 24,
+              child: Stack(
+                clipBehavior: Clip.none,
+                alignment: Alignment.center,
+                children: [
+                  isStart
+                      ? FinalStopMarker(name: "Start")
+                      : isEnd
+                      ? FinalStopMarker(name: "End")
+                      : const Icon(
+                          Icons.place,
+                          color: Color.fromARGB(255, 68, 137, 216),
+                          size: 30,
+                        ),
+
+                  if (_showStopNames)
+                    Positioned(
+                      top: iconSize,
+                      child: Text(
+                        stop.stopName,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          fontSize: 11.25,
+                          fontWeight: FontWeight.bold,
+                          color: Color.fromARGB(255, 85, 85, 85),
+                          backgroundColor: Colors.white10,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
+                ],
+              ),
             ),
           ),
         ];

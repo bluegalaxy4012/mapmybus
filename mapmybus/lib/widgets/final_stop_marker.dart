@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 
-class StopMarker extends StatelessWidget {
+class FinalStopMarker extends StatelessWidget {
   final String name;
 
-  const StopMarker({super.key, required this.name});
+  const FinalStopMarker({super.key, required this.name});
 
   @override
   Widget build(BuildContext context) {
