@@ -99,6 +99,13 @@ class Vehicle {
   }
 }
 
+class VehicleWithDistance {
+  final Vehicle vehicle;
+  final double distance;
+
+  const VehicleWithDistance(this.vehicle, this.distance);
+}
+
 class Route {
   final String agencyId;
   final int routeId;

@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:csv/csv.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:mapmybus/config.dart';
 import 'package:mapmybus/utils.dart';
 import 'package:http/http.dart' as http;
@@ -133,6 +134,42 @@ class DbService {
     }
   }
 
+  Future<Result<List<Stop>, Exception>> getNearbyStops(
+    String agencyId,
+    Position position,
+    double radiusMeters,
+  ) async {
+    final stopsResult = await getStops(agencyId);
+
+    switch (stopsResult) {
+      case Success(data: final stops):
+        double maxDist = 0;
+
+        final nearbyStops = stops.where((stop) {
+          final distance = Geolocator.distanceBetween(
+            position.latitude,
+            position.longitude,
+            stop.latitude,
+            stop.longitude,
+          );
+
+          if (distance > maxDist) {
+            maxDist = distance;
+          }
+
+          return distance <= radiusMeters;
+        }).toList();
+
+        log.d(
+          "Found ${nearbyStops.length} nearby stops within $radiusMeters meters",
+        );
+
+        return Success(nearbyStops);
+      case Failure(exception: final e):
+        return Failure(e);
+    }
+  }
+
   Future<Result<List<ShapePoint>, Exception>> getShape(
     String shapeId,
     String agencyId,
@@ -256,7 +293,7 @@ class DbService {
     String agencyId,
     String stopId,
     List<Map<String, dynamic>> vehiclePositions, {
-    int n = 5,
+    int n = 8,
   }) async {
     final uri = Uri.parse(
       '${AppConfig.arrivalsApiUrl}/$agencyId/arrivals/$stopId',

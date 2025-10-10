@@ -39,7 +39,7 @@ class _StopsPageState extends State<StopsPage> {
 
       default:
         if (mounted) {
-          showSimpleSnackbar(context, "Eroare la incarcarea statiilor");
+          showSimpleSnackbar(context, "Nu s-au putut incarca statiile");
         }
     }
   }

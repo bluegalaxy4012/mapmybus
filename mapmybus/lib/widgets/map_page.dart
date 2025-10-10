@@ -12,7 +12,7 @@ import 'package:mapmybus/providers/vehicles_provider.dart';
 import 'package:mapmybus/utils.dart';
 import 'package:mapmybus/widgets/simple_snackbar.dart';
 import 'package:mapmybus/widgets/stop_arrivals_table.dart';
-import 'package:mapmybus/widgets/final_stop_marker.dart';
+import 'package:mapmybus/widgets/stop_markers.dart';
 import 'package:mapmybus/widgets/stops_page.dart';
 import 'package:mapmybus/widgets/user_location_marker.dart';
 import 'package:mapmybus/widgets/vehicle_marker.dart';
@@ -43,6 +43,7 @@ class _MapPageState extends State<MapPage> {
 
   // map drawings
   List<Stop> _drawnStops = [];
+  List<Stop> _drawnStopsNearby = [];
   List<LatLng> _drawnPoints = [];
   List<Vehicle> _validVehicles = [];
   List<Vehicle> _visibleVehicles = [];
@@ -423,6 +424,7 @@ class _MapPageState extends State<MapPage> {
         isSelectedVehicleOnRoute = null;
         isSelectedVehicleAtEnds = null;
         _drawnStops.clear();
+        _drawnStopsNearby.clear();
         _drawnPoints.clear();
         _stopsDistanceInfo.clear();
         _shapeCumDistances.clear();
@@ -678,7 +680,8 @@ class _MapPageState extends State<MapPage> {
 
             if (_drawnPoints.isNotEmpty) _shapePointsLayer(),
 
-            if (_drawnStops.isNotEmpty) _stopsLayer(),
+            if (_drawnStops.isNotEmpty || _drawnStopsNearby.isNotEmpty)
+              _stopsLayer(),
 
             if (_currentPosition != null) _userPositionLayer(),
 
@@ -714,14 +717,26 @@ class _MapPageState extends State<MapPage> {
           right: 60,
           child: FloatingActionButton(
             heroTag: "clearButton",
-            tooltip: "Sterge traseul desenat",
+            tooltip: "Sterge desenele de pe harta",
             mini: true,
-            child: const Icon(Icons.clear_all),
+            child: const Icon(Icons.cleaning_services_outlined),
             onPressed: () {
-              if (selectedVehicle != null) return;
+              if (selectedVehicle != null) {
+                setState(() {
+                  _drawnStopsNearby.clear();
+                });
+
+                showSimpleSnackbar(
+                  context,
+                  "Inchide meniul vehiculului inainte de a sterge traseul",
+                );
+
+                return;
+              }
 
               setState(() {
                 _drawnStops.clear();
+                _drawnStopsNearby.clear();
                 _drawnPoints.clear();
                 _stopsDistanceInfo.clear();
                 _shapeCumDistances.clear();
@@ -781,7 +796,45 @@ class _MapPageState extends State<MapPage> {
             tooltip: "Afiseaza statiile din jurul tau",
             mini: true,
             child: const Icon(Icons.multiple_stop_outlined),
-            onPressed: () {},
+            onPressed: () async {
+              if (_currentPosition == null) {
+                showSimpleSnackbar(
+                  context,
+                  "Locatia ta nu este disponibila momentan",
+                );
+                return;
+              }
+
+              final dbService = context.read<DbService>();
+              final nearbyStopsResult = await dbService.getNearbyStops(
+                widget.city.agencyId,
+                _currentPosition!,
+                Constants.nearbyStopsRadius,
+              );
+
+              switch (nearbyStopsResult) {
+                case Success(data: final nearbyStops):
+                  if (mounted) {
+                    setState(() {
+                      _drawnStopsNearby = nearbyStops;
+                    });
+                  }
+
+                  if (nearbyStops.isEmpty) {
+                    if (!context.mounted) return;
+                    showSimpleSnackbar(
+                      context,
+                      "Nu s-au gasit statii in apropiere",
+                    );
+                  }
+
+                case Failure(exception: final e):
+                  log.e("Failed to fetch nearby stops: $e");
+
+                  if (!context.mounted) return;
+                  showSimpleSnackbar(context, "Nu s-au putut incarca statiile");
+              }
+            },
           ),
         ),
 
@@ -793,7 +846,138 @@ class _MapPageState extends State<MapPage> {
             tooltip: "Selecteaza autobuzul in care te afli",
             mini: true,
             child: const Icon(Icons.bus_alert),
-            onPressed: () {},
+            onPressed: () {
+              // cerem linia pentru ca pot fi multe autobuze in acelasi loc
+              TextEditingController controller = TextEditingController();
+
+              showDialog(
+                context: context,
+                builder: (context) {
+                  return AlertDialog(
+                    title: const Text(
+                      "Introdu exclusiv numele liniei, pentru a putea identifica autobuzul",
+                    ),
+                    content: TextField(
+                      controller: controller,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(
+                        hintText: "Numele liniei",
+                      ),
+                      maxLength: 20,
+                      autofocus: true,
+                    ),
+
+                    actions: [
+                      TextButton(
+                        onPressed: () {
+                          Navigator.of(context).pop();
+                        },
+                        child: const Text("Anuleaza"),
+                      ),
+
+                      // pop nu doar return, limitare lungime
+                      TextButton(
+                        onPressed: () {
+                          if (_currentPosition == null) {
+                            showSimpleSnackbar(
+                              context,
+                              "Locatia ta nu este disponibila momentan",
+                            );
+
+                            Navigator.of(context).pop();
+                            return;
+                          }
+
+                          if (_validVehicles.isEmpty) {
+                            showSimpleSnackbar(
+                              context,
+                              "Trebuie sa ai minim un vehicul la favorite pentru a utiliza functionalitatea",
+                            );
+
+                            Navigator.of(context).pop();
+                            return;
+                          }
+
+                          String input = controller.text.trim().toUpperCase();
+                          if (input.isNotEmpty) {
+                            final matchingVehicles = _validVehicles.where((v) {
+                              final routeShortName = routeProvider
+                                  .getRouteShortNameFromRouteId(
+                                    v.routeId!,
+                                    widget.city.agencyId,
+                                  );
+
+                              return routeShortName == input;
+                            }).toList();
+
+                            if (matchingVehicles.isEmpty) {
+                              showSimpleSnackbar(
+                                context,
+                                "Nu s-au gasit vehicule pentru linia $input",
+                              );
+
+                              Navigator.of(context).pop();
+                              return;
+                            }
+
+                            // gasim cele mai apropiate vehicule sortate dupa distanta
+
+                            final vehiclesNearby =
+                                matchingVehicles
+                                    .map((v) {
+                                      final distance =
+                                          Geolocator.distanceBetween(
+                                            _currentPosition!.latitude,
+                                            _currentPosition!.longitude,
+                                            v.latitude!,
+                                            v.longitude!,
+                                          );
+
+                                      return VehicleWithDistance(v, distance);
+                                    })
+                                    .where(
+                                      (vd) =>
+                                          vd.distance <=
+                                          Constants.nearbyVehiclesRadius,
+                                    )
+                                    .toList()
+                                  ..sort(
+                                    (vd1, vd2) =>
+                                        vd1.distance.compareTo(vd2.distance),
+                                  );
+
+                            if (vehiclesNearby.isEmpty) {
+                              showSimpleSnackbar(
+                                context,
+                                "Nu s-au gasit vehicule pentru linia $input in apropierea ta",
+                              );
+                            } else {
+                              final vd = vehiclesNearby.first;
+                              final routeShortName = routeProvider
+                                  .getRouteShortNameFromRouteId(
+                                    vd.vehicle.routeId!,
+                                    widget.city.agencyId,
+                                  );
+                              _onVehicleTap(vd.vehicle, routeShortName);
+
+                              if (vehiclesNearby.length > 1) {
+                                showSimpleSnackbar(
+                                  context,
+                                  "Au fost gasite mai multe vehicule pentru linia $input in apropierea ta. Se selecteaza unul automat, dar e probabil sa fie incorect!",
+                                );
+                              }
+                            }
+                          }
+
+                          Navigator.of(context).pop();
+                        },
+                        child: const Text("Cauta"),
+                      ),
+                    ],
+                  );
+                },
+              );
+            },
           ),
         ),
 
@@ -804,7 +988,7 @@ class _MapPageState extends State<MapPage> {
             heroTag: "toggleStopNamesButton",
             tooltip: "Arata/ascunde numele statiilor",
             mini: true,
-            child: const Icon(Icons.text_fields),
+            child: const Icon(Icons.visibility_off),
             onPressed: () {
               setState(() {
                 _showStopNames = !_showStopNames;
@@ -1009,8 +1193,10 @@ class _MapPageState extends State<MapPage> {
   }
 
   MarkerLayer _stopsLayer() {
-    return MarkerLayer(
-      markers: _drawnStops.expand((stop) {
+    List<Marker> allStopsMarkers = [];
+
+    allStopsMarkers.addAll(
+      _drawnStops.expand((stop) {
         final bool isStart = stop.stopId == _drawnStops.first.stopId;
         final bool isEnd = stop.stopId == _drawnStops.last.stopId;
 
@@ -1019,56 +1205,41 @@ class _MapPageState extends State<MapPage> {
         final double iconSize = isFinalStopMarker ? 36 : 24;
 
         return [
-          Marker(
-            point: LatLng(stop.latitude, stop.longitude),
-            width: iconSize + 80,
-            height: iconSize,
-
-            // unul e cerc deci trebuie centrul sa fie in punctul acela de pe harta
-            // si unul marker deci trebuie varful de jos sa fie la acea pozitie,
-            alignment: isFinalStopMarker
-                ? Alignment.center
-                : Alignment.topCenter,
-
-            child: GestureDetector(
-              onTap: () => _onStopTap(stop),
-
-              child: Stack(
-                clipBehavior: Clip.none,
-                alignment: Alignment.center,
-                children: [
-                  isStart
-                      ? FinalStopMarker(name: "Start")
-                      : isEnd
-                      ? FinalStopMarker(name: "End")
-                      : const Icon(
-                          Icons.place,
-                          color: Color.fromARGB(255, 68, 137, 216),
-                          size: 30,
-                        ),
-
-                  if (_showStopNames)
-                    Positioned(
-                      top: iconSize,
-                      child: Text(
-                        stop.stopName,
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(
-                          fontSize: 11.25,
-                          fontWeight: FontWeight.bold,
-                          color: Color.fromARGB(255, 85, 85, 85),
-                          backgroundColor: Colors.white10,
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                ],
-              ),
-            ),
+          StopMarker(
+            stop: stop,
+            iconSize: iconSize,
+            isFinalStopMarker: isFinalStopMarker,
+            isStart: isStart,
+            isEnd: isEnd,
+            showStopNames: _showStopNames,
+            onStopTap: _onStopTap,
           ),
         ];
       }).toList(),
     );
+
+    allStopsMarkers.addAll(
+      _drawnStopsNearby
+          .where((nearbyStop) {
+            return !_drawnStops.any(
+              (drawnStop) => drawnStop.stopId == nearbyStop.stopId,
+            );
+          })
+          .map((stop) {
+            return StopMarker(
+              stop: stop,
+              iconSize: 24,
+              isFinalStopMarker: false,
+              isStart: false,
+              isEnd: false,
+              showStopNames: _showStopNames,
+              onStopTap: _onStopTap,
+            );
+          })
+          .toList(),
+    );
+
+    return MarkerLayer(markers: allStopsMarkers);
   }
 
   PolylineLayer<Object> _shapePointsLayer() {

@@ -29,8 +29,12 @@ class Constants {
   // typedef Seconds = int;
   static const int defaultRefreshInterval = 20;
 
+  // distantele in metri
   static const double stopEndsRadius = 125;
   static const double routeProximityRadius = 125;
+
+  static const double nearbyStopsRadius = 250;
+  static const double nearbyVehiclesRadius = 400;
 
   static const int maxArrivalsCount = 5;
 
@@ -50,18 +54,18 @@ class Constants {
       name: "Iasi",
       center: LatLng(47.162121, 27.587573),
       initialZoom: 14.25,
-      minZoom: 13.25,
+      minZoom: 12.25,
       maxZoom: 19,
-      bounds: LatLngBounds(LatLng(47.35, 27.35), LatLng(47.00, 27.80)),
+      bounds: LatLngBounds(LatLng(47.35, 27.33), LatLng(47.00, 27.82)),
       agencyId: '1',
     ),
     CityConfig(
       name: "Cluj-Napoca",
       center: LatLng(46.770439, 23.591423),
       initialZoom: 14,
-      minZoom: 13,
+      minZoom: 12,
       maxZoom: 19,
-      bounds: LatLngBounds(LatLng(46.89, 23.35), LatLng(46.64, 23.83)),
+      bounds: LatLngBounds(LatLng(46.91, 23.33), LatLng(46.62, 23.85)),
       agencyId: '2',
     ),
 
@@ -69,9 +73,9 @@ class Constants {
       name: "Chisinau",
       center: LatLng(47.023621, 28.833862),
       initialZoom: 14,
-      minZoom: 13,
+      minZoom: 12,
       maxZoom: 19,
-      bounds: LatLngBounds(LatLng(47.25, 28.60), LatLng(46.80, 29.05)),
+      bounds: LatLngBounds(LatLng(47.25, 28.58), LatLng(46.80, 29.07)),
       agencyId: '4',
     ),
 
@@ -79,9 +83,9 @@ class Constants {
       name: "Botosani",
       center: LatLng(47.739867, 26.663183),
       initialZoom: 14,
-      minZoom: 13,
+      minZoom: 12.25,
       maxZoom: 19,
-      bounds: LatLngBounds(LatLng(47.95, 26.45), LatLng(47.50, 26.85)),
+      bounds: LatLngBounds(LatLng(47.95, 26.43), LatLng(47.50, 26.87)),
       agencyId: '6',
     ),
 
@@ -91,7 +95,7 @@ class Constants {
       initialZoom: 14,
       minZoom: 13,
       maxZoom: 19,
-      bounds: LatLngBounds(LatLng(45.95, 21.00), LatLng(45.55, 21.50)),
+      bounds: LatLngBounds(LatLng(45.95, 20.98), LatLng(45.55, 21.52)),
       agencyId: '8',
     ),
   ];
