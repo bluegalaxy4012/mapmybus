@@ -198,7 +198,7 @@ class _StopArrivalsTableState extends State<StopArrivalsTable> {
                         ),
                       ),
                     ),
-                    
+
                     SizedBox(height: 6.h),
 
                     ElevatedButton(

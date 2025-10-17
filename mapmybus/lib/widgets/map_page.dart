@@ -515,6 +515,15 @@ class _MapPageState extends State<MapPage> {
   void _onStopTap(Stop stop) async {
     if (_isLoading) return;
 
+    if (_validVehicles.isEmpty) {
+      showSimpleSnackbar(
+        context,
+        "Trebuie sa ai minim un vehicul la favorite pentru a vedea sosirile",
+      );
+
+      return;
+    }
+
     showSimpleSnackbar(
       context,
       "Statia apasata: ${stop.stopName}. Se incarca urmatoarele sosiri...",
@@ -704,7 +713,7 @@ class _MapPageState extends State<MapPage> {
         ),
 
         Positioned(
-          top: 10,
+          top: 20,
           right: 110,
           child: FloatingActionButton(
             heroTag: "centerButton",
@@ -716,7 +725,7 @@ class _MapPageState extends State<MapPage> {
         ),
 
         Positioned(
-          top: 10,
+          top: 20,
           right: 60,
           child: FloatingActionButton(
             heroTag: "clearButton",
@@ -749,7 +758,7 @@ class _MapPageState extends State<MapPage> {
         ),
 
         Positioned(
-          top: 10,
+          top: 20,
           right: 10,
           child: FloatingActionButton(
             heroTag: "searchStopButton",
@@ -792,7 +801,7 @@ class _MapPageState extends State<MapPage> {
         ),
 
         Positioned(
-          top: 60,
+          top: 70,
           right: 60,
           child: FloatingActionButton(
             heroTag: "showNearbyStopsButton",
@@ -842,7 +851,7 @@ class _MapPageState extends State<MapPage> {
         ),
 
         Positioned(
-          top: 60,
+          top: 70,
           right: 10,
           child: FloatingActionButton(
             heroTag: "selectYourVehicleButton",
@@ -1019,7 +1028,7 @@ class _MapPageState extends State<MapPage> {
         ),
 
         Positioned(
-          top: 60,
+          top: 70,
           right: 110,
           child: FloatingActionButton(
             heroTag: "toggleStopNamesButton",

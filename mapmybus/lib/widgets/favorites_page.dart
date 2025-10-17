@@ -63,90 +63,98 @@ class _FavoritesPageState extends State<FavoritesPage> {
       children: [
         Padding(
           padding: const EdgeInsets.all(8.0),
-          child: TextField(
-            decoration: InputDecoration(
-              hintText: "Cauta numele liniilor...",
-              prefixIcon: const Icon(Icons.search),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(10.0),
-                borderSide: BorderSide.none,
+          child: SafeArea(
+            child: TextField(
+              decoration: InputDecoration(
+                hintText: "Cauta numele liniilor...",
+                prefixIcon: const Icon(Icons.search),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10.0),
+                  borderSide: BorderSide.none,
+                ),
+
+                filled: true,
+                fillColor: Colors.grey[250],
+                contentPadding: EdgeInsets.symmetric(
+                  vertical: 0,
+                  horizontal: 10,
+                ),
               ),
+              onChanged: (query) {
+                if (_debounceTimer?.isActive ?? false) {
+                  _debounceTimer!.cancel();
+                }
 
-              filled: true,
-              fillColor: Colors.grey[250],
-              contentPadding: EdgeInsets.symmetric(vertical: 0, horizontal: 10),
+                _debounceTimer = Timer(const Duration(milliseconds: 300), () {
+                  routeProvider.filterRoutes(query);
+                });
+              },
+              maxLength: 50,
             ),
-            onChanged: (query) {
-              if (_debounceTimer?.isActive ?? false) {
-                _debounceTimer!.cancel();
-              }
-
-              _debounceTimer = Timer(const Duration(milliseconds: 300), () {
-                routeProvider.filterRoutes(query);
-              });
-            },
-            maxLength: 50,
           ),
         ),
 
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 12),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 4),
-            child: Row(
-              spacing: 8,
-              children: [
-                const Text("Afiseaza doar favoritele"),
-                
-                Switch(
-                  value: routeProvider.showFavoritesOnly,
-                  onChanged: (v) {
-                    routeProvider.setShowFavoritesOnly(v);
-                  },
-                ),
+          child: Column(
+            children: [
+              Row(
+                spacing: 8,
 
-                const Spacer(),
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Text("Afiseaza doar favoritele"),
 
-                OutlinedButton(
-                  onPressed: () {
-                    showDialog(
-                      context: context,
-                      builder: (context) => AlertDialog(
-                        title: const Text("Sterge toate favoritele"),
-                        content: Text(
-                          "Sigur doresti sa stergi toate rutele favorite pentru ${widget.city.name}?",
+                  Switch(
+                    value: routeProvider.showFavoritesOnly,
+                    onChanged: (v) {
+                      routeProvider.setShowFavoritesOnly(v);
+                    },
+                  ),
+
+                  // const Spacer(),
+                ],
+              ),
+
+              OutlinedButton(
+                onPressed: () {
+                  showDialog(
+                    context: context,
+                    builder: (context) => AlertDialog(
+                      title: const Text("Sterge toate favoritele"),
+                      content: Text(
+                        "Sigur doresti sa stergi toate rutele favorite pentru ${widget.city.name}?",
+                      ),
+
+                      actions: [
+                        TextButton(
+                          onPressed: () {
+                            Navigator.of(context).pop();
+                          },
+                          child: const Text("Anuleaza"),
                         ),
 
-                        actions: [
-                          TextButton(
-                            onPressed: () {
-                              Navigator.of(context).pop();
-                            },
-                            child: const Text("Anuleaza"),
-                          ),
+                        TextButton(
+                          onPressed: () {
+                            routeProvider.clearAllFavorites();
+                            Navigator.of(context).pop();
 
-                          TextButton(
-                            onPressed: () {
-                              routeProvider.clearAllFavorites();
-                              Navigator.of(context).pop();
+                            showSimpleSnackbar(
+                              context,
+                              "Rutele favorite au fost sterse cu succes",
+                            );
+                          },
 
-                              showSimpleSnackbar(
-                                context,
-                                "Rutele favorite au fost sterse cu succes",
-                              );
-                            },
+                          child: const Text("Sterge"),
+                        ),
+                      ],
+                    ),
+                  );
+                },
 
-                            child: const Text("Sterge"),
-                          ),
-                        ],
-                      ),
-                    );
-                  },
-
-                  child: const Text("Sterge toate favoritele"),
-                ),
-              ],
-            ),
+                child: const Text("Sterge toate favoritele"),
+              ),
+            ],
           ),
         ),
 
