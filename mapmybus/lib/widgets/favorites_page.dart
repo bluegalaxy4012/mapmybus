@@ -97,17 +97,7 @@ class _FavoritesPageState extends State<FavoritesPage> {
               spacing: 8,
               children: [
                 const Text("Afiseaza doar favoritele"),
-
-                //                   Checkbox(
-                //   //rounded shape
-                //   shape: CircleBorder(),
-                //   value: routeProvider.showFavoritesOnly,
-                //   onChanged: (v) {
-                //     if (v == null) return;
-
-                //     routeProvider.setShowFavoritesOnly(v);
-                //   },
-                // ),
+                
                 Switch(
                   value: routeProvider.showFavoritesOnly,
                   onChanged: (v) {

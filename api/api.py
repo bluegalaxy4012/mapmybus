@@ -38,7 +38,7 @@ CSV_DIR = Path("csv")
 AGENCY_IDS = ["1", "2", "4", "6", "8"]
 EXTERNAL_TIMETABLES_AGENCY_IDS = ["1", "4", "6", "8"]
 
-MIN_VALID_EXTERNAL_TIMETABLE_SIZE=50
+MIN_VALID_EXTERNAL_TIMETABLE_SIZE=100 # bytes
 
 # cache local pt modele, statii, rute, distante
 models_cache = {}
@@ -407,7 +407,6 @@ async def get_timetable(agency_id: str, route_short_name: str = Query(...), day_
             for url in urls:
                 response = await client.get(url, timeout=3)
 
-                print(f"{url} SI : {len(response.content)}")
                 if response.status_code == status.HTTP_200_OK and len(response.content) >= MIN_VALID_EXTERNAL_TIMETABLE_SIZE:
                     return JSONResponse({"url":url})
 

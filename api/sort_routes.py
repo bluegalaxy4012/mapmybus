@@ -18,7 +18,7 @@ def main():
         with open(f'data/agency{agency_id}_routes.json', 'r+', encoding='utf-8') as f:
             routes = json.load(f)
             for r in routes:
-                r["route_short_name"] = r["route_short_name"].upper()
+                r["route_short_name"] = r["route_short_name"].upper().strip()
                 
             routes.sort(key=lambda r: sort_key(r["route_short_name"]))
 

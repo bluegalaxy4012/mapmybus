@@ -198,58 +198,7 @@ class _StopArrivalsTableState extends State<StopArrivalsTable> {
                         ),
                       ),
                     ),
-
-                    // DataTable(
-                    //   headingRowColor: WidgetStateProperty.all(
-                    //     Theme.of(context).colorScheme.surfaceContainerLow,
-                    //   ),
-
-                    //   dataRowMinHeight: 18.h,
-                    //   dataRowMaxHeight: 26.h,
-                    //   headingRowHeight: 32.h,
-
-                    //   columns: [
-                    //     DataColumn(
-                    //       label: Text(
-                    //         "Linia",
-                    //         style: TextStyle(
-                    //           fontSize: calculateFontSize(screenWidth, 18),
-                    //         ),
-                    //       ),
-                    //     ),
-                    //     DataColumn(
-                    //       label: Text(
-                    //         "Estimat sosire",
-                    //         style: TextStyle(
-                    //           fontSize: calculateFontSize(screenWidth, 18),
-                    //         ),
-                    //       ),
-                    //     ),
-                    //   ],
-
-                    //   rows: widget.arrivals.map((arrival) {
-                    //     return DataRow(
-                    //       cells: [
-                    //         DataCell(
-                    //           Text(
-                    //             arrival.routeShortName,
-                    //             style: TextStyle(
-                    //               fontSize: calculateFontSize(screenWidth, 15),
-                    //             ),
-                    //           ),
-                    //         ),
-                    //         DataCell(
-                    //           Text(
-                    //             arrival.etaMessage,
-                    //             style: TextStyle(
-                    //               fontSize: calculateFontSize(screenWidth, 15),
-                    //             ),
-                    //           ),
-                    //         ),
-                    //       ],
-                    //     );
-                    //   }).toList(),
-                    // ),
+                    
                     SizedBox(height: 6.h),
 
                     ElevatedButton(
