@@ -26,8 +26,8 @@ class _UserLocationMarkerState extends State<UserLocationMarker>
 
     // simple pulse
     _animation = Tween<double>(
-      begin: 0.9,
-      end: 1.1,
+      begin: 0.85,
+      end: 1.15,
     ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
   }
 
@@ -39,34 +39,40 @@ class _UserLocationMarkerState extends State<UserLocationMarker>
 
   @override
   Widget build(BuildContext context) {
-    return Stack(
-      alignment: Alignment.center,
+    return IgnorePointer(
+      child: Stack(
+        alignment: Alignment.center,
 
-      children: [
-        ScaleTransition(
-          scale: _animation,
+        children: [
+          ScaleTransition(
+            scale: _animation,
 
-          child: Container(
-            width: 20,
-            height: 20,
-            decoration: BoxDecoration(
-              color: Colors.lightBlue,
-              shape: BoxShape.circle,
-              border: Border.all(color: Colors.blueGrey, width: 2),
+            child: Container(
+              width: 20,
+              height: 20,
+              decoration: BoxDecoration(
+                color: Colors.lightBlue,
+                shape: BoxShape.circle,
+                border: Border.all(color: Colors.blueGrey, width: 2),
+              ),
             ),
           ),
-        ),
 
-        if (widget.heading != 0.0) // invalid de obicei
-          Transform.rotate(
-            angle: widget.heading * (pi / 180),
+          if (widget.heading != 0.0) // invalid de obicei
+            Transform.rotate(
+              angle: widget.heading * (pi / 180),
 
-            child: Transform.translate(
-              offset: const Offset(0, -10),
-              child: const Icon(Icons.navigation, color: Colors.blue, size: 20),
+              child: Transform.translate(
+                offset: const Offset(0, -10),
+                child: const Icon(
+                  Icons.navigation,
+                  color: Colors.blue,
+                  size: 20,
+                ),
+              ),
             ),
-          ),
-      ],
+        ],
+      ),
     );
   }
 }

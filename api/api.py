@@ -14,15 +14,15 @@ import httpx
 import logging
 import random
 
-# importam functii utile si constante din preprocess
+# importam functii utile si constante
 from preprocess import (
     load_shapes,
     load_stops,
     project_route as project_onto_route,
-    hour_congestion_index,
-    weekend_index,
     timezone_offset,
+    ArrivalStatus
 )
+from traffic_data import get_timestamp_congestion_index
 
 # incarcam variabilele din .env
 load_dotenv()
@@ -38,7 +38,7 @@ CSV_DIR = Path("csv")
 AGENCY_IDS = ["1", "2", "4", "6", "8"]
 EXTERNAL_TIMETABLES_AGENCY_IDS = ["1", "4", "6", "8"]
 
-MIN_VALID_EXTERNAL_TIMETABLE_SIZE=100 # bytes
+MIN_VALID_EXTERNAL_TIMETABLE_SIZE=50
 
 # cache local pt modele, statii, rute, distante
 models_cache = {}
@@ -134,14 +134,17 @@ def get_prediction(agency_id: str, trip_id: str, lat: float, lon: float, stop_id
     if veh_d is None or stop_d is None:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Cannot project vehicle or stop onto route")
 
-    # daca vehiculul a trecut deja statia
-    if stop_d <= veh_d:
-        return 0.0, "Passed"
+    # distanta de-a lungul rutei pana la statie minus pana la vehicul
+    delta = stop_d - veh_d
+
+    # daca vehiculul a trecut deja statia (cu tot cu timpul de update gtfs trece si daca e la 25 metri)
+    if delta < 25:
+        return 0.0, ArrivalStatus.PASSED.value
 
     # daca e aproape, o sa aproximam ca ajunge in urmatorul minut
-    delta = stop_d - veh_d
-    if delta < 125:
-        return 0.0, "Success"
+    # poate 150 pare mult dar cum nu e "fresh" pozitia, are un avantaj si probabil ajunge
+    if delta < 150:
+        return 0.0, ArrivalStatus.ARRIVING.value
 
     # incarcam knn-ul si vecinii
     X, y, c = md["X"], md["y"], md["c"]
@@ -181,14 +184,14 @@ def get_prediction(agency_id: str, trip_id: str, lat: float, lon: float, stop_id
 
     # now pe server e cu 3 ore in urma
     now = datetime.now() + timezone_offset
-    cong = hour_congestion_index[now.hour] if now.weekday() < 5 else weekend_index[now.hour]
-    eta = (total_eta / total_w) * cong
+    congestion_index = get_timestamp_congestion_index(now)
+    eta = (total_eta / total_w) * congestion_index
 
-    return float(eta), "Success"
+    return float(eta), ArrivalStatus.ARRIVING.value
 
 # pentru aproximat urmatoarele sosiri la o statie
 @app.post("/predict/{agency_id}/arrivals/{stop_id}")
-def get_arrivals_for_stop(agency_id: str, stop_id: str, vehicle_positions: List[dict] = Body(...), n: int = 5):
+def get_arrivals_for_stop(agency_id: str, stop_id: str, vehicle_positions: List[dict] = Body(...)):
     if agency_id not in AGENCY_IDS:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST)
 
@@ -203,7 +206,7 @@ def get_arrivals_for_stop(agency_id: str, stop_id: str, vehicle_positions: List[
         try:
             eta_s, msg = get_prediction(agency_id, v["trip_id"], v["lat"], v["lon"], stop_id)
 
-            if msg == "Success":
+            if msg == "arriving":
                 predictions.append({
                     "trip_id": v["trip_id"],
                     "vehicle_label": v.get("label"),
@@ -214,7 +217,7 @@ def get_arrivals_for_stop(agency_id: str, stop_id: str, vehicle_positions: List[
             continue
 
     predictions.sort(key=lambda x: x["predicted_eta_minutes"])
-    return predictions[:n]
+    return predictions
 
 # aproximari eta pentru o locatie de vehicul primita si statiile, normal, de pe ruta sa
 @app.get("/predict/{agency_id}")
@@ -361,12 +364,12 @@ async def get_vehicles(agency_id: str):
 
 
 def get_external_timetable_urls(agency_id: str, route_short_name: str, day_type: str):
-    # nu se poate mai bine fara foarte mult efort de scraping
+    # nu prea bine facut
 
     match agency_id:
         case "1":
             # iasi
-            return [f"https://iasitimetable.tranzy.ai/pdfs/track-{route_short_name.lower()}.pdf"]
+            return [f"https://iasitimetable.tranzy.ai/pdfs/track-{route_short_name.lower()}.pdf"] 
         case "4":
             # chisinau
             return [f"https://www.autourban.md/index.php?page=orare&tip=all"]
@@ -380,18 +383,17 @@ def get_external_timetable_urls(agency_id: str, route_short_name: str, day_type:
             return []
 
 
-
 # intoarce orarul csv pt o ruta+zi
 @app.get("/timetables/{agency_id}")
 async def get_timetable(agency_id: str, route_short_name: str = Query(...), day_type: str = Query(..., enum=["lv", "s", "d"])):
     logger.info("fetching timetable for agency %s, route %s, day type %s", agency_id, route_short_name, day_type)
-
+    
     if agency_id not in AGENCY_IDS:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST)
 
     if day_type not in ["lv", "s", "d"]:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST)
-
+   
     if agency_id not in EXTERNAL_TIMETABLES_AGENCY_IDS:
         file_path = CSV_DIR / f"agency{agency_id}_orar_{route_short_name}_{day_type}.csv"
         if not file_path.exists():
@@ -405,6 +407,7 @@ async def get_timetable(agency_id: str, route_short_name: str = Query(...), day_
             for url in urls:
                 response = await client.get(url, timeout=3)
 
+                print(f"{url} SI : {len(response.content)}")
                 if response.status_code == status.HTTP_200_OK and len(response.content) >= MIN_VALID_EXTERNAL_TIMETABLE_SIZE:
                     return JSONResponse({"url":url})
 

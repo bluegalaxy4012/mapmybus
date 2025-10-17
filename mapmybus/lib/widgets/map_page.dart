@@ -140,7 +140,7 @@ class _MapPageState extends State<MapPage> {
         widget.city.initialZoom,
       );
     } else {
-      log.w("Current position unavailable");
+      showSimpleSnackbar(context, "Locatia ta nu este disponibila momentan");
     }
   }
   //
@@ -240,6 +240,9 @@ class _MapPageState extends State<MapPage> {
     }
   }
 
+  // cateva metode de mai jos se bazeaza pe faptul ca sunt apelate doar in contextul
+  // in care avem un vehicul selectat si lucram cu datele deja incarcate despre traseu
+
   void _precomputeDistances() {
     if (_drawnStops.isEmpty || _drawnPoints.isEmpty) return;
 
@@ -260,7 +263,7 @@ class _MapPageState extends State<MapPage> {
           );
     }
 
-    // nu chiar exact dar mai mult mai safe decat sa presupunem ca i neintortochiat traseul
+    // nu chiar exact dar mai mult mai safe decat sa presupunem ca e neintortochiat traseul
     int shapePointStartIndex = 0;
 
     for (final stop in _drawnStops) {
@@ -483,14 +486,14 @@ class _MapPageState extends State<MapPage> {
           .firstWhere((s) => s.stopId == data.stopId)
           .stopName;
 
-      if (data.message == "Success") {
+      if (data.message == ArrivalStatus.arriving.name) {
         final fix = DateTime.now().difference(vehicle.timestamp);
         final eta = data.predictedEtaMinutes - fix.inSeconds / 60.0;
 
         final String etaMessage = getEtaMessage(eta);
 
         etas.add(EtaDisplayInfo(stopName: stopName, etaMessage: etaMessage));
-      } else if (data.message == "Passed") {
+      } else if (data.message == ArrivalStatus.passed.name) {
         etas.add(EtaDisplayInfo(stopName: stopName, etaMessage: "Trecut"));
       } else {
         log.w('Unexpected error while getting etas');
@@ -529,6 +532,7 @@ class _MapPageState extends State<MapPage> {
       previousStopName = null;
       nextStopName = null;
       selectedVehicle = null;
+      _lastVehicleLabel = null; //
       isSelectedVehicleOnRoute = null;
       isSelectedVehicleAtEnds = null;
     });
@@ -555,7 +559,6 @@ class _MapPageState extends State<MapPage> {
       widget.city.agencyId,
       stop.stopId,
       positions,
-      n: Constants.maxArrivalsCount,
     );
 
     switch (result) {
@@ -750,7 +753,7 @@ class _MapPageState extends State<MapPage> {
           right: 10,
           child: FloatingActionButton(
             heroTag: "searchStopButton",
-            tooltip: "Cauta o statie si vezi sosirile",
+            tooltip: "Cauta o statie si vezi urmatoarele sosiri",
             mini: true,
             child: const Icon(Icons.search),
             onPressed: () async {
@@ -842,8 +845,8 @@ class _MapPageState extends State<MapPage> {
           top: 60,
           right: 10,
           child: FloatingActionButton(
-            heroTag: "selectYourBusButton",
-            tooltip: "Selecteaza autobuzul in care te afli",
+            heroTag: "selectYourVehicleButton",
+            tooltip: "Selecteaza vehiculul apropiat",
             mini: true,
             child: const Icon(Icons.bus_alert),
             onPressed: () {
@@ -855,15 +858,15 @@ class _MapPageState extends State<MapPage> {
                 builder: (context) {
                   return AlertDialog(
                     title: const Text(
-                      "Introdu exclusiv numele liniei, pentru a putea identifica autobuzul",
+                      "Introdu doar numele liniei pentru a identifica vehiculul aflat in proximitate",
                     ),
                     content: TextField(
                       controller: controller,
-                      keyboardType: TextInputType.number,
+                      keyboardType: TextInputType.text,
                       decoration: const InputDecoration(
                         hintText: "Numele liniei",
                       ),
-                      maxLength: 20,
+                      maxLength: 7,
                       autofocus: true,
                     ),
 
@@ -875,9 +878,8 @@ class _MapPageState extends State<MapPage> {
                         child: const Text("Anuleaza"),
                       ),
 
-                      // pop nu doar return, limitare lungime
                       TextButton(
-                        onPressed: () {
+                        onPressed: () async {
                           if (_currentPosition == null) {
                             showSimpleSnackbar(
                               context,
@@ -953,17 +955,52 @@ class _MapPageState extends State<MapPage> {
                               );
                             } else {
                               final vd = vehiclesNearby.first;
+
+                              // nu ar trebui sa se intample vreodata caci lista de vehicule e filtrata deja
+                              final routeId = vd.vehicle.routeId;
+                              if (routeId == null) {
+                                return;
+                              }
+
                               final routeShortName = routeProvider
                                   .getRouteShortNameFromRouteId(
                                     vd.vehicle.routeId!,
                                     widget.city.agencyId,
                                   );
-                              _onVehicleTap(vd.vehicle, routeShortName);
+
+                              // pentru a inchide eventuala fereastra de sosiri statie
+                              // nu mai trebuie setstate pt ca va fi apelat in _onVehicleTap
+                              _arrivalsDisplayInfo.clear();
+                              _selectedStop = null;
+                              _stopArrivalsCreateTime = null;
+
+                              // ne asiguram ca vehiculul, ruta, sunt la favorite ca altfel nici nu-l vedem
+                              bool addRouteToFavorites = false;
+                              if (!routeProvider.isFavorite(
+                                vd.vehicle.routeId!,
+                              )) {
+                                await routeProvider.toggleFavorite(
+                                  routeId,
+                                  widget.city.agencyId,
+                                );
+                                addRouteToFavorites = true;
+                              }
+
+                              await _onVehicleTap(vd.vehicle, routeShortName);
+
+                              if (!context.mounted) return;
+
+                              if (addRouteToFavorites) {
+                                showSimpleSnackbar(
+                                  context,
+                                  "Linia $input a fost adaugata la favorite pentru a putea urmari vehiculul",
+                                );
+                              }
 
                               if (vehiclesNearby.length > 1) {
                                 showSimpleSnackbar(
                                   context,
-                                  "Au fost gasite mai multe vehicule pentru linia $input in apropierea ta. Se selecteaza unul automat, dar e probabil sa fie incorect!",
+                                  "Au fost gasite mai multe vehicule pentru linia $input in proximitatea ta. Se selecteaza cel mai apropiat, dar e posibil sa fie incorect!",
                                 );
                               }
                             }

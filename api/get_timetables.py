@@ -16,9 +16,12 @@ def get_routes_file(agency_id: str):
 
 def get_timetables_url(agency_id: str, short_name: str, day_type: str):
     if agency_id == "2":
+        # cazul foarte special 39C / 39CREIC, ruta are un nume dar orarul trebuie scrape-uit cu alt nume
+        if short_name == "39C":
+            return f"https://ctpcj.ro/orare/csv/orar_39CREIC_{day_type}.csv"
+
         return f"https://ctpcj.ro/orare/csv/orar_{short_name}_{day_type}.csv"
     
-    # todo pt restul
     return ""
 
 

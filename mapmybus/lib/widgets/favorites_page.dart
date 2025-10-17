@@ -91,18 +91,72 @@ class _FavoritesPageState extends State<FavoritesPage> {
 
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 12),
-          child: Row(
-            children: [
-              Checkbox(
-                value: routeProvider.showFavoritesOnly,
-                onChanged: (v) {
-                  if (v == null) return;
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 4),
+            child: Row(
+              spacing: 8,
+              children: [
+                const Text("Afiseaza doar favoritele"),
 
-                  routeProvider.setShowFavoritesOnly(v);
-                },
-              ),
-              const Text("Afiseaza doar favoritele"),
-            ],
+                //                   Checkbox(
+                //   //rounded shape
+                //   shape: CircleBorder(),
+                //   value: routeProvider.showFavoritesOnly,
+                //   onChanged: (v) {
+                //     if (v == null) return;
+
+                //     routeProvider.setShowFavoritesOnly(v);
+                //   },
+                // ),
+                Switch(
+                  value: routeProvider.showFavoritesOnly,
+                  onChanged: (v) {
+                    routeProvider.setShowFavoritesOnly(v);
+                  },
+                ),
+
+                const Spacer(),
+
+                OutlinedButton(
+                  onPressed: () {
+                    showDialog(
+                      context: context,
+                      builder: (context) => AlertDialog(
+                        title: const Text("Sterge toate favoritele"),
+                        content: Text(
+                          "Sigur doresti sa stergi toate rutele favorite pentru ${widget.city.name}?",
+                        ),
+
+                        actions: [
+                          TextButton(
+                            onPressed: () {
+                              Navigator.of(context).pop();
+                            },
+                            child: const Text("Anuleaza"),
+                          ),
+
+                          TextButton(
+                            onPressed: () {
+                              routeProvider.clearAllFavorites();
+                              Navigator.of(context).pop();
+
+                              showSimpleSnackbar(
+                                context,
+                                "Rutele favorite au fost sterse cu succes",
+                              );
+                            },
+
+                            child: const Text("Sterge"),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+
+                  child: const Text("Sterge toate favoritele"),
+                ),
+              ],
+            ),
           ),
         ),
 

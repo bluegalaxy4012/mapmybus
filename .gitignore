@@ -4,6 +4,7 @@ vps/
 
 __pycache__/
 *.py[cod]
+.vscode/
 
 venv/
 

@@ -33,10 +33,10 @@ class Constants {
   static const double stopEndsRadius = 125;
   static const double routeProximityRadius = 125;
 
-  static const double nearbyStopsRadius = 250;
-  static const double nearbyVehiclesRadius = 400;
+  static const double nearbyStopsRadius = 375;
+  static const double nearbyVehiclesRadius = 475;
 
-  static const int maxArrivalsCount = 5;
+  // static const int maxArrivalsCount = 7;
 
   static const String tripDirectionInSuffix = '_0';
   // const String tripDirectionOutSuffix = '_1';
@@ -255,9 +255,9 @@ Map<String, String?> computeClosestStops(VehicleStopsInfo infoMap) {
 
   String? previous, next;
 
-  // + 20 in caz ca e fix langa statie
+  // + 25 in caz ca e fix langa statie
   int nextStopIndex = stopsDistanceInfo.indexWhere(
-    (info) => info.distanceAlongRoute >= distToVehicle + 20,
+    (info) => info.distanceAlongRoute >= distToVehicle + 25,
   );
 
   if (nextStopIndex >= 0) next = stopsDistanceInfo[nextStopIndex].stop.stopName;

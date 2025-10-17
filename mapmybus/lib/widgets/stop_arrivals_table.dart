@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:mapmybus/models.dart';
@@ -23,10 +25,18 @@ class StopArrivalsTable extends StatefulWidget {
 }
 
 class _StopArrivalsTableState extends State<StopArrivalsTable> {
+  final ScrollController _scrollController = ScrollController();
+
   Offset _position = Offset(10.w, 60.h);
 
   late double screenWidth;
   late double screenHeight;
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -95,14 +105,14 @@ class _StopArrivalsTableState extends State<StopArrivalsTable> {
                         ),
 
                         Text(
-                          "(se presupune ca vehiculele afisate sunt in curs de",
+                          "(se presupune ca fiecare vehicul afisat parcurge",
                           style: TextStyle(
                             fontSize: calculateFontSize(screenWidth, 13),
                             color: Colors.grey,
                           ),
                         ),
                         Text(
-                          "parcurgere a rutei si nu stationeaza la capat de linie)",
+                          "activ ruta si nu stationeaza la capat de linie)",
                           style: TextStyle(
                             fontSize: calculateFontSize(screenWidth, 13),
                             color: Colors.grey,
@@ -111,58 +121,135 @@ class _StopArrivalsTableState extends State<StopArrivalsTable> {
                       ],
                     ),
 
-                    DataTable(
-                      headingRowColor: WidgetStateProperty.all(
-                        Theme.of(context).colorScheme.surfaceContainerLow,
+                    SizedBox(
+                      // tabelul are dimensiunea intre un header si un header + 5 randuri (daca sunt)
+                      height: 32.h + 26.h * min(5, widget.arrivals.length),
+
+                      child: Scrollbar(
+                        thumbVisibility: true,
+                        controller: _scrollController,
+
+                        child: SingleChildScrollView(
+                          controller: _scrollController,
+
+                          child: DataTable(
+                            headingRowColor: WidgetStateProperty.all(
+                              Theme.of(context).colorScheme.surfaceContainerLow,
+                            ),
+
+                            dataRowMinHeight: 18.h,
+                            dataRowMaxHeight: 26.h,
+                            headingRowHeight: 32.h,
+
+                            columns: [
+                              DataColumn(
+                                label: Text(
+                                  "Linia",
+                                  style: TextStyle(
+                                    fontSize: calculateFontSize(
+                                      screenWidth,
+                                      18,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              DataColumn(
+                                label: Text(
+                                  "Estimat sosire",
+                                  style: TextStyle(
+                                    fontSize: calculateFontSize(
+                                      screenWidth,
+                                      18,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+
+                            rows: widget.arrivals.map((arrival) {
+                              return DataRow(
+                                cells: [
+                                  DataCell(
+                                    Text(
+                                      arrival.routeShortName,
+                                      style: TextStyle(
+                                        fontSize: calculateFontSize(
+                                          screenWidth,
+                                          15,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  DataCell(
+                                    Text(
+                                      arrival.etaMessage,
+                                      style: TextStyle(
+                                        fontSize: calculateFontSize(
+                                          screenWidth,
+                                          15,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              );
+                            }).toList(),
+                          ),
+                        ),
                       ),
-
-                      dataRowMinHeight: 18.h,
-                      dataRowMaxHeight: 26.h,
-                      headingRowHeight: 32.h,
-
-                      columns: [
-                        DataColumn(
-                          label: Text(
-                            "Linia",
-                            style: TextStyle(
-                              fontSize: calculateFontSize(screenWidth, 18),
-                            ),
-                          ),
-                        ),
-                        DataColumn(
-                          label: Text(
-                            "Estimat sosire",
-                            style: TextStyle(
-                              fontSize: calculateFontSize(screenWidth, 18),
-                            ),
-                          ),
-                        ),
-                      ],
-
-                      rows: widget.arrivals.map((arrival) {
-                        return DataRow(
-                          cells: [
-                            DataCell(
-                              Text(
-                                arrival.routeShortName,
-                                style: TextStyle(
-                                  fontSize: calculateFontSize(screenWidth, 15),
-                                ),
-                              ),
-                            ),
-                            DataCell(
-                              Text(
-                                arrival.etaMessage,
-                                style: TextStyle(
-                                  fontSize: calculateFontSize(screenWidth, 15),
-                                ),
-                              ),
-                            ),
-                          ],
-                        );
-                      }).toList(),
                     ),
 
+                    // DataTable(
+                    //   headingRowColor: WidgetStateProperty.all(
+                    //     Theme.of(context).colorScheme.surfaceContainerLow,
+                    //   ),
+
+                    //   dataRowMinHeight: 18.h,
+                    //   dataRowMaxHeight: 26.h,
+                    //   headingRowHeight: 32.h,
+
+                    //   columns: [
+                    //     DataColumn(
+                    //       label: Text(
+                    //         "Linia",
+                    //         style: TextStyle(
+                    //           fontSize: calculateFontSize(screenWidth, 18),
+                    //         ),
+                    //       ),
+                    //     ),
+                    //     DataColumn(
+                    //       label: Text(
+                    //         "Estimat sosire",
+                    //         style: TextStyle(
+                    //           fontSize: calculateFontSize(screenWidth, 18),
+                    //         ),
+                    //       ),
+                    //     ),
+                    //   ],
+
+                    //   rows: widget.arrivals.map((arrival) {
+                    //     return DataRow(
+                    //       cells: [
+                    //         DataCell(
+                    //           Text(
+                    //             arrival.routeShortName,
+                    //             style: TextStyle(
+                    //               fontSize: calculateFontSize(screenWidth, 15),
+                    //             ),
+                    //           ),
+                    //         ),
+                    //         DataCell(
+                    //           Text(
+                    //             arrival.etaMessage,
+                    //             style: TextStyle(
+                    //               fontSize: calculateFontSize(screenWidth, 15),
+                    //             ),
+                    //           ),
+                    //         ),
+                    //       ],
+                    //     );
+                    //   }).toList(),
+                    // ),
                     SizedBox(height: 6.h),
 
                     ElevatedButton(

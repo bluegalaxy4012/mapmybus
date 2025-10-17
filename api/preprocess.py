@@ -7,40 +7,21 @@ from geopy.distance import geodesic
 from collections import defaultdict
 import numpy as np
 from sklearn.neighbors import NearestNeighbors
+from traffic_data import get_timestamp_congestion_index
+from enum import Enum
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger(__name__)
 
-# indici de congestie in functie de ora din zi, si pt weekend
-hour_congestion_index = {
-    0: 0.7, 1: 0.65, 2: 0.65, 3: 0.65,
-    4: 0.8, 5: 0.95,
-    6:1.1,7:1.25,8:1.3,9:1.2,
-    10:1.125,11:1.075,12:1.075,13:1.125,
-    14:1.2,15:1.25,16:1.3,17:1.35,
-    18:1.275,19:1.15,20:1.1,21:1.0,
-    22:0.9,23:0.8
-}
-
-weekend_index = {
-    0: 0.7, 1: 0.7, 2: 0.65, 3: 0.65,
-    4: 0.8, 5: 0.75,
-    6:0.8,7:0.9,8:1.00,9:1.025,
-    10:1.05,11:1.075,12:1.1,13:1.1,
-    14:1.125,15:1.125,16:1.1,17:1.05,
-    18:1.00,19:0.95,20:0.9,21:0.90,
-    22:0.8,23:0.775
-}
-
 timezone_offset = timedelta(hours=3)  # totul e utc in datele colectate, romania are +3h
 
 # constante de configurare
-MIN_FEATURES_PER_TRIP = 200
-MAX_ETA_SECONDS = 2700
+MIN_FEATURES_PER_TRIP = 125
+MAX_ETA_SECONDS = 3000
 NEIGHBORS_CONSIDERED = 12
 MAX_OFFROUTE_DIST = 140
 MAX_GAP_SECONDS = 125
-MIN_GAP_SECONDS = 8
+MIN_GAP_SECONDS = 9
 
 STOP_ENDS_RADIUS = 120
 MIN_JOURNEY_POINTS = 8
@@ -48,8 +29,12 @@ MIN_STATIONARY_DIST = 10
 
 AGENCY_IDS = ["1", "2", "4", "6", "8"]
 
-VEHICLE_TRAIN_DATA_PATHS = ["vehicle_jsons/set1", "vehicle_jsons/set2"]
+VEHICLE_TRAIN_DATA_PATHS = ["vehicle_jsons/set1", "vehicle_jsons/set2", "vehicle_jsons/set3"]
 
+# clase utile
+class ArrivalStatus(str, Enum):
+    ARRIVING = "arriving"
+    PASSED = "passed"
 
 def load_shapes(agency_id: str, path="data/agency{agency_id}_shapes.json"):
     # incarca coord punctelor de pe trasee
@@ -243,7 +228,9 @@ if __name__=="__main__":
 
                             # idx, hr = pt['ts'].weekday(), pt['ts'].hour
                             idx, hr = adjusted_ts.weekday(), adjusted_ts.hour
-                            C.append(hour_congestion_index[hr] if idx < 5 else weekend_index[hr])
+
+                            congestion_index = get_timestamp_congestion_index(adjusted_ts)
+                            C.append(congestion_index)
 
             # verificam daca sunt destule puncte pentru a salva modelul
             if len(X) < MIN_FEATURES_PER_TRIP:
@@ -268,3 +255,4 @@ if __name__=="__main__":
             pickle.dump(dict(stop_dists_by_trip), f)
 
         logger.info("done: %d stops->trips, %d trips->stop-dists, agency %s", len(stop_to_trips), len(stop_dists_by_trip), agency_id)
+

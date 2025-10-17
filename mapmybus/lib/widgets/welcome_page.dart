@@ -139,7 +139,7 @@ class _WelcomePageState extends State<WelcomePage> {
                           ),
 
                           const Text(
-                            "Uneori datele de pe harta pot sa nu corespunda cu realitatea.",
+                            "Datele de pe harta pot sa nu corespunda cu realitatea.",
                             style: TextStyle(
                               fontSize: 11,
                               fontStyle: FontStyle.italic,
@@ -149,7 +149,7 @@ class _WelcomePageState extends State<WelcomePage> {
                           ),
 
                           const Text(
-                            "Aproximarile de timp nu vor fi mereu corecte.",
+                            "Aproximarile de timp nu sunt mereu corecte.",
                             style: TextStyle(
                               fontSize: 11,
                               fontStyle: FontStyle.italic,
@@ -159,7 +159,7 @@ class _WelcomePageState extends State<WelcomePage> {
                           ),
 
                           const Text(
-                            "La rutele ciclice, functionalitatile de estimare pot esua.",
+                            "Unele linii pot avea estimari indisponibile/incorecte din cauza lipsei datelor.",
                             style: TextStyle(
                               fontSize: 11,
                               fontStyle: FontStyle.italic,
@@ -169,7 +169,7 @@ class _WelcomePageState extends State<WelcomePage> {
                           ),
 
                           const Text(
-                            "Pot exista statii diferite cu acelasi nume. Alege cu atentie.",
+                            "Exista statii diferite cu acelasi nume. Alege cu atentie.",
                             style: TextStyle(
                               fontSize: 11,
                               fontStyle: FontStyle.italic,

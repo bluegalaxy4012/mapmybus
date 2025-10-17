@@ -51,7 +51,10 @@ class RouteListItem extends StatelessWidget {
             ),
 
             onPressed: () {
-              context.read<RoutesProvider>().toggleFavorite(route);
+              context.read<RoutesProvider>().toggleFavorite(
+                route.routeId,
+                agencyId,
+              );
               showSimpleSnackbar(
                 context,
                 "Linia ${route.routeShortName} a fost ${isFav ? "scoasa de la" : "adaugata la"} favorite",

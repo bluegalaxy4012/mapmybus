@@ -404,8 +404,10 @@ class _VehicleMenuState extends State<VehicleMenu> {
                 child: Scrollbar(
                   thumbVisibility: true,
                   controller: _scrollController,
+
                   child: SingleChildScrollView(
                     controller: _scrollController,
+
                     child: DataTable(
                       headingRowColor: WidgetStateProperty.all(
                         Theme.of(context).colorScheme.surfaceContainerLow,

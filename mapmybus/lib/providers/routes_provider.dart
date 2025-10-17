@@ -129,9 +129,9 @@ class RoutesProvider extends ChangeNotifier {
     await prefs.setBool('showFavoritesOnly', value);
   }
 
-  Future<void> toggleFavorite(Route route) async {
+  Future<void> toggleFavorite(int routeId, String agencyId) async {
     final index = _allRoutes.indexWhere(
-      (r) => r.routeId == route.routeId && r.agencyId == route.agencyId,
+      (r) => r.routeId == routeId && r.agencyId == agencyId,
     );
     if (index != -1) {
       final current = _allRoutes[index];
@@ -179,6 +179,17 @@ class RoutesProvider extends ChangeNotifier {
   }
 
   bool isFavorite(int routeId) => _favoriteRouteIds[routeId] ?? false;
+
+  void clearAllFavorites() {
+    _favoriteRouteIds.clear();
+
+    for (var i = 0; i < _allRoutes.length; i++) {
+      _allRoutes[i] = _allRoutes[i].copyWith(isFavorite: false);
+    }
+
+    _applyFilters();
+    _saveFavoriteRouteIds();
+  }
 
   String? getRouteShortNameFromRouteId(int routeId, String agencyId) {
     return _allRoutes

@@ -292,9 +292,8 @@ class DbService {
   Future<Result<List<Arrival>, Exception>> getSoonArrivalsForStop(
     String agencyId,
     String stopId,
-    List<Map<String, dynamic>> vehiclePositions, {
-    int n = 8,
-  }) async {
+    List<Map<String, dynamic>> vehiclePositions,
+  ) async {
     final uri = Uri.parse(
       '${AppConfig.arrivalsApiUrl}/$agencyId/arrivals/$stopId',
     );
@@ -302,7 +301,7 @@ class DbService {
     try {
       final response = await retryOptions.retry(
         () => http.post(
-          uri.replace(queryParameters: {'n': n.toString()}),
+          uri,
           headers: {'Content-Type': 'application/json'},
           body: jsonEncode(vehiclePositions),
         ),

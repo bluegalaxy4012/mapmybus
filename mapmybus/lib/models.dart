@@ -327,6 +327,8 @@ class Eta {
   );
 }
 
+enum ArrivalStatus { arriving, passed }
+
 class Arrival {
   final String tripId;
   final String? vehicleLabel;
