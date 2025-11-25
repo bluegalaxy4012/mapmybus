@@ -36,6 +36,8 @@ class Constants {
   static const double nearbyStopsRadius = 375;
   static const double nearbyVehiclesRadius = 475;
 
+  static const double unknownEtaMinutes = 999;
+
   // static const int maxArrivalsCount = 7;
 
   static const String tripDirectionInSuffix = '_0';
@@ -122,6 +124,8 @@ double calculateFontSize(double screenWidth, double baseSize) {
 }
 
 String getEtaMessage(double eta) {
+  if (eta == Constants.unknownEtaMinutes) return "? min";
+
   // doar in caz de erori cu nr negative care nu ar trebui sa apara
   final minEta = max(0, (eta - 0.5).floor());
   final maxEta = min(60, max(1, (eta + 1).ceil()));

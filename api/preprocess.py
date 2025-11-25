@@ -2,7 +2,7 @@ import json
 import logging
 import os
 import pickle
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from geopy.distance import geodesic
 from collections import defaultdict
 import numpy as np
@@ -14,6 +14,7 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(mess
 logger = logging.getLogger(__name__)
 
 timezone_offset = timedelta(hours=3)  # totul e utc in datele colectate, romania are +3h
+tz = timezone(timezone_offset)
 
 # constante de configurare
 MIN_FEATURES_PER_TRIP = 125
@@ -35,6 +36,7 @@ VEHICLE_TRAIN_DATA_PATHS = ["vehicle_jsons/set1", "vehicle_jsons/set2", "vehicle
 class ArrivalStatus(str, Enum):
     ARRIVING = "arriving"
     PASSED = "passed"
+    UNKNOWN = "unknown"
 
 def load_shapes(agency_id: str, path="data/agency{agency_id}_shapes.json"):
     # incarca coord punctelor de pe trasee

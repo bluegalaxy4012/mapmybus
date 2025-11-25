@@ -321,22 +321,31 @@ class _MapPageState extends State<MapPage> {
   }
 
   bool _isVehicleAtEnds(Vehicle vehicle) {
-    final firstStop = _drawnStops.first;
-    final lastStop = _drawnStops.last;
+    // final firstStop = _drawnStops.first;
+    // final lastStop = _drawnStops.last;
+
+    // print('${vehicle.latitude}, ${vehicle.longitude}, ${vehicle.firstStopLatitude}, ${vehicle.firstStopLongitude}');
 
     final distToFirstStop = Geolocator.distanceBetween(
       vehicle.latitude!,
       vehicle.longitude!,
-      firstStop.latitude,
-      firstStop.longitude,
+      // firstStop.latitude,
+      // firstStop.longitude,
+      vehicle.firstStopLatitude!,
+      vehicle.firstStopLongitude!,
     );
 
     final distToLastStop = Geolocator.distanceBetween(
       vehicle.latitude!,
       vehicle.longitude!,
-      lastStop.latitude,
-      lastStop.longitude,
+      // lastStop.latitude,
+      // lastStop.longitude,
+      vehicle.lastStopLatitude!,
+      vehicle.lastStopLongitude!,
     );
+
+    // print(distToFirstStop);
+    // print(distToLastStop);
 
     return distToFirstStop < Constants.stopEndsRadius ||
         distToLastStop < Constants.stopEndsRadius;
@@ -486,11 +495,8 @@ class _MapPageState extends State<MapPage> {
           .firstWhere((s) => s.stopId == data.stopId)
           .stopName;
 
-      if (data.message == ArrivalStatus.arriving.name) {
-        final fix = DateTime.now().difference(vehicle.timestamp);
-        final eta = data.predictedEtaMinutes - fix.inSeconds / 60.0;
-
-        final String etaMessage = getEtaMessage(eta);
+      if (data.message == ArrivalStatus.arriving.name || data.message == ArrivalStatus.unknown.name) {
+        final String etaMessage = getEtaMessage(data.predictedEtaMinutes);
 
         etas.add(EtaDisplayInfo(stopName: stopName, etaMessage: etaMessage));
       } else if (data.message == ArrivalStatus.passed.name) {
@@ -560,6 +566,7 @@ class _MapPageState extends State<MapPage> {
             'lat': v.latitude!,
             'lon': v.longitude!,
             'label': v.label,
+            'ts': v.timestamp.toIso8601String(),
           },
         )
         .toList();
@@ -640,18 +647,18 @@ class _MapPageState extends State<MapPage> {
     final routeProvider = context.watch<RoutesProvider>();
 
     final visibleRoutesIds = routeProvider.favoriteRouteIdsSet;
-    final dateTimeNow = DateTime.now();
+    // final dateTimeNow = DateTime.now();
 
-    _validVehicles = vehicleProvider.vehicles
-        .where(
-          (v) =>
-              v.latitude != null &&
-              v.longitude != null &&
-              v.routeId != null &&
-              v.tripId != null &&
-              dateTimeNow.difference(v.timestamp).inMinutes <= 3,
-        )
-        .toList();
+    _validVehicles = vehicleProvider.vehicles;
+        // .where(
+        //   (v) =>
+        //       v.latitude != null &&
+        //       v.longitude != null &&
+        //       v.routeId != null &&
+        //       v.tripId != null &&
+        //       dateTimeNow.difference(v.timestamp).inMinutes <= 3,
+        // )
+        // .toList();
 
     _visibleVehicles = _validVehicles
         .where((v) => visibleRoutesIds.contains(v.routeId!))
@@ -1198,7 +1205,7 @@ class _MapPageState extends State<MapPage> {
 
         return Marker(
           point: LatLng(v.latitude!, v.longitude!),
-          width: 50,
+          width: 60,
           height: 40,
           child: VehicleMarker(
             v: v,

@@ -20,6 +20,8 @@ class Vehicle {
   final int? speed;
   final int? routeId;
   final String? tripId;
+  final double? firstStopLatitude, firstStopLongitude;
+  final double? lastStopLatitude, lastStopLongitude;
   final int vehicleType;
   final Accessibility bikeAccessible;
   final Accessibility wheelchairAccessible;
@@ -33,6 +35,10 @@ class Vehicle {
     this.speed,
     this.routeId,
     this.tripId,
+    this.firstStopLatitude,
+    this.firstStopLongitude,
+    this.lastStopLatitude,
+    this.lastStopLongitude,
     required this.vehicleType,
     required this.bikeAccessible,
     required this.wheelchairAccessible,
@@ -90,6 +96,18 @@ class Vehicle {
       speed: json['speed'] != null ? parseInt(json['speed']) : null,
       routeId: json['route_id'] != null ? parseInt(json['route_id']) : null,
       tripId: json['trip_id'] as String?,
+      firstStopLatitude: json['first_stop_lat'] != null
+        ? (json['first_stop_lat'] as num).toDouble()
+        : null,
+      firstStopLongitude: json['first_stop_lon'] != null
+        ? (json['first_stop_lon'] as num).toDouble()
+        : null,
+      lastStopLatitude: json['last_stop_lat'] != null
+        ? (json['last_stop_lat'] as num).toDouble()
+        : null,
+      lastStopLongitude: json['last_stop_lon'] != null
+        ? (json['last_stop_lon'] as num).toDouble()
+        : null,
       vehicleType: parseInt(json['vehicle_type']),
       bikeAccessible: parseAccessibility(json['bike_accessible'] as String?),
       wheelchairAccessible: parseAccessibility(
@@ -327,7 +345,7 @@ class Eta {
   );
 }
 
-enum ArrivalStatus { arriving, passed }
+enum ArrivalStatus { arriving, passed, unknown }
 
 class Arrival {
   final String tripId;

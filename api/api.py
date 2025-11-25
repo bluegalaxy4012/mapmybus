@@ -20,6 +20,7 @@ from preprocess import (
     load_stops,
     project_route as project_onto_route,
     timezone_offset,
+    tz,
     ArrivalStatus
 )
 from traffic_data import get_timestamp_congestion_index
@@ -31,14 +32,16 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(me
 logger = logging.getLogger(__name__)
 
 # configuri din .env
-MONGO_URL = os.getenv("MONGO_URL")
-DB_NAME = os.getenv("DB_NAME")
+MONGO_URL = os.getenv("MONGO_URL")  or "mongo_fallback_url"
+DB_NAME = os.getenv("DB_NAME") or "db_fallback_name"
 CSV_DIR = Path("csv")
 
 AGENCY_IDS = ["1", "2", "4", "6", "8"]
 EXTERNAL_TIMETABLES_AGENCY_IDS = ["1", "4", "6", "8"]
 
 MIN_VALID_EXTERNAL_TIMETABLE_SIZE=100 # bytes
+
+UNKNOWN_ETA_MINUTES = 999
 
 # cache local pt modele, statii, rute, distante
 models_cache = {}
@@ -63,8 +66,6 @@ app = FastAPI(lifespan=lifespan)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "http://localhost:46353",
-        # "http://localhost:8901",
         "https://mapmybus.marian.homes",
     ],
     allow_credentials=False,
@@ -123,10 +124,9 @@ def get_prediction(agency_id: str, trip_id: str, lat: float, lon: float, stop_id
     if not (10 <= lat <= 50 and 10 <= lon <= 50):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST)
 
-    md = get_model(agency_id, trip_id)
     shp = shapes.get(agency_id, {}).get(trip_id)
-    if md is None or shp is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No data to make prediction for trip")
+    if shp is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Cannot get shapes for trip")
 
     # proiectam vehiculul pe ruta, statia avem deja
     veh_d = project_onto_route(lat, lon, shp)
@@ -145,6 +145,10 @@ def get_prediction(agency_id: str, trip_id: str, lat: float, lon: float, stop_id
     # poate 150 pare mult dar cum nu e "fresh" pozitia, are un avantaj si probabil ajunge
     if delta < 150:
         return 0.0, ArrivalStatus.ARRIVING.value
+    
+    md = get_model(agency_id, trip_id)
+    if md is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No data to make prediction for trip")
 
     # incarcam knn-ul si vecinii
     X, y, c = md["X"], md["y"], md["c"]
@@ -202,26 +206,60 @@ def get_arrivals_for_stop(agency_id: str, stop_id: str, vehicle_positions: List[
     relevant = [v for v in vehicle_positions if v["trip_id"] in trips]
 
     predictions = []
+
     for v in relevant:
         try:
             eta_s, msg = get_prediction(agency_id, v["trip_id"], v["lat"], v["lon"], stop_id)
-
-            if msg == "arriving":
+        except HTTPException as e:
+            if e.status_code == status.HTTP_404_NOT_FOUND and e.detail == "No data to make prediction for trip":
                 predictions.append({
                     "trip_id": v["trip_id"],
                     "vehicle_label": v.get("label"),
-                    "predicted_eta_minutes": round(eta_s / 60, 2),
-                    "message": msg
+                    "predicted_eta_minutes": UNKNOWN_ETA_MINUTES, # valoare mare ca sa fie la final de lista sortata
+                    "message": ArrivalStatus.UNKNOWN.value
                 })
-        except HTTPException:
-            continue
+
+                continue
+
+            else:
+                continue
+    
+        # fixare la timp pentru ca vehiculele au fost actualizate doar acum ceva timp
+        ts = v.get("timestamp")
+
+        if ts:
+            vehicle_timestamp = datetime.fromisoformat(ts)
+            if vehicle_timestamp.tzinfo is None:
+                vehicle_timestamp = vehicle_timestamp.replace(tzinfo=tz)
+            else:
+                vehicle_timestamp = vehicle_timestamp.astimezone(tz)
+        else:
+            vehicle_timestamp = datetime.now(tz)
+
+        current_time = datetime.now(tz)
+        time_difference_seconds = (current_time - vehicle_timestamp).total_seconds()
+
+        if time_difference_seconds >= 180:
+            # daca datele sunt mai vechi de 3 minute, nu le ajustam ca probabil e eroare
+            updated_eta = eta_s / 60
+        else:
+            updated_eta = (eta_s - time_difference_seconds) / 60
+
+        if msg == ArrivalStatus.ARRIVING.value:
+            predictions.append({
+                "trip_id": v["trip_id"],
+                "vehicle_label": v.get("label"),
+                "predicted_eta_minutes": round(updated_eta, 2),
+                "message": msg
+            })
+
 
     predictions.sort(key=lambda x: x["predicted_eta_minutes"])
     return predictions
 
 # aproximari eta pentru o locatie de vehicul primita si statiile, normal, de pe ruta sa
 @app.get("/predict/{agency_id}")
-def predict_endpoint(agency_id: str, trip_id: str, lat: float, lon: float, stop_ids: List[str] = Query(...)):
+def predict_endpoint(agency_id: str, trip_id: str, ts: str, lat: float, lon: float, stop_ids: List[str] = Query(...)):
     logger.info("received prediction request for agency %s, trip %s", agency_id, trip_id)
     
     if agency_id not in AGENCY_IDS:
@@ -229,12 +267,44 @@ def predict_endpoint(agency_id: str, trip_id: str, lat: float, lon: float, stop_
     
     results = []
     for stop_id in stop_ids:
-        eta, message = get_prediction(agency_id, trip_id, lat, lon, stop_id)
+        try:
+            eta_s, msg = get_prediction(agency_id, trip_id, lat, lon, stop_id)
+        except HTTPException as e:
+            if e.status_code == status.HTTP_404_NOT_FOUND and e.detail == "No data to make prediction for trip":
+                results.append({
+                    "trip_id": trip_id,
+                    "stop_id": stop_id,
+                    "predicted_eta_minutes": UNKNOWN_ETA_MINUTES,
+                    "message": ArrivalStatus.UNKNOWN.value
+                })
+                continue
+
+            else:
+                raise e
+
+        if ts:
+            vehicle_timestamp = datetime.fromisoformat(ts)
+            if vehicle_timestamp.tzinfo is None:
+                vehicle_timestamp = vehicle_timestamp.replace(tzinfo=tz)
+            else:
+                vehicle_timestamp = vehicle_timestamp.astimezone(tz)
+        else:
+            vehicle_timestamp = datetime.now(tz)
+
+        current_time = datetime.now(tz)
+        time_difference_seconds = (current_time - vehicle_timestamp).total_seconds()
+        
+        if time_difference_seconds >= 180:
+            # daca datele sunt mai vechi de 3 minute, nu le ajustam ca probabil e eroare
+            updated_eta = eta_s / 60
+        else:
+            updated_eta = (eta_s - time_difference_seconds) / 60
+
         results.append({
             "trip_id": trip_id,
             "stop_id": stop_id,
-            "predicted_eta_minutes": round(eta / 60, 2),
-            "message": message
+            "predicted_eta_minutes": round(updated_eta, 2),
+            "message": msg
         })
     return results
 
@@ -357,10 +427,48 @@ async def get_vehicles(agency_id: str):
     async with httpx.AsyncClient() as client:
         response = await client.get(f"{os.getenv('BASE_URL')}/vehicles", headers=headers, timeout=10)
     
-    if response.status_code == status.HTTP_200_OK:
-        return response.json()
+    if response.status_code != status.HTTP_200_OK:
+        raise HTTPException(status_code=response.status_code, detail=response.text)
+
+    vehicles = response.json()
+    valid_vehicles = []
     
-    raise HTTPException(status_code=response.status_code, detail=response.text)
+    # filtram vehiculele inutile si adaugam coord primei si ultimei statii pentru calcule mai rapide in frontend
+    for vehicle in vehicles:
+        trip_id = vehicle.get("trip_id")
+        latitude = vehicle.get("latitude")
+        longitude = vehicle.get("longitude")
+        ts = vehicle.get("timestamp")
+
+        if trip_id and latitude and longitude and ts:
+            vehicle_timestamp = datetime.fromisoformat(ts)
+            if vehicle_timestamp.tzinfo is None:
+                vehicle_timestamp = vehicle_timestamp.replace(tzinfo=tz)
+            else:
+                vehicle_timestamp = vehicle_timestamp.astimezone(tz)
+
+            current_time = datetime.now(tz)
+            time_difference_seconds = (current_time - vehicle_timestamp).total_seconds()
+    
+            if time_difference_seconds > 180:
+                continue
+
+            # pot folosi asta ca am statiile per trip in acest dictionar
+            stops_ids = list(stop_distances.get(agency_id, {}).get(trip_id, {}).keys())
+            if stops_ids:
+                first_stop = stop_locs[agency_id][stops_ids[0]]
+                last_stop = stop_locs[agency_id][stops_ids[-1]]
+
+                vehicle["first_stop_lat"] = first_stop[0]
+                vehicle["first_stop_lon"] = first_stop[1]
+
+                vehicle["last_stop_lat"] = last_stop[0]
+                vehicle["last_stop_lon"] = last_stop[1]
+
+                valid_vehicles.append(vehicle)
+
+    return valid_vehicles
+
 
 
 def get_external_timetable_urls(agency_id: str, route_short_name: str, day_type: str):
