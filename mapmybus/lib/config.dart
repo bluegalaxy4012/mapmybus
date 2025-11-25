@@ -3,6 +3,10 @@ class AppConfig {
     'STOPS_API_URL',
     defaultValue: '',
   );
+  static final String tripsForStopApiUrl = const String.fromEnvironment(
+    'TRIPS_API_URL',
+    defaultValue: '',
+  );
   static final String shapesApiUrl = const String.fromEnvironment(
     'SHAPES_API_URL',
     defaultValue: '',

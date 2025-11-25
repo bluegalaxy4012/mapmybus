@@ -17,6 +17,7 @@ class DbService {
     delayFactor: Duration(seconds: 5),
   );
 
+  // acum stim sigur ca vehiculele sunt valide si au campurile necesare din backend
   Future<Result<List<Vehicle>, Exception>> fetchVehicles(
     String agencyId,
   ) async {
@@ -100,6 +101,39 @@ class DbService {
         return Failure(
           ApiException(
             "Server error during stops for trip fetch",
+            response.statusCode,
+          ),
+        );
+      }
+    } catch (e) {
+      return Failure(Exception("Unexpected error: $e"));
+    }
+  }
+
+  Future<Result<List<String>, Exception>> getTripIdsForStop(
+    String stopId,
+    String agencyId,
+  ) async {
+    final uri = Uri.parse(
+      '${AppConfig.tripsForStopApiUrl}/$agencyId?stop_id=$stopId',
+    );
+
+    try {
+      final response = await retryOptions.retry(
+        () => http.get(uri),
+        retryIf: (e) => e is http.ClientException || e is TimeoutException,
+      );
+
+      if (response.statusCode == 200) {
+        final List<dynamic> data = jsonDecode(response.body);
+
+        log.d("Fetched ${data.length} trip IDs for stop $stopId");
+
+        return Success(data.map((tripId) => tripId.toString()).toList());
+      } else {
+        return Failure(
+          ApiException(
+            "Server error during trip IDs for stop fetch",
             response.statusCode,
           ),
         );
@@ -326,7 +360,6 @@ class DbService {
         );
       }
     } catch (e) {
-      print(e);
       return Failure(Exception("Unexpected error: $e"));
     }
   }

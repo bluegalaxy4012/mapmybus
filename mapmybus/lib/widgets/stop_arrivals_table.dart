@@ -7,6 +7,7 @@ import 'package:mapmybus/utils.dart';
 
 class StopArrivalsTable extends StatefulWidget {
   final String stopName;
+  final List<String> routeNames;
   final List<StopArrivalDisplayInfo> arrivals;
   final DateTime? tableCreateTime;
 
@@ -15,6 +16,7 @@ class StopArrivalsTable extends StatefulWidget {
   const StopArrivalsTable({
     super.key,
     required this.stopName,
+    required this.routeNames,
     required this.arrivals,
     required this.tableCreateTime,
     required this.onClose,
@@ -90,6 +92,51 @@ class _StopArrivalsTableState extends State<StopArrivalsTable> {
                             fontWeight: FontWeight.bold,
                           ),
                         ),
+                      ],
+                    ),
+
+                    // sort
+                    Column(
+                      spacing: 2.0,
+
+                      children: [
+                        Text(
+                          "Linii deservite:",
+                          style: TextStyle(
+                            fontSize: calculateFontSize(screenWidth, 16),
+                            color: Colors.grey,
+                          ),
+                        ),
+
+                    // punem maxim 6 pe rand
+                    for (int i = 0; i < widget.routeNames.length; i += 6)
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.start,
+
+                        children: [
+                          for (int j = 0; j < 6 && (i + j) < widget.routeNames.length; j++)
+                            Padding(
+                              padding: const EdgeInsets.only(right: 8.0),
+
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 0),
+                                decoration: BoxDecoration(
+                                  border: Border.all(color: Colors.black, width: 0.5),
+                                  borderRadius: BorderRadius.circular(2),
+                                ),
+
+                                child: Text(
+                                  widget.routeNames[i + j],
+                                  style: TextStyle(
+                                    fontSize: calculateFontSize(screenWidth, 14),
+                                    color: Colors.black,
+                                  ),
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+
                       ],
                     ),
 
@@ -177,6 +224,7 @@ class _StopArrivalsTableState extends State<StopArrivalsTable> {
                                           screenWidth,
                                           15,
                                         ),
+                                        fontWeight: arrival.isVehicleAtEnds ? FontWeight.bold : FontWeight.normal,
                                       ),
                                     ),
                                   ),

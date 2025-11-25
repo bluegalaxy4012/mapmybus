@@ -22,6 +22,7 @@ class Vehicle {
   final String? tripId;
   final double? firstStopLatitude, firstStopLongitude;
   final double? lastStopLatitude, lastStopLongitude;
+  final bool isGhost;
   final int vehicleType;
   final Accessibility bikeAccessible;
   final Accessibility wheelchairAccessible;
@@ -39,6 +40,7 @@ class Vehicle {
     this.firstStopLongitude,
     this.lastStopLatitude,
     this.lastStopLongitude,
+    required this.isGhost,
     required this.vehicleType,
     required this.bikeAccessible,
     required this.wheelchairAccessible,
@@ -108,6 +110,7 @@ class Vehicle {
       lastStopLongitude: json['last_stop_lon'] != null
         ? (json['last_stop_lon'] as num).toDouble()
         : null,
+      isGhost: json['is_ghost'],
       vehicleType: parseInt(json['vehicle_type']),
       bikeAccessible: parseAccessibility(json['bike_accessible'] as String?),
       wheelchairAccessible: parseAccessibility(
@@ -406,8 +409,9 @@ class EtaDisplayInfo {
 class StopArrivalDisplayInfo {
   final String routeShortName;
   final String etaMessage;
+  final bool isVehicleAtEnds;
 
-  StopArrivalDisplayInfo(this.routeShortName, this.etaMessage);
+  StopArrivalDisplayInfo(this.routeShortName, this.etaMessage, this.isVehicleAtEnds);
 }
 
 // results

@@ -11,6 +11,11 @@ class RoutesProvider extends ChangeNotifier {
   final DbService dbService;
 
   List<Route> _allRoutes = [];
+  
+  // pentru optimizare la getRouteShortNameFromX
+  final Map<String, Route> _routesByRouteId = {};
+  String _routeKey(String agencyId, int routeId) => '$agencyId:$routeId';
+
   List<Route> _filteredRoutes = [];
   String _searchQuery = '';
   Map<int, bool> _favoriteRouteIds = {};
@@ -58,17 +63,25 @@ class RoutesProvider extends ChangeNotifier {
                 ),
               )
               .toList();
+
+          _routesByRouteId.clear();
+          for (final route in _allRoutes) {
+            _routesByRouteId[_routeKey(route.agencyId, route.routeId)] = route;
+          }
+          
           break;
         case Failure(exception: final e):
           log.e("Failed to fetch routes: $e");
-          _allRoutes = [];
-          _filteredRoutes = [];
+          _allRoutes.clear();
+          _routesByRouteId.clear();
+          _filteredRoutes.clear();
           return Failure(e);
       }
     } catch (e) {
       log.e("Unexpected error while loading routes: $e");
-      _allRoutes = [];
-      _filteredRoutes = [];
+      _allRoutes.clear();
+      _routesByRouteId.clear();
+      _filteredRoutes.clear();
       return Failure(Exception(e));
     } finally {
       _applyFilters();
@@ -191,21 +204,20 @@ class RoutesProvider extends ChangeNotifier {
     _saveFavoriteRouteIds();
   }
 
+  // todo
   String? getRouteShortNameFromRouteId(int routeId, String agencyId) {
-    return _allRoutes
-        .firstWhere(
-          (r) => r.routeId == routeId && r.agencyId == agencyId,
-          orElse: () => Route(
-            agencyId: agencyId,
-            routeId: routeId,
-            routeShortName: "?",
-            routeLongName: '?',
-            routeColor: Colors.grey,
-            routeType: 3,
-            routeDesc: "",
-          ),
-        )
-        .routeShortName;
+    final route = _routesByRouteId[_routeKey(agencyId, routeId)];
+    if (route != null) return route.routeShortName;
+
+    return Route(
+      agencyId: agencyId,
+      routeId: routeId,
+      routeShortName: "?",
+      routeLongName: '?',
+      routeColor: Colors.grey,
+      routeType: 3,
+      routeDesc: "",
+    ).routeShortName;
   }
 
   String? getRouteShortNameFromTripId(String tripId, String agencyId) {

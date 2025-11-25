@@ -13,6 +13,8 @@ from pathlib import Path
 import httpx
 import logging
 import random
+import asyncio
+import redis
 
 # importam functii utile si constante
 from preprocess import (
@@ -39,6 +41,9 @@ CSV_DIR = Path("csv")
 AGENCY_IDS = ["1", "2", "4", "6", "8"]
 EXTERNAL_TIMETABLES_AGENCY_IDS = ["1", "4", "6", "8"]
 
+GHOST_VEHICLE_POSITIONS_CONSIDERED = 20
+GHOST_VEHICLE_MAX_COORDINATE_CHANGE = 0.0005 # aprox 40 m
+
 MIN_VALID_EXTERNAL_TIMETABLE_SIZE=100 # bytes
 
 UNKNOWN_ETA_MINUTES = 999
@@ -55,11 +60,21 @@ stop_distances = {}
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # pentru distribuire la toti workerii
+    app.state.redis = redis.Redis(host='localhost', port=6379, decode_responses=True)
+
     logger.info("Application startup: Initializing data...")
     init_data()
+    
+    # ca sa fie pe faza serverul si sa aiba date despre vehicule fantoma 
+    task = asyncio.create_task(fetch_vehicles_periodically())
+
     yield
     logger.info("Application shutdown: Clearing models cache...")
     models_cache.clear()
+
+    task.cancel()
+    await task
 
 app = FastAPI(lifespan=lifespan)
 
@@ -72,6 +87,18 @@ app.add_middleware(
     allow_methods=["GET", "OPTIONS", "POST"],
     allow_headers=["*"],
 )
+
+
+async def fetch_vehicles_periodically():
+    while True:
+        await asyncio.sleep(120)
+
+        for agency_id in AGENCY_IDS:
+            try:
+                await get_vehicles(agency_id)
+            except Exception as e:
+                logger.error(f"Error fetching vehicles (periodically) for agency {agency_id}: {e}")
+
 
 def init_data():
     # incarcam formele, statiile si fisierele .pkl
@@ -406,6 +433,22 @@ def get_shapes_for_trip(agency_id: str, shape_id: str):
     client.close()
     return result
 
+@app.get("/trips/{agency_id}")
+def get_trip_ids_for_route(agency_id: str, stop_id: str = Query(...)):
+    logger.info("fetching trip ids for agency %s, stop_id %s", agency_id, stop_id)
+    
+    if agency_id not in AGENCY_IDS:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST)
+    
+    client = MongoClient(MONGO_URL)
+    db = client[DB_NAME]
+    
+    trip_ids = stop_to_trips.get(agency_id, {}).get(stop_id, [])
+
+    result = [tid for tid in trip_ids]
+
+    client.close()
+    return result
 
 
 def get_random_api_key():
@@ -438,9 +481,11 @@ async def get_vehicles(agency_id: str):
         trip_id = vehicle.get("trip_id")
         latitude = vehicle.get("latitude")
         longitude = vehicle.get("longitude")
+        label = vehicle.get("label")
         ts = vehicle.get("timestamp")
+        vehicle["is_ghost"] = False
 
-        if trip_id and latitude and longitude and ts:
+        if trip_id and latitude and longitude and label and ts:
             vehicle_timestamp = datetime.fromisoformat(ts)
             if vehicle_timestamp.tzinfo is None:
                 vehicle_timestamp = vehicle_timestamp.replace(tzinfo=tz)
@@ -467,6 +512,22 @@ async def get_vehicles(agency_id: str):
 
                 valid_vehicles.append(vehicle)
 
+    for v in valid_vehicles:
+
+        # ca sa verificam care sunt fantoma (stau afk) folosim un dictionar cu redis
+        positions = app.state.redis.lrange(v.get("label"), 0, -1)
+        positions = [(float(lat), float(lon)) for lat, lon in (pos.split(',') for pos in positions)]
+
+        new_position = (v.get("latitude"), v.get("longitude"))
+
+        if positions and sum(abs(a - b) for a, b in zip(positions[-1], new_position)) > GHOST_VEHICLE_MAX_COORDINATE_CHANGE:
+            app.state.redis.delete(v.get("label"))
+
+        if len(positions) < GHOST_VEHICLE_POSITIONS_CONSIDERED:
+            app.state.redis.rpush(v.get("label"), f"{new_position[0]},{new_position[1]}")
+        
+        v["is_ghost"] = len(positions) >= GHOST_VEHICLE_POSITIONS_CONSIDERED
+        
     return valid_vehicles
 
 

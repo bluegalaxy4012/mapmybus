@@ -66,6 +66,7 @@ class _MapPageState extends State<MapPage> {
   List<StopArrivalDisplayInfo> _arrivalsDisplayInfo = [];
   Stop? _selectedStop;
   DateTime? _stopArrivalsCreateTime;
+  List<String> _routeShortNamesForStop = [];
 
   // for better localization of vehicles
   List<double> _shapeCumDistances = [];
@@ -424,6 +425,10 @@ class _MapPageState extends State<MapPage> {
         widget.city.agencyId,
       );
 
+      if (vehicle.isGhost) {
+        throw Exception("Ghost vehicle has to be ignored");
+      }
+
       await _onVehicleTap(vehicle, routeShortName);
     } catch (e) {
       // nu mai este vehiculul
@@ -433,8 +438,10 @@ class _MapPageState extends State<MapPage> {
         previousStopName = null;
         nextStopName = null;
         selectedVehicle = null;
+        _lastVehicleLabel = null;
         isSelectedVehicleOnRoute = null;
         isSelectedVehicleAtEnds = null;
+
         _drawnStops.clear();
         _drawnStopsNearby.clear();
         _drawnPoints.clear();
@@ -553,13 +560,15 @@ class _MapPageState extends State<MapPage> {
     });
 
     setState(() {
-      _arrivalsDisplayInfo = [StopArrivalDisplayInfo("-", "-")];
+      _arrivalsDisplayInfo = [StopArrivalDisplayInfo("-", "-", false)];
     });
 
     final routeProvider = context.read<RoutesProvider>();
     final db = context.read<DbService>();
 
+    // ignoram cele fantoma
     final positions = _validVehicles
+        .where((v) => !v.isGhost)
         .map(
           (v) => {
             'trip_id': v.tripId!,
@@ -570,6 +579,46 @@ class _MapPageState extends State<MapPage> {
           },
         )
         .toList();
+
+
+    if (!mounted) return;
+
+    // gasim si vehiculele care trec prin statie
+    final tripIdsResult = await context.read<DbService>().getTripIdsForStop(
+          stop.stopId,
+          widget.city.agencyId,
+          );
+    
+    switch (tripIdsResult) {
+      case Success(data: final tripIds):
+        _routeShortNamesForStop.clear();
+
+        for (final tripId in tripIds) {
+          final routeShortName = routeProvider.getRouteShortNameFromTripId(
+            tripId,
+            widget.city.agencyId,
+          );
+
+          if (routeShortName != null &&
+              !_routeShortNamesForStop.contains(routeShortName)) {
+            _routeShortNamesForStop.add(routeShortName);
+          }
+        }
+        break;
+
+      case Failure(exception: final e):
+        log.e("Failed to fetch trip IDs for stop ${stop.stopId}: $e");
+
+        if (mounted) {
+          showSimpleSnackbar(
+            context,
+            "Eroare la obtinerea vehiculelor care trec prin statia ${stop.stopName}",
+          );
+        }
+
+        _routeShortNamesForStop.clear();
+        break;
+    }
 
     final result = await db.getSoonArrivalsForStop(
       widget.city.agencyId,
@@ -591,8 +640,14 @@ class _MapPageState extends State<MapPage> {
 
           final String etaMessage = getEtaMessage(arrival.etaMinutes);
 
+          final bool isVehicleAtEnds = _isVehicleAtEnds(
+            _validVehicles.firstWhere(
+              (v) => v.label == arrival.vehicleLabel,
+            ),
+          );
+
           arrivalsDisplayInfo.add(
-            StopArrivalDisplayInfo(routeShortName ?? "?", etaMessage),
+            StopArrivalDisplayInfo(routeShortName ?? "?", etaMessage, isVehicleAtEnds),
           );
         }
 
@@ -607,6 +662,7 @@ class _MapPageState extends State<MapPage> {
           setState(() {
             _stopArrivalsCreateTime = DateTime.now();
             _selectedStop = stop;
+            _routeShortNamesForStop = _routeShortNamesForStop;
             _arrivalsDisplayInfo = arrivalsDisplayInfo;
           });
         }
@@ -647,22 +703,18 @@ class _MapPageState extends State<MapPage> {
     final routeProvider = context.watch<RoutesProvider>();
 
     final visibleRoutesIds = routeProvider.favoriteRouteIdsSet;
-    // final dateTimeNow = DateTime.now();
 
     _validVehicles = vehicleProvider.vehicles;
-        // .where(
-        //   (v) =>
-        //       v.latitude != null &&
-        //       v.longitude != null &&
-        //       v.routeId != null &&
-        //       v.tripId != null &&
-        //       dateTimeNow.difference(v.timestamp).inMinutes <= 3,
-        // )
-        // .toList();
 
     _visibleVehicles = _validVehicles
-        .where((v) => visibleRoutesIds.contains(v.routeId!))
+        .where((v) => visibleRoutesIds.contains(v.routeId!) && !v.isGhost)
         .toList();
+
+    /*
+    print("Skipped ${_validVehicles
+        .where((v) => visibleRoutesIds.contains(v.routeId!))
+        .length - _visibleVehicles.length} ghost vehicles");
+    */
 
     return Stack(
       children: [
@@ -988,6 +1040,7 @@ class _MapPageState extends State<MapPage> {
                               // nu mai trebuie setstate pt ca va fi apelat in _onVehicleTap
                               _arrivalsDisplayInfo.clear();
                               _selectedStop = null;
+                              _routeShortNamesForStop.clear();
                               _stopArrivalsCreateTime = null;
 
                               // ne asiguram ca vehiculul, ruta, sunt la favorite ca altfel nici nu-l vedem
@@ -1114,13 +1167,15 @@ class _MapPageState extends State<MapPage> {
 
         if (_arrivalsDisplayInfo.isNotEmpty && _selectedStop != null)
           StopArrivalsTable(
-            arrivals: _arrivalsDisplayInfo,
             stopName: _selectedStop!.stopName,
+            routeNames: _routeShortNamesForStop,
+            arrivals: _arrivalsDisplayInfo,
             tableCreateTime: _stopArrivalsCreateTime,
             onClose: () {
               setState(() {
                 _arrivalsDisplayInfo.clear();
                 _selectedStop = null;
+                _routeShortNamesForStop.clear();
                 _stopArrivalsCreateTime = null;
               });
             },
