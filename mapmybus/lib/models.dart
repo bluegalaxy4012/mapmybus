@@ -99,17 +99,17 @@ class Vehicle {
       routeId: json['route_id'] != null ? parseInt(json['route_id']) : null,
       tripId: json['trip_id'] as String?,
       firstStopLatitude: json['first_stop_lat'] != null
-        ? (json['first_stop_lat'] as num).toDouble()
-        : null,
+          ? (json['first_stop_lat'] as num).toDouble()
+          : null,
       firstStopLongitude: json['first_stop_lon'] != null
-        ? (json['first_stop_lon'] as num).toDouble()
-        : null,
+          ? (json['first_stop_lon'] as num).toDouble()
+          : null,
       lastStopLatitude: json['last_stop_lat'] != null
-        ? (json['last_stop_lat'] as num).toDouble()
-        : null,
+          ? (json['last_stop_lat'] as num).toDouble()
+          : null,
       lastStopLongitude: json['last_stop_lon'] != null
-        ? (json['last_stop_lon'] as num).toDouble()
-        : null,
+          ? (json['last_stop_lon'] as num).toDouble()
+          : null,
       isGhost: json['is_ghost'],
       vehicleType: parseInt(json['vehicle_type']),
       bikeAccessible: parseAccessibility(json['bike_accessible'] as String?),
@@ -411,7 +411,11 @@ class StopArrivalDisplayInfo {
   final String etaMessage;
   final bool isVehicleAtEnds;
 
-  StopArrivalDisplayInfo(this.routeShortName, this.etaMessage, this.isVehicleAtEnds);
+  StopArrivalDisplayInfo(
+    this.routeShortName,
+    this.etaMessage,
+    this.isVehicleAtEnds,
+  );
 }
 
 // results

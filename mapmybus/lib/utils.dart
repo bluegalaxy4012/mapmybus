@@ -51,6 +51,8 @@ class Constants {
   static const double largeScreenBonusSize = 2;
   //
 
+  static const int routesPerRowInStopArrivalsTable = 8;
+
   static final List<CityConfig> cities = [
     CityConfig(
       name: "Iasi",
@@ -112,6 +114,8 @@ class Constants {
 
   static const List<String> cityNamesWithVineriVerde = ["Cluj-Napoca"];
 
+  static const List<String> agencyIdsWithWorkingTimetables = ["2"];
+
   ///
 }
 
@@ -121,6 +125,51 @@ double calculateFontSize(double screenWidth, double baseSize) {
   }
 
   return (baseSize + Constants.smallScreenBonusSize).sp;
+}
+
+int compareRouteNames(String routeA, String routeB) {
+  // ca si in python, practic ideea e sortarea pe grupuri, literele de la inceput daca exista
+  // apoi numarul din mijloc daca exista, si apoi literele de la final daca exista
+
+  final a = routeA.toUpperCase().trim();
+  final b = routeB.toUpperCase().trim();
+
+  final patternNumPrefix = RegExp(r'^(\d+)([^0-9\s]*)$');
+  final patternAlphaNum = RegExp(r'^([^0-9\s]+)(\d+)([^0-9\s]*)$');
+
+  final matchA1 = patternNumPrefix.firstMatch(a);
+  final matchB1 = patternNumPrefix.firstMatch(b);
+
+  if (matchA1 != null && matchB1 != null) {
+    final numA = int.parse(matchA1.group(1)!);
+    final numB = int.parse(matchB1.group(1)!);
+
+    if (numA != numB) return numA.compareTo(numB);
+    return (matchA1.group(2) ?? '').compareTo(matchB1.group(2) ?? '');
+  }
+
+  final matchA2 = patternAlphaNum.firstMatch(a);
+  final matchB2 = patternAlphaNum.firstMatch(b);
+
+  final rankA = matchA1 != null ? 0 : (matchA2 != null ? 1 : 2);
+  final rankB = matchB1 != null ? 0 : (matchB2 != null ? 1 : 2);
+  if (rankA != rankB) return rankA.compareTo(rankB);
+
+  if (matchA2 != null && matchB2 != null) {
+    final prefixA = matchA2.group(1)!;
+    final prefixB = matchB2.group(1)!;
+
+    final cmpPrefix = prefixA.compareTo(prefixB);
+    if (cmpPrefix != 0) return cmpPrefix;
+
+    final numA = int.parse(matchA2.group(2)!);
+    final numB = int.parse(matchB2.group(2)!);
+    if (numA != numB) return numA.compareTo(numB);
+
+    return (matchA2.group(3) ?? '').compareTo(matchB2.group(3) ?? '');
+  }
+
+  return a.compareTo(b);
 }
 
 String getEtaMessage(double eta) {
@@ -137,6 +186,22 @@ String getEtaMessage(double eta) {
   }
 
   return etaMessage;
+}
+
+// nu e standard dar destul de optima si usor de inteles
+int compareEtaMessages(String a, String b) {
+  int getValue(String msg) {
+    if (msg == "? min") return 9999;
+    if (msg == ">20 min") return 3000;
+
+    final parts = msg.split(' - ');
+    final min = int.parse(parts[0]);
+    final max = int.parse(parts[1].split(' ')[0]);
+
+    return (min * 100) + max;
+  }
+
+  return getValue(a).compareTo(getValue(b));
 }
 
 String formattedTime(DateTime? time) {

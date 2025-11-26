@@ -244,7 +244,8 @@ class DbService {
     final Uri uri = Uri.parse('${AppConfig.etasApiUrl}/$agencyId').replace(
       queryParameters: {
         'trip_id': vehicle.tripId,
-        'ts': vehicle.timestamp.toIso8601String(), // un standard sa fie sigur ca primeste bine backend-ul
+        'ts': vehicle.timestamp
+            .toIso8601String(), // un standard sa fie sigur ca primeste bine backend-ul
         'lat': vehicle.latitude.toString(),
         'lon': vehicle.longitude.toString(),
         'stop_ids': stopIds,

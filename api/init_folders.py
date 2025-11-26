@@ -1,6 +1,7 @@
 from pathlib import Path
 import shutil
 
+
 def init(folder_name):
     OUTPUT_DIR = Path(folder_name)
 

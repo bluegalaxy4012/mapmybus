@@ -11,7 +11,7 @@ class RoutesProvider extends ChangeNotifier {
   final DbService dbService;
 
   List<Route> _allRoutes = [];
-  
+
   // pentru optimizare la getRouteShortNameFromX
   final Map<String, Route> _routesByRouteId = {};
   String _routeKey(String agencyId, int routeId) => '$agencyId:$routeId';
@@ -68,7 +68,7 @@ class RoutesProvider extends ChangeNotifier {
           for (final route in _allRoutes) {
             _routesByRouteId[_routeKey(route.agencyId, route.routeId)] = route;
           }
-          
+
           break;
         case Failure(exception: final e):
           log.e("Failed to fetch routes: $e");
@@ -204,7 +204,6 @@ class RoutesProvider extends ChangeNotifier {
     _saveFavoriteRouteIds();
   }
 
-  // todo
   String? getRouteShortNameFromRouteId(int routeId, String agencyId) {
     final route = _routesByRouteId[_routeKey(agencyId, routeId)];
     if (route != null) return route.routeShortName;

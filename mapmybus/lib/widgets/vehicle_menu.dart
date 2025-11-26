@@ -360,7 +360,6 @@ class _VehicleMenuState extends State<VehicleMenu> {
     }
 
     return Column(
-      // spacing mai putin
       children: [
         Text(
           "Actualizat la: ${formattedTime(widget.lastEtaFetchTime)}",

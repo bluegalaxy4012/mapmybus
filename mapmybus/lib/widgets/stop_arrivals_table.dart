@@ -95,7 +95,6 @@ class _StopArrivalsTableState extends State<StopArrivalsTable> {
                       ],
                     ),
 
-                    // sort
                     Column(
                       spacing: 2.0,
 
@@ -103,65 +102,80 @@ class _StopArrivalsTableState extends State<StopArrivalsTable> {
                         Text(
                           "Linii deservite:",
                           style: TextStyle(
-                            fontSize: calculateFontSize(screenWidth, 16),
+                            fontSize: calculateFontSize(screenWidth, 17),
                             color: Colors.grey,
                           ),
                         ),
 
-                    // punem maxim 6 pe rand
-                    for (int i = 0; i < widget.routeNames.length; i += 6)
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.start,
+                        // punem maxim 8 pe rand (experimental)
+                        for (int i = 0; i < widget.routeNames.length; i += Constants.routesPerRowInStopArrivalsTable)
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.start,
 
-                        children: [
-                          for (int j = 0; j < 6 && (i + j) < widget.routeNames.length; j++)
-                            Padding(
-                              padding: const EdgeInsets.only(right: 8.0),
+                            children: [
+                              for (
+                                int j = 0;
+                                j < Constants.routesPerRowInStopArrivalsTable && (i + j) < widget.routeNames.length;
+                                j++
+                              )
+                                Padding(
+                                  padding: EdgeInsets.only(right: 5.h),
 
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 0),
-                                decoration: BoxDecoration(
-                                  border: Border.all(color: Colors.black, width: 0.5),
-                                  borderRadius: BorderRadius.circular(2),
-                                ),
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 2,
+                                      vertical: 0,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      border: Border.all(
+                                        color: Colors.black,
+                                        width: 0.5,
+                                      ),
+                                      borderRadius: BorderRadius.circular(2),
+                                    ),
 
-                                child: Text(
-                                  widget.routeNames[i + j],
-                                  style: TextStyle(
-                                    fontSize: calculateFontSize(screenWidth, 14),
-                                    color: Colors.black,
+                                    child: Text(
+                                      widget.routeNames[i + j],
+                                      style: TextStyle(
+                                        fontSize: calculateFontSize(
+                                          screenWidth,
+                                          14,
+                                        ),
+                                        color: Colors.black,
+                                      ),
+                                    ),
                                   ),
                                 ),
-                              ),
-                            ),
-                        ],
-                      ),
-
+                            ],
+                          ),
                       ],
                     ),
 
                     Column(
                       children: [
                         Text(
-                          "Actualizat la: ${formattedTime(widget.tableCreateTime)}",
-
+                          "*vehiculele boldate se afla in",
                           style: TextStyle(
-                            fontSize: calculateFontSize(screenWidth, 14),
+                            fontSize: calculateFontSize(screenWidth, 11),
+                            fontWeight: FontWeight.bold,
                             color: Colors.grey,
                           ),
                         ),
 
                         Text(
-                          "(se presupune ca fiecare vehicul afisat parcurge",
+                          "apropierea unui capat de linie",
                           style: TextStyle(
-                            fontSize: calculateFontSize(screenWidth, 13),
+                            fontSize: calculateFontSize(screenWidth, 11),
+                            fontWeight: FontWeight.bold,
                             color: Colors.grey,
                           ),
                         ),
+
                         Text(
-                          "activ ruta si nu stationeaza la capat de linie)",
+                          "si este posibil sa stationeze",
                           style: TextStyle(
-                            fontSize: calculateFontSize(screenWidth, 13),
+                            fontSize: calculateFontSize(screenWidth, 11),
+                            fontWeight: FontWeight.bold,
                             color: Colors.grey,
                           ),
                         ),
@@ -224,7 +238,9 @@ class _StopArrivalsTableState extends State<StopArrivalsTable> {
                                           screenWidth,
                                           15,
                                         ),
-                                        fontWeight: arrival.isVehicleAtEnds ? FontWeight.bold : FontWeight.normal,
+                                        fontWeight: arrival.isVehicleAtEnds
+                                            ? FontWeight.bold
+                                            : FontWeight.normal,
                                       ),
                                     ),
                                   ),
@@ -244,6 +260,15 @@ class _StopArrivalsTableState extends State<StopArrivalsTable> {
                             }).toList(),
                           ),
                         ),
+                      ),
+                    ),
+
+                    Text(
+                      "Actualizat la: ${formattedTime(widget.tableCreateTime)}",
+
+                      style: TextStyle(
+                        fontSize: calculateFontSize(screenWidth, 13),
+                        color: Colors.grey,
                       ),
                     ),
 

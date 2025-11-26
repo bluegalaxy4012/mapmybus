@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart' hide Route;
@@ -321,35 +322,30 @@ class _MapPageState extends State<MapPage> {
     });
   }
 
-  bool _isVehicleAtEnds(Vehicle vehicle) {
-    // final firstStop = _drawnStops.first;
-    // final lastStop = _drawnStops.last;
-
-    // print('${vehicle.latitude}, ${vehicle.longitude}, ${vehicle.firstStopLatitude}, ${vehicle.firstStopLongitude}');
-
+  bool _isVehicleAtFirstEnd(Vehicle vehicle) {
     final distToFirstStop = Geolocator.distanceBetween(
       vehicle.latitude!,
       vehicle.longitude!,
-      // firstStop.latitude,
-      // firstStop.longitude,
       vehicle.firstStopLatitude!,
       vehicle.firstStopLongitude!,
     );
 
+    return distToFirstStop < Constants.stopEndsRadius;
+  }
+
+  bool _isVehicleAtLastEnd(Vehicle vehicle) {
     final distToLastStop = Geolocator.distanceBetween(
       vehicle.latitude!,
       vehicle.longitude!,
-      // lastStop.latitude,
-      // lastStop.longitude,
       vehicle.lastStopLatitude!,
       vehicle.lastStopLongitude!,
     );
 
-    // print(distToFirstStop);
-    // print(distToLastStop);
+    return distToLastStop < Constants.stopEndsRadius;
+  }
 
-    return distToFirstStop < Constants.stopEndsRadius ||
-        distToLastStop < Constants.stopEndsRadius;
+  bool _isVehicleAtEnds(Vehicle vehicle) {
+    return _isVehicleAtFirstEnd(vehicle) || _isVehicleAtLastEnd(vehicle);
   }
 
   bool _isVehicleOnRoute(Vehicle vehicle) {
@@ -502,7 +498,8 @@ class _MapPageState extends State<MapPage> {
           .firstWhere((s) => s.stopId == data.stopId)
           .stopName;
 
-      if (data.message == ArrivalStatus.arriving.name || data.message == ArrivalStatus.unknown.name) {
+      if (data.message == ArrivalStatus.arriving.name ||
+          data.message == ArrivalStatus.unknown.name) {
         final String etaMessage = getEtaMessage(data.predictedEtaMinutes);
 
         etas.add(EtaDisplayInfo(stopName: stopName, etaMessage: etaMessage));
@@ -523,6 +520,88 @@ class _MapPageState extends State<MapPage> {
         _lastEtaFetchTime = DateTime.now();
       });
     }
+  }
+
+  Future<double> getNextDepartureTimeDifference(
+    String agencyId,
+    String routeShortName,
+    String direction,
+  ) async {
+    if (!Constants.agencyIdsWithWorkingTimetables.contains(agencyId)) {
+      return 0;
+    }
+
+    if (direction != "0" && direction != "1") {
+      return 0;
+    }
+
+    final dbService = context.read<DbService>();
+    const days = {"Luni - Vineri": "lv", "Sambata": "s", "Duminica": "d"};
+    DateTime currentTime = DateTime.now();
+    double nextDeparture;
+
+    for (final entry in days.entries) {
+      final result = await dbService.getTimetable(
+        agencyId,
+        routeShortName,
+        entry.value,
+      );
+
+      switch (result) {
+        case Success(data: final rows):
+          nextDeparture = _findNextDepartureTimeDifference(
+            rows.sublist(5),
+            currentTime,
+            direction,
+          );
+
+          // scadem 10 de secunde ca de obicei pleaca mai rapid din statie decat orarul
+          return max(0, nextDeparture - 10);
+        case Failure(exception: final _):
+          break;
+      }
+    }
+    return 0;
+  }
+
+  double _findNextDepartureTimeDifference(
+    List<List<String>> timetableRows,
+    DateTime currentTime,
+    String direction,
+  ) {
+    DateTime? nextDeparture;
+
+    for (final row in timetableRows) {
+      String departureTimeString = direction == "0" ? row[0] : row[1];
+
+      if (departureTimeString.isEmpty) continue;
+
+      //uneori contine niste stelute sau spatii, nu stiu de ce dar le eliminam
+      departureTimeString = departureTimeString.replaceAll("*", " ").trim();
+      DateTime departureTime;
+
+      try {
+        departureTime = DateTime(
+          currentTime.year,
+          currentTime.month,
+          currentTime.day,
+          int.parse(departureTimeString.split(":")[0]),
+          int.parse(departureTimeString.split(":")[1]),
+        );
+      } catch (_) {
+        continue;
+      }
+
+      if (departureTime.isAfter(currentTime)) {
+        if (nextDeparture == null || departureTime.isBefore(nextDeparture)) {
+          nextDeparture = departureTime;
+        }
+      }
+    }
+
+    // return the difference in seconds between nextDeparture and currentTime
+    if (nextDeparture == null) return 0;
+    return nextDeparture.difference(currentTime).inSeconds.toDouble();
   }
 
   void _onStopTap(Stop stop) async {
@@ -554,7 +633,7 @@ class _MapPageState extends State<MapPage> {
       previousStopName = null;
       nextStopName = null;
       selectedVehicle = null;
-      _lastVehicleLabel = null; //
+      _lastVehicleLabel = null;
       isSelectedVehicleOnRoute = null;
       isSelectedVehicleAtEnds = null;
     });
@@ -580,15 +659,14 @@ class _MapPageState extends State<MapPage> {
         )
         .toList();
 
-
     if (!mounted) return;
 
     // gasim si vehiculele care trec prin statie
     final tripIdsResult = await context.read<DbService>().getTripIdsForStop(
-          stop.stopId,
-          widget.city.agencyId,
-          );
-    
+      stop.stopId,
+      widget.city.agencyId,
+    );
+
     switch (tripIdsResult) {
       case Success(data: final tripIds):
         _routeShortNamesForStop.clear();
@@ -603,6 +681,8 @@ class _MapPageState extends State<MapPage> {
               !_routeShortNamesForStop.contains(routeShortName)) {
             _routeShortNamesForStop.add(routeShortName);
           }
+
+          _routeShortNamesForStop.sort(compareRouteNames);
         }
         break;
 
@@ -638,16 +718,31 @@ class _MapPageState extends State<MapPage> {
             widget.city.agencyId,
           );
 
-          final String etaMessage = getEtaMessage(arrival.etaMinutes);
+          final bool isVehicleAtFirstEnd = _isVehicleAtFirstEnd(
+            _validVehicles.firstWhere((v) => v.label == arrival.vehicleLabel),
+          );
 
-          final bool isVehicleAtEnds = _isVehicleAtEnds(
-            _validVehicles.firstWhere(
-              (v) => v.label == arrival.vehicleLabel,
-            ),
+          // adunam cat ia sa porneasca de la capat de linie (din orar)
+          // momentan merge doar pentru cluj
+          double nextRoutingTimeDifference = 0;
+          if (isVehicleAtFirstEnd) {
+            nextRoutingTimeDifference = await getNextDepartureTimeDifference(
+              widget.city.agencyId,
+              routeShortName ?? "",
+              arrival.tripId.endsWith("_0") ? "0" : "1",
+            );
+          }
+
+          final String etaMessage = getEtaMessage(
+            arrival.etaMinutes + nextRoutingTimeDifference / 60,
           );
 
           arrivalsDisplayInfo.add(
-            StopArrivalDisplayInfo(routeShortName ?? "?", etaMessage, isVehicleAtEnds),
+            StopArrivalDisplayInfo(
+              routeShortName ?? "?",
+              etaMessage,
+              isVehicleAtFirstEnd,
+            ),
           );
         }
 
@@ -659,6 +754,10 @@ class _MapPageState extends State<MapPage> {
             );
           }
         } else {
+          arrivalsDisplayInfo.sort(
+            (a, b) => compareEtaMessages(a.etaMessage, b.etaMessage),
+          );
+
           setState(() {
             _stopArrivalsCreateTime = DateTime.now();
             _selectedStop = stop;
