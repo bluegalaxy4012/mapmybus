@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:mapmybus/models.dart';
-import 'package:mapmybus/utils.dart';
+import 'package:mapmybus/core/utils.dart';
+import 'package:mapmybus/models/vehicle.dart';
 
 class VehicleMarker extends StatelessWidget {
   final Vehicle v;
@@ -43,11 +43,18 @@ class VehicleMarker extends StatelessWidget {
             Transform.rotate(
               angle: bearing,
               child: Transform.translate(
-                offset: const Offset(0, -18),
+                offset: Offset(
+                  0,
+                  -15 -
+                      computeArrowOffset(
+                        bearing,
+                        routeShortName?.length.toDouble() ?? 0,
+                      ),
+                ),
                 child: Stack(
                   alignment: Alignment.center,
                   children: [
-                    const Icon(Icons.navigation, color: Colors.black, size: 27),
+                    Icon(Icons.navigation, color: Colors.black, size: 27),
 
                     Icon(
                       Icons.navigation,

@@ -2,13 +2,14 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
-import 'package:mapmybus/db_service.dart';
-import 'package:mapmybus/models.dart';
-import 'package:mapmybus/utils.dart';
+import 'package:mapmybus/models/result.dart';
+import 'package:mapmybus/models/vehicle.dart';
+import 'package:mapmybus/service/api_service.dart';
+import 'package:mapmybus/core/utils.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class VehiclesProvider extends ChangeNotifier {
-  final DbService dbService;
+  final Server server;
 
   List<Vehicle> _vehicles = [];
   Timer? _vehicleFetchTimer;
@@ -18,7 +19,7 @@ class VehiclesProvider extends ChangeNotifier {
 
   List<Vehicle> get vehicles => _vehicles;
 
-  VehiclesProvider({required this.dbService});
+  VehiclesProvider({required this.server});
 
   Future<void> fetchVehiclesAndNotify(String agencyId) async {
     final isAnyToDraw = await isAnyVehicleToDraw();
@@ -30,7 +31,7 @@ class VehiclesProvider extends ChangeNotifier {
       return;
     }
 
-    final result = await dbService.fetchVehicles(agencyId);
+    final result = await server.fetchVehicles(agencyId);
 
     switch (result) {
       case Success(data: final vehicles):

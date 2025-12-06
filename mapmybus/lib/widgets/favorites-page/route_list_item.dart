@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart' hide Route;
+import 'package:mapmybus/models/route.dart';
 import 'package:mapmybus/providers/routes_provider.dart';
-import 'package:mapmybus/widgets/simple_snackbar.dart';
-import 'package:mapmybus/widgets/timetable_page.dart';
+import 'package:mapmybus/widgets/common-page/simple_snackbar.dart';
+import 'package:mapmybus/widgets/common-page/timetable_page.dart';
 import 'package:provider/provider.dart';
-
-import '../models.dart';
 
 class RouteListItem extends StatelessWidget {
   final String agencyId;

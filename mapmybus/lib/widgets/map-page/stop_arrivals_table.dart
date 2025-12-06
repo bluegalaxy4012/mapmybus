@@ -2,8 +2,8 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:mapmybus/models.dart';
-import 'package:mapmybus/utils.dart';
+import 'package:mapmybus/core/utils.dart';
+import 'package:mapmybus/models/info_dtos.dart';
 
 class StopArrivalsTable extends StatefulWidget {
   final String stopName;
@@ -108,14 +108,19 @@ class _StopArrivalsTableState extends State<StopArrivalsTable> {
                         ),
 
                         // punem maxim 8 pe rand (experimental)
-                        for (int i = 0; i < widget.routeNames.length; i += Constants.routesPerRowInStopArrivalsTable)
+                        for (
+                          int i = 0;
+                          i < widget.routeNames.length;
+                          i += Constants.routesPerRowInStopArrivalsTable
+                        )
                           Row(
                             mainAxisAlignment: MainAxisAlignment.start,
 
                             children: [
                               for (
                                 int j = 0;
-                                j < Constants.routesPerRowInStopArrivalsTable && (i + j) < widget.routeNames.length;
+                                j < Constants.routesPerRowInStopArrivalsTable &&
+                                    (i + j) < widget.routeNames.length;
                                 j++
                               )
                                 Padding(

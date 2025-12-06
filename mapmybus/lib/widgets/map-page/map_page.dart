@@ -6,22 +6,26 @@ import 'package:flutter/material.dart' hide Route;
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:mapmybus/db_service.dart';
+import 'package:mapmybus/models/city_config.dart';
+import 'package:mapmybus/models/eta.dart';
+import 'package:mapmybus/models/info_dtos.dart';
+import 'package:mapmybus/models/result.dart';
+import 'package:mapmybus/models/stop.dart';
+import 'package:mapmybus/models/vehicle.dart';
+import 'package:mapmybus/service/api_service.dart';
 import 'package:mapmybus/providers/city_provider.dart';
 import 'package:mapmybus/providers/routes_provider.dart';
 import 'package:mapmybus/providers/vehicles_provider.dart';
-import 'package:mapmybus/utils.dart';
-import 'package:mapmybus/widgets/simple_snackbar.dart';
-import 'package:mapmybus/widgets/stop_arrivals_table.dart';
-import 'package:mapmybus/widgets/stop_markers.dart';
-import 'package:mapmybus/widgets/stops_page.dart';
-import 'package:mapmybus/widgets/user_location_marker.dart';
-import 'package:mapmybus/widgets/vehicle_marker.dart';
-import 'package:mapmybus/widgets/vehicle_menu.dart';
+import 'package:mapmybus/core/utils.dart';
+import 'package:mapmybus/widgets/common-page/simple_snackbar.dart';
+import 'package:mapmybus/widgets/map-page/stop_arrivals_table.dart';
+import 'package:mapmybus/widgets/map-page/stop_markers.dart';
+import 'package:mapmybus/widgets/common-page/stops_page.dart';
+import 'package:mapmybus/widgets/map-page/user_location_marker.dart';
+import 'package:mapmybus/widgets/map-page/vehicle_marker.dart';
+import 'package:mapmybus/widgets/map-page/vehicle_menu.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:provider/provider.dart';
-
-import '../models.dart';
 
 class MapPage extends StatefulWidget {
   const MapPage({super.key, required this.city});
@@ -187,9 +191,9 @@ class _MapPageState extends State<MapPage> {
   }
 
   Future<void> _loadMapDetails(String tripId) async {
-    final dbService = context.read<DbService>();
+    final server = context.read<Server>();
 
-    final resultStops = await dbService.getStopsForTrip(
+    final resultStops = await server.getStopsForTrip(
       tripId,
       widget.city.agencyId,
     );
@@ -212,7 +216,7 @@ class _MapPageState extends State<MapPage> {
         return;
     }
 
-    final resultShape = await dbService.getShape(tripId, widget.city.agencyId);
+    final resultShape = await server.getShape(tripId, widget.city.agencyId);
 
     if (!mounted) return;
 
@@ -453,12 +457,12 @@ class _MapPageState extends State<MapPage> {
     });
 
     try {
-      final dbService = context.read<DbService>();
+      final server = context.read<Server>();
 
       final stopIds = _drawnStops.map((s) => s.stopId).toList();
       if (stopIds.isEmpty) return;
 
-      final result = await dbService.getEtas(
+      final result = await server.getEtas(
         vehicle,
         stopIds,
         widget.city.agencyId,
@@ -535,13 +539,13 @@ class _MapPageState extends State<MapPage> {
       return 0;
     }
 
-    final dbService = context.read<DbService>();
+    final server = context.read<Server>();
     const days = {"Luni - Vineri": "lv", "Sambata": "s", "Duminica": "d"};
     DateTime currentTime = DateTime.now();
     double nextDeparture;
 
     for (final entry in days.entries) {
-      final result = await dbService.getTimetable(
+      final result = await server.getTimetable(
         agencyId,
         routeShortName,
         entry.value,
@@ -626,24 +630,14 @@ class _MapPageState extends State<MapPage> {
       _arrivalsDisplayInfo.clear();
       _selectedStop = stop;
       _stopArrivalsCreateTime = null;
-
-      // reset la vehicul
-      showMenu = false;
-      selectedRouteName = "";
-      previousStopName = null;
-      nextStopName = null;
-      selectedVehicle = null;
-      _lastVehicleLabel = null;
-      isSelectedVehicleOnRoute = null;
-      isSelectedVehicleAtEnds = null;
     });
 
     setState(() {
-      _arrivalsDisplayInfo = [StopArrivalDisplayInfo("-", "-", false)];
+      _arrivalsDisplayInfo = [StopArrivalDisplayInfo("-", 0, "-", false)];
     });
 
     final routeProvider = context.read<RoutesProvider>();
-    final db = context.read<DbService>();
+    final db = context.read<Server>();
 
     // ignoram cele fantoma
     final positions = _validVehicles
@@ -662,7 +656,7 @@ class _MapPageState extends State<MapPage> {
     if (!mounted) return;
 
     // gasim si vehiculele care trec prin statie
-    final tripIdsResult = await context.read<DbService>().getTripIdsForStop(
+    final tripIdsResult = await context.read<Server>().getTripIdsForStop(
       stop.stopId,
       widget.city.agencyId,
     );
@@ -733,13 +727,15 @@ class _MapPageState extends State<MapPage> {
             );
           }
 
-          final String etaMessage = getEtaMessage(
-            arrival.etaMinutes + nextRoutingTimeDifference / 60,
-          );
+          final double eta =
+              arrival.etaMinutes + nextRoutingTimeDifference / 60;
+
+          final String etaMessage = getEtaMessage(eta);
 
           arrivalsDisplayInfo.add(
             StopArrivalDisplayInfo(
               routeShortName ?? "?",
+              eta, // doar pentru sortare ca sa nu mai recalculez mesajele altcandva
               etaMessage,
               isVehicleAtFirstEnd,
             ),
@@ -754,9 +750,7 @@ class _MapPageState extends State<MapPage> {
             );
           }
         } else {
-          arrivalsDisplayInfo.sort(
-            (a, b) => compareEtaMessages(a.etaMessage, b.etaMessage),
-          );
+          arrivalsDisplayInfo.sort((a, b) => a.eta.compareTo(b.eta));
 
           setState(() {
             _stopArrivalsCreateTime = DateTime.now();
@@ -975,8 +969,8 @@ class _MapPageState extends State<MapPage> {
                 return;
               }
 
-              final dbService = context.read<DbService>();
-              final nearbyStopsResult = await dbService.getNearbyStops(
+              final server = context.read<Server>();
+              final nearbyStopsResult = await server.getNearbyStops(
                 widget.city.agencyId,
                 _currentPosition!,
                 Constants.nearbyStopsRadius,

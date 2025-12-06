@@ -10,8 +10,17 @@ from sklearn.neighbors import NearestNeighbors
 from traffic_data import get_timestamp_congestion_index
 from enum import Enum
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
+current_folder = os.path.dirname(os.path.abspath(__file__))
+log_path = os.path.join(current_folder, "refresh.log")
+
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+
+fh = logging.FileHandler(log_path)
+formatter = logging.Formatter("%(asctime)s [%(levelname)s] %(message)s")
+fh.setFormatter(formatter)
+
+logger.addHandler(fh)
 
 timezone_offset = timedelta(hours=3)  # totul e utc in datele colectate, romania are +3h
 tz = timezone(timezone_offset)

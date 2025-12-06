@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
-import 'package:mapmybus/models.dart';
+import 'package:mapmybus/models/stop.dart';
 
 class StopMarker extends Marker {
   StopMarker({

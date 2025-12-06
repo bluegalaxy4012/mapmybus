@@ -3,14 +3,18 @@ import 'dart:convert';
 
 import 'package:csv/csv.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:mapmybus/config.dart';
-import 'package:mapmybus/utils.dart';
+import 'package:mapmybus/core/api_config.dart';
+import 'package:mapmybus/core/utils.dart';
 import 'package:http/http.dart' as http;
+import 'package:mapmybus/models/eta.dart';
+import 'package:mapmybus/models/result.dart';
+import 'package:mapmybus/models/route.dart';
+import 'package:mapmybus/models/shape_point.dart';
+import 'package:mapmybus/models/stop.dart';
+import 'package:mapmybus/models/vehicle.dart';
 import 'package:retry/retry.dart';
 
-import 'models.dart';
-
-class DbService {
+class Server {
   // in caz de timeout-uri
   static const retryOptions = RetryOptions(
     maxAttempts: 3,

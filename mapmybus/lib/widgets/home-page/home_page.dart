@@ -1,11 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:mapmybus/providers/city_provider.dart';
-import 'package:mapmybus/utils.dart';
-import 'package:mapmybus/widgets/settings_page.dart';
+import 'package:mapmybus/core/utils.dart';
+import 'package:mapmybus/widgets/favorites-page/favorites_page.dart';
+import 'package:mapmybus/widgets/map-page/map_page.dart';
+import 'package:mapmybus/widgets/settings-page/settings_page.dart';
 import 'package:provider/provider.dart';
-
-import 'favorites_page.dart';
-import 'map_page.dart';
 
 class MyHomePage extends StatefulWidget {
   const MyHomePage({super.key});

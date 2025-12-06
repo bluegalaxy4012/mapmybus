@@ -1,9 +1,10 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:mapmybus/models.dart';
+import 'package:mapmybus/models/city_config.dart';
+import 'package:mapmybus/models/result.dart';
 import 'package:mapmybus/providers/routes_provider.dart';
-import 'package:mapmybus/widgets/simple_snackbar.dart';
+import 'package:mapmybus/widgets/common-page/simple_snackbar.dart';
 import 'package:provider/provider.dart';
 
 import 'route_list_item.dart';

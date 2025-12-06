@@ -1,9 +1,11 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:mapmybus/db_service.dart';
-import 'package:mapmybus/models.dart';
-import 'package:mapmybus/widgets/simple_snackbar.dart';
+import 'package:mapmybus/models/city_config.dart';
+import 'package:mapmybus/models/result.dart';
+import 'package:mapmybus/models/stop.dart';
+import 'package:mapmybus/service/api_service.dart';
+import 'package:mapmybus/widgets/common-page/simple_snackbar.dart';
 import 'package:provider/provider.dart';
 import 'package:diacritic/diacritic.dart';
 
@@ -23,9 +25,7 @@ class _StopsPageState extends State<StopsPage> {
   Timer? _debounceTimer;
 
   void _loadStops() async {
-    final result = await context.read<DbService>().getStops(
-      widget.city.agencyId,
-    );
+    final result = await context.read<Server>().getStops(widget.city.agencyId);
 
     switch (result) {
       case Success(data: final stops):

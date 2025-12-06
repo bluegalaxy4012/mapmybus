@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:mapmybus/db_service.dart';
-import 'package:mapmybus/models.dart';
-import 'package:mapmybus/utils.dart';
+import 'package:mapmybus/models/result.dart';
+import 'package:mapmybus/service/api_service.dart';
+import 'package:mapmybus/core/utils.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -18,7 +18,7 @@ class TimetablePage extends StatelessWidget {
   Future<Map<String, List<List<String>>?>> loadTimetables(
     BuildContext context,
   ) async {
-    final db = context.read<DbService>();
+    final db = context.read<Server>();
 
     const days = {"Luni - Vineri": "lv", "Sambata": "s", "Duminica": "d"};
     final data = <String, List<List<String>>?>{};

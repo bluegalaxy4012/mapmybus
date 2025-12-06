@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:mapmybus/utils.dart';
+import 'package:mapmybus/core/utils.dart';
 
 void showSimpleSnackbar(BuildContext context, String message) {
   final messenger = ScaffoldMessenger.of(context);

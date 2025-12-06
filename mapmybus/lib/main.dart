@@ -3,19 +3,16 @@ import 'dart:async';
 import 'package:flutter/material.dart' hide Route;
 import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:mapmybus/db_service.dart';
+import 'package:mapmybus/service/api_service.dart';
 import 'package:mapmybus/providers/city_provider.dart';
 import 'package:mapmybus/providers/routes_provider.dart';
 import 'package:mapmybus/providers/vehicles_provider.dart';
-import 'package:mapmybus/utils.dart';
-import 'package:mapmybus/widgets/welcome_page.dart';
+import 'package:mapmybus/core/utils.dart';
+import 'package:mapmybus/widgets/home-page/welcome_page.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'widgets/home_page.dart';
-
-/// todo later
-// setari la culoare traseu/statii/inbound/outbound
+import 'widgets/home-page/home_page.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -25,7 +22,7 @@ Future<void> main() async {
     DeviceOrientation.portraitDown,
   ]);
 
-  final dbService = DbService();
+  final server = Server();
 
   final prefs = await SharedPreferences.getInstance();
   final bool seenWelcome = prefs.getBool('seen_welcome') ?? false; // tutorial
@@ -39,7 +36,7 @@ Future<void> main() async {
       splitScreenMode: true,
       builder: (context, child) {
         return MyApp(
-          dbService: dbService,
+          server: server,
           seenWelcome: seenWelcome,
           selectedCityName: selectedCityName,
         );
@@ -49,12 +46,12 @@ Future<void> main() async {
 }
 
 class MyApp extends StatelessWidget {
-  final DbService dbService;
+  final Server server;
   final bool seenWelcome;
   final String selectedCityName;
 
   const MyApp({
-    required this.dbService,
+    required this.server,
     required this.seenWelcome,
     required this.selectedCityName,
     super.key,
@@ -64,18 +61,18 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
-        Provider<DbService>.value(value: dbService),
+        Provider<Server>.value(value: server),
         ChangeNotifierProvider(
           create: (context) {
-            final db = Provider.of<DbService>(context, listen: false);
-            return RoutesProvider(dbService: db);
+            final sv = Provider.of<Server>(context, listen: false);
+            return RoutesProvider(server: sv);
           },
         ),
 
         ChangeNotifierProvider(
           create: (context) {
-            final db = Provider.of<DbService>(context, listen: false);
-            return VehiclesProvider(dbService: db);
+            final sv = Provider.of<Server>(context, listen: false);
+            return VehiclesProvider(server: sv);
           },
         ),
 

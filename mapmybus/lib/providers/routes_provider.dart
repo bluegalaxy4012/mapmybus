@@ -2,13 +2,14 @@ import 'dart:convert';
 
 import 'package:diacritic/diacritic.dart';
 import 'package:flutter/material.dart' hide Route;
-import 'package:mapmybus/db_service.dart';
-import 'package:mapmybus/utils.dart';
-import 'package:mapmybus/models.dart';
+import 'package:mapmybus/models/result.dart';
+import 'package:mapmybus/models/route.dart';
+import 'package:mapmybus/service/api_service.dart';
+import 'package:mapmybus/core/utils.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class RoutesProvider extends ChangeNotifier {
-  final DbService dbService;
+  final Server server;
 
   List<Route> _allRoutes = [];
 
@@ -27,7 +28,7 @@ class RoutesProvider extends ChangeNotifier {
   String get searchQuery => _searchQuery;
   bool get showFavoritesOnly => _showFavoritesOnly;
 
-  RoutesProvider({required this.dbService});
+  RoutesProvider({required this.server});
 
   Future<Result<void, Exception>> init(String agencyId) async {
     if (_allRoutes.isNotEmpty && _agencyId == agencyId) {
@@ -52,7 +53,7 @@ class RoutesProvider extends ChangeNotifier {
 
   Future<Result<void, Exception>> _loadRoutes(String agencyId) async {
     try {
-      final result = await dbService.fetchRoutes(agencyId);
+      final result = await server.fetchRoutes(agencyId);
 
       switch (result) {
         case Success(data: final routes):

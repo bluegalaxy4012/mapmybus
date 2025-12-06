@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:mapmybus/models.dart';
-import 'package:mapmybus/utils.dart';
-import 'package:mapmybus/widgets/timetable_page.dart';
+import 'package:mapmybus/core/utils.dart';
+import 'package:mapmybus/models/info_dtos.dart';
+import 'package:mapmybus/models/vehicle.dart';
+import 'package:mapmybus/widgets/common-page/timetable_page.dart';
 
 class VehicleMenu extends StatefulWidget {
   final String agencyId;

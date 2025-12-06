@@ -30,10 +30,17 @@ from traffic_data import get_timestamp_congestion_index
 # incarcam variabilele din .env
 load_dotenv()
 
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s"
-)
+current_folder = os.path.dirname(os.path.abspath(__file__))
+log_path = os.path.join(current_folder, "refresh.log")
+
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+
+fh = logging.FileHandler(log_path)
+formatter = logging.Formatter("%(asctime)s [%(levelname)s] %(message)s")
+fh.setFormatter(formatter)
+
+logger.addHandler(fh)
 
 # configuri din .env
 MONGO_URL = os.getenv("MONGO_URL") or "mongo_fallback_url"
@@ -284,7 +291,8 @@ def get_arrivals_for_stop(
                 continue
 
         # fixare la timp pentru ca vehiculele au fost actualizate doar acum ceva timp
-        ts = v.get("timestamp")
+        # nu e chiar vehicul, e alta structura deci e ts primit ca Iso8601String nu timestamp
+        ts = v.get("ts")
 
         if ts:
             vehicle_timestamp = datetime.fromisoformat(ts)

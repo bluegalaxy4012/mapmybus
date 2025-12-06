@@ -6,7 +6,8 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:logger/logger.dart';
-import 'package:mapmybus/models.dart';
+import 'package:mapmybus/models/city_config.dart';
+import 'package:mapmybus/models/info_dtos.dart';
 
 final log = Logger(level: kReleaseMode ? Level.off : Level.debug);
 
@@ -50,6 +51,20 @@ class Constants {
   static const double smallScreenBonusSize = 17.5;
   static const double largeScreenBonusSize = 2;
   //
+
+  // pentru cateva cazuri speciale in UI, cum ar fi cand numele liniei e lung si sageata trebuie mutata mai spre directia de mers
+  // range -> power to raise length at (ca sa fie mai drastic la lungimi mari si bonus mare)
+  static const ranges = [
+    (-pi, -5 * pi / 6, 0.0),
+    (-5 * pi / 6, -3 * pi / 4, 1.0),
+    (-3 * pi / 4, -pi / 4, 2.0),
+    (-pi / 4, -pi / 6, 1.0),
+    (-pi / 6, pi / 6, 0.0),
+    (pi / 6, pi / 4, 1.0),
+    (pi / 4, 3 * pi / 4, 2.0),
+    (3 * pi / 4, 5 * pi / 6, 1.0),
+    (5 * pi / 6, pi, 0.0),
+  ];
 
   static const int routesPerRowInStopArrivalsTable = 8;
 
@@ -188,22 +203,6 @@ String getEtaMessage(double eta) {
   return etaMessage;
 }
 
-// nu e standard dar destul de optima si usor de inteles
-int compareEtaMessages(String a, String b) {
-  int getValue(String msg) {
-    if (msg == "? min") return 9999;
-    if (msg == ">20 min") return 3000;
-
-    final parts = msg.split(' - ');
-    final min = int.parse(parts[0]);
-    final max = int.parse(parts[1].split(' ')[0]);
-
-    return (min * 100) + max;
-  }
-
-  return getValue(a).compareTo(getValue(b));
-}
-
 String formattedTime(DateTime? time) {
   if (time == null) return "?";
   return "${time.hour.toString().padLeft(2, '0')}:"
@@ -247,6 +246,16 @@ IconData getIconForVehicleType(int vehicleType) {
     default:
       return Icons.directions_bus; // Default bus icon
   }
+}
+
+double computeArrowOffset(double bearing, double routeNameLength) {
+  for (final (start, end, bonusPower) in Constants.ranges) {
+    if (bearing >= start && bearing < end) {
+      return pow(routeNameLength, bonusPower).toDouble();
+    }
+  }
+
+  return 0.0;
 }
 
 Future<Position> determinePosition() async {

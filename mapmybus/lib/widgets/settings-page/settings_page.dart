@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:mapmybus/providers/city_provider.dart';
-import 'package:mapmybus/utils.dart';
+import 'package:mapmybus/core/utils.dart';
 import 'package:provider/provider.dart';
 
 class SettingsPage extends StatelessWidget {
