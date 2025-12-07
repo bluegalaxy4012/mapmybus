@@ -1006,12 +1006,11 @@ class _MapPageState extends State<MapPage> {
           top: 70,
           right: 10,
           child: FloatingActionButton(
-            heroTag: "selectYourVehicleButton",
-            tooltip: "Selecteaza vehiculul apropiat",
+            heroTag: "selectRouteButton",
+            tooltip: "Selecteaza/Cauta o linie",
             mini: true,
             child: const Icon(Icons.bus_alert),
             onPressed: () {
-              // cerem linia pentru ca pot fi multe autobuze in acelasi loc
               TextEditingController controller = TextEditingController();
 
               showDialog(
@@ -1019,7 +1018,7 @@ class _MapPageState extends State<MapPage> {
                 builder: (context) {
                   return AlertDialog(
                     title: const Text(
-                      "Introdu doar numele liniei pentru a identifica vehiculul aflat in proximitate",
+                      "Introdu doar numele liniei pentru a o adauga la favorite. Vehiculul cel mai apropiat de pe aceasta va fi selectat automat.",
                     ),
                     content: TextField(
                       controller: controller,
@@ -1063,6 +1062,19 @@ class _MapPageState extends State<MapPage> {
 
                           String input = controller.text.trim().toUpperCase();
                           if (input.isNotEmpty) {
+                            final int? routeId = routeProvider
+                                .getRouteIdFromRouteShortName(input);
+
+                            if (routeId == null) {
+                              showSimpleSnackbar(
+                                context,
+                                "Nu s-a gasit linia $input. Verifica daca ai omis caractere sau daca ai adaugat spatii in plus",
+                              );
+
+                              Navigator.of(context).pop();
+                              return;
+                            }
+
                             final matchingVehicles = _validVehicles.where((v) {
                               final routeShortName = routeProvider
                                   .getRouteShortNameFromRouteId(
@@ -1073,96 +1085,57 @@ class _MapPageState extends State<MapPage> {
                               return routeShortName == input;
                             }).toList();
 
-                            if (matchingVehicles.isEmpty) {
-                              showSimpleSnackbar(
-                                context,
-                                "Nu s-au gasit vehicule pentru linia $input",
-                              );
-
-                              Navigator.of(context).pop();
-                              return;
-                            }
-
                             // gasim cele mai apropiate vehicule sortate dupa distanta
-
                             final vehiclesNearby =
-                                matchingVehicles
-                                    .map((v) {
-                                      final distance =
-                                          Geolocator.distanceBetween(
-                                            _currentPosition!.latitude,
-                                            _currentPosition!.longitude,
-                                            v.latitude!,
-                                            v.longitude!,
-                                          );
-
-                                      return VehicleWithDistance(v, distance);
-                                    })
-                                    .where(
-                                      (vd) =>
-                                          vd.distance <=
-                                          Constants.nearbyVehiclesRadius,
-                                    )
-                                    .toList()
-                                  ..sort(
-                                    (vd1, vd2) =>
-                                        vd1.distance.compareTo(vd2.distance),
+                                matchingVehicles.map((v) {
+                                  final distance = Geolocator.distanceBetween(
+                                    _currentPosition!.latitude,
+                                    _currentPosition!.longitude,
+                                    v.latitude!,
+                                    v.longitude!,
                                   );
 
-                            if (vehiclesNearby.isEmpty) {
-                              showSimpleSnackbar(
-                                context,
-                                "Nu s-au gasit vehicule pentru linia $input in apropierea ta",
-                              );
-                            } else {
-                              final vd = vehiclesNearby.first;
+                                  return VehicleWithDistance(v, distance);
+                                }).toList()..sort(
+                                  (vd1, vd2) =>
+                                      vd1.distance.compareTo(vd2.distance),
+                                );
 
-                              // nu ar trebui sa se intample vreodata caci lista de vehicule e filtrata deja
-                              final routeId = vd.vehicle.routeId;
-                              if (routeId == null) {
-                                return;
-                              }
-
-                              final routeShortName = routeProvider
-                                  .getRouteShortNameFromRouteId(
-                                    vd.vehicle.routeId!,
-                                    widget.city.agencyId,
-                                  );
-
-                              // pentru a inchide eventuala fereastra de sosiri statie
-                              // nu mai trebuie setstate pt ca va fi apelat in _onVehicleTap
-                              _arrivalsDisplayInfo.clear();
-                              _selectedStop = null;
-                              _routeShortNamesForStop.clear();
-                              _stopArrivalsCreateTime = null;
-
-                              // ne asiguram ca vehiculul, ruta, sunt la favorite ca altfel nici nu-l vedem
-                              bool addRouteToFavorites = false;
-                              if (!routeProvider.isFavorite(
-                                vd.vehicle.routeId!,
-                              )) {
-                                await routeProvider.toggleFavorite(
+                            // adaugam linia la favorite daca nu e deja
+                            final routeShortName = routeProvider
+                                .getRouteShortNameFromRouteId(
                                   routeId,
                                   widget.city.agencyId,
                                 );
-                                addRouteToFavorites = true;
-                              }
 
+                            // ne asiguram ca vehiculul, ruta, sunt la favorite ca altfel nici nu-l vedem
+                            bool addRouteToFavorites = false;
+                            if (!routeProvider.isFavorite(routeId)) {
+                              await routeProvider.toggleFavorite(
+                                routeId,
+                                widget.city.agencyId,
+                              );
+                              addRouteToFavorites = true;
+                            }
+
+                            if (!context.mounted) return;
+                            if (vehiclesNearby.isEmpty) {
+                              showSimpleSnackbar(
+                                context,
+                                "Linia $input a fost adaugata la favorite, dar nu s-au gasit vehicule care o parcurg",
+                              );
+
+                              // ar fi bine sa afisam traseul liniei pe harta aici, dar e cam complicat ca trebuie sa si intrebam user-ul
+                              // daca vrea asta si sa-l intrebam daca vrea sa vada dus sau intors
+                            } else {
+                              final vd = vehiclesNearby.first;
                               await _onVehicleTap(vd.vehicle, routeShortName);
 
                               if (!context.mounted) return;
-
                               if (addRouteToFavorites) {
                                 showSimpleSnackbar(
                                   context,
-                                  "Linia $input a fost adaugata la favorite pentru a putea urmari vehiculul",
-                                );
-                              }
-
-                              if (vehiclesNearby.length > 1) {
-                                showSimpleSnackbar(
-                                  context,
-                                  "Au fost gasite mai multe vehicule pentru linia $input in proximitatea ta. Se selecteaza cel mai apropiat, dar e posibil sa fie incorect!",
+                                  "Linia $input a fost adaugata la favorite si cel mai apropiat vehicul a fost selectat",
                                 );
                               }
                             }
@@ -1185,7 +1158,7 @@ class _MapPageState extends State<MapPage> {
           right: 110,
           child: FloatingActionButton(
             heroTag: "toggleStopNamesButton",
-            tooltip: "Arata/ascunde numele statiilor",
+            tooltip: "Arata/Ascunde numele statiilor",
             mini: true,
             child: const Icon(Icons.visibility_off),
             onPressed: () {
@@ -1239,6 +1212,29 @@ class _MapPageState extends State<MapPage> {
               if (selectedVehicle != null && !_isLoading) {
                 requestStopArrivalTimes(selectedVehicle!);
               }
+            },
+
+            removeFromFavorites: () async {
+              if (selectedVehicle == null) return;
+
+              final routeProvider = context.read<RoutesProvider>();
+              final routeId = selectedVehicle!.routeId;
+              final routeShortName = selectedRouteName;
+
+              if (routeId == null) return;
+
+              if (routeProvider.isFavorite(routeId)) {
+                await routeProvider.toggleFavorite(
+                  routeId,
+                  widget.city.agencyId,
+                );
+              }
+
+              if (!context.mounted) return;
+              showSimpleSnackbar(
+                context,
+                "Linia $routeShortName a fost scoasa de la favorite",
+              );
             },
 
             onClose: () {

@@ -34,8 +34,8 @@ class Constants {
   static const double stopEndsRadius = 125;
   static const double routeProximityRadius = 125;
 
-  static const double nearbyStopsRadius = 375;
-  static const double nearbyVehiclesRadius = 475;
+  static const double nearbyStopsRadius = 400;
+  static const double nearbyVehiclesRadius = 1600;
 
   static const double unknownEtaMinutes = 999;
 

@@ -159,7 +159,7 @@ class _StopArrivalsTableState extends State<StopArrivalsTable> {
                     Column(
                       children: [
                         Text(
-                          "*vehiculele boldate se afla in",
+                          "*vehiculele boldate se afla in apropierea",
                           style: TextStyle(
                             fontSize: calculateFontSize(screenWidth, 11),
                             fontWeight: FontWeight.bold,
@@ -168,7 +168,7 @@ class _StopArrivalsTableState extends State<StopArrivalsTable> {
                         ),
 
                         Text(
-                          "apropierea unui capat de linie",
+                          "unui capat de linie si este posibil sa",
                           style: TextStyle(
                             fontSize: calculateFontSize(screenWidth, 11),
                             fontWeight: FontWeight.bold,
@@ -177,7 +177,7 @@ class _StopArrivalsTableState extends State<StopArrivalsTable> {
                         ),
 
                         Text(
-                          "si este posibil sa stationeze",
+                          "stationeze sau sa fi pornit deja",
                           style: TextStyle(
                             fontSize: calculateFontSize(screenWidth, 11),
                             fontWeight: FontWeight.bold,

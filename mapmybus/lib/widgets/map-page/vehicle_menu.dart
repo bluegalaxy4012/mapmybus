@@ -18,6 +18,7 @@ class VehicleMenu extends StatefulWidget {
   final DateTime? lastEtaFetchTime;
 
   final VoidCallback onRequestStopArrivalTimes;
+  final VoidCallback removeFromFavorites;
   final VoidCallback onClose;
 
   const VehicleMenu({
@@ -33,6 +34,7 @@ class VehicleMenu extends StatefulWidget {
     required this.etasInfo,
     required this.lastEtaFetchTime,
     required this.onRequestStopArrivalTimes,
+    required this.removeFromFavorites,
     required this.onClose,
   });
 
@@ -295,7 +297,7 @@ class _VehicleMenuState extends State<VehicleMenu> {
                                               style: TextStyle(
                                                 fontSize: calculateFontSize(
                                                   screenWidth,
-                                                  18,
+                                                  16,
                                                 ),
                                               ),
                                             ),
@@ -307,7 +309,7 @@ class _VehicleMenuState extends State<VehicleMenu> {
                                               style: TextStyle(
                                                 fontSize: calculateFontSize(
                                                   screenWidth,
-                                                  18,
+                                                  16,
                                                 ),
                                               ),
                                             ),
@@ -321,11 +323,41 @@ class _VehicleMenuState extends State<VehicleMenu> {
                             ),
 
                           ElevatedButton(
+                            onPressed: () {
+                              // sterge linia din favorite
+                              widget.removeFromFavorites();
+                              widget.onClose();
+                            },
+                            child: Column(
+                              children: [
+                                Text(
+                                  "Inchide si sterge linia",
+                                  style: TextStyle(
+                                    fontSize: calculateFontSize(
+                                      screenWidth,
+                                      16,
+                                    ),
+                                  ),
+                                ),
+                                Text(
+                                  "din lista favoritelor",
+                                  style: TextStyle(
+                                    fontSize: calculateFontSize(
+                                      screenWidth,
+                                      16,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+
+                          ElevatedButton(
                             onPressed: widget.onClose,
                             child: Text(
                               "Inchide",
                               style: TextStyle(
-                                fontSize: calculateFontSize(screenWidth, 18),
+                                fontSize: calculateFontSize(screenWidth, 19),
                               ),
                             ),
                           ),
@@ -377,15 +409,15 @@ class _VehicleMenuState extends State<VehicleMenu> {
 
             children: [
               Text(
-                "Tabel timpi",
+                "Tabel estimari",
                 style: TextStyle(
-                  fontSize: calculateFontSize(screenWidth, 19),
+                  fontSize: calculateFontSize(screenWidth, 18),
                   color: Colors.grey.shade600,
                 ),
               ),
 
               IconButton(
-                icon: Icon(Icons.expand_more, size: 48.sp),
+                icon: Icon(Icons.expand_more, size: 36.sp),
                 onPressed: _toggleTableMinimize,
               ),
             ],

@@ -17,6 +17,9 @@ class RoutesProvider extends ChangeNotifier {
   final Map<String, Route> _routesByRouteId = {};
   String _routeKey(String agencyId, int routeId) => '$agencyId:$routeId';
 
+  // pentru optimizare la verificat daca exista o ruta dupa nume
+  final Map<String, int> _routeIdsByRouteShortName = {};
+
   List<Route> _filteredRoutes = [];
   String _searchQuery = '';
   Map<int, bool> _favoriteRouteIds = {};
@@ -66,8 +69,10 @@ class RoutesProvider extends ChangeNotifier {
               .toList();
 
           _routesByRouteId.clear();
+          _routeIdsByRouteShortName.clear();
           for (final route in _allRoutes) {
             _routesByRouteId[_routeKey(route.agencyId, route.routeId)] = route;
+            _routeIdsByRouteShortName[route.routeShortName] = route.routeId;
           }
 
           break;
@@ -227,5 +232,9 @@ class RoutesProvider extends ChangeNotifier {
     if (routeId == null) return null;
 
     return getRouteShortNameFromRouteId(routeId, agencyId);
+  }
+
+  int? getRouteIdFromRouteShortName(String routeShortName) {
+    return _routeIdsByRouteShortName[routeShortName];
   }
 }

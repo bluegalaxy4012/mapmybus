@@ -11,7 +11,7 @@ from traffic_data import get_timestamp_congestion_index
 from enum import Enum
 
 current_folder = os.path.dirname(os.path.abspath(__file__))
-log_path = os.path.join(current_folder, "refresh.log")
+log_path = os.path.join(current_folder, "preprocess.log")
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -26,9 +26,9 @@ timezone_offset = timedelta(hours=3)  # totul e utc in datele colectate, romania
 tz = timezone(timezone_offset)
 
 # constante de configurare
-MIN_FEATURES_PER_TRIP = 275
+MIN_FEATURES_PER_TRIP = 250
 MAX_ETA_SECONDS = 3000
-NEIGHBORS_CONSIDERED = 30
+NEIGHBORS_CONSIDERED = 25
 MAX_OFFROUTE_DIST = 140
 MAX_GAP_SECONDS = 125
 MIN_GAP_SECONDS = 9
@@ -55,18 +55,20 @@ class ArrivalStatus(str, Enum):
 
 def load_shapes(agency_id: str, path="data/agency{agency_id}_shapes.json"):
     # incarca coord punctelor de pe trasee
-    pts_by_id = defaultdict(list)
+    route_points_by_id = defaultdict(list)
     for p in json.load(open(path.format(agency_id=agency_id))):
-        pts_by_id[p["shape_id"]].append(p)
+        route_points_by_id[p["shape_id"]].append(p)
     shapes = {}
 
-    for sid, pts in pts_by_id.items():
-        pts.sort(key=lambda x: x["shape_pt_sequence"])
-        coords = [(p["shape_pt_lat"], p["shape_pt_lon"]) for p in pts]
-        cum = [0.0]
+    for sid, route_points in route_points_by_id.items():
+        route_points.sort(key=lambda x: x["shape_pt_sequence"])
+        coords = [(p["shape_pt_lat"], p["shape_pt_lon"]) for p in route_points]
+        cumulative_distances = [0.0]
         for a, b in zip(coords, coords[1:]):
-            cum.append(cum[-1] + geodesic(a, b).meters)
-        shapes[sid] = {"pts": coords, "cum_dist": cum}
+            cumulative_distances.append(
+                cumulative_distances[-1] + geodesic(a, b).meters
+            )
+        shapes[sid] = {"pts": coords, "cum_dist": cumulative_distances}
 
     logger.info("loaded %d shapes, agency %s", len(shapes), agency_id)
     return shapes
@@ -93,16 +95,16 @@ def load_stops(
     }
 
 
-def project_route(lat, lon, shp):
+def project_route(lat, lon, shape_data):
     # proiecteaza un punct pe ruta, returnand distanta cumulata aproximativa, si daca nu e aproape de ruta, returneaza None
     # practic incearca sa-i dea snap la ruta ca de obicei gps-ul din ele nu e perfect precis, in rest merge din punct in punct
 
     # index, distanta, proportia pe segment
     best = (None, float("inf"), 0.0)
 
-    pts, cum = shp["pts"], shp["cum_dist"]
-    for i in range(len(pts) - 1):
-        p1, p2 = pts[i], pts[i + 1]
+    route_points, cumulative_distances = shape_data["pts"], shape_data["cum_dist"]
+    for i in range(len(route_points) - 1):
+        p1, p2 = route_points[i], route_points[i + 1]
         dx, dy = p2[0] - p1[0], p2[1] - p1[1]
 
         # daca p1 si p2 sunt identice
@@ -125,7 +127,9 @@ def project_route(lat, lon, shp):
         return None
 
     # returneaza distanta cumulata pe ruta pana la punctul proiectat (suma partiala + proportia pe segment * lungimea segmentului)
-    return cum[idx] + t * (cum[idx + 1] - cum[idx])
+    return cumulative_distances[idx] + t * (
+        cumulative_distances[idx + 1] - cumulative_distances[idx]
+    )
 
 
 def split_journeys(history):
@@ -202,14 +206,14 @@ if __name__ == "__main__":
         logger.info("loaded history for %d trips, agency %s", len(history), agency_id)
 
         for trip_id, recs in history.items():
-            shp = shapes.get(trip_id)
+            shape_data = shapes.get(trip_id)
             stops = trips_to_stops.get(trip_id)
-            if not shp or not stops:
+            if not shape_data or not stops:
                 continue
 
             # calculam distantele proiectate pentru fiecare statie
             for sid in stops:
-                d = project_route(*stop_loc[sid], shp)
+                d = project_route(*stop_loc[sid], shape_data)
                 if d is not None:
                     stop_dists_by_trip[trip_id][sid] = d
                     stop_to_trips[sid].add(trip_id)
@@ -217,7 +221,8 @@ if __name__ == "__main__":
             # in X vom pune distanta proiectata pe ruta, distanta pana la statia curenta
             # in Y vom pune timpul estimat de sosire
             # in C vom pune indicele de congestie in functie de ora si ziua sapt
-            X, Y, C = [], [], []
+            # in T vom pune timestampul real, pentru ca ponderarea sa se faca pe momente cat mai "asemanatoare"
+            X, Y, C, T = [], [], [], []
 
             for journey in split_journeys(recs):
                 if len(journey) <= MIN_JOURNEY_POINTS:
@@ -227,13 +232,13 @@ if __name__ == "__main__":
                 # filtram punctele stationare de la capete, vehicule fantoma
 
                 for pt in journey:
-                    pd = project_route(pt["lat"], pt["lon"], shp)
+                    projected_dist = project_route(pt["lat"], pt["lon"], shape_data)
 
-                    if pd is None:
+                    if projected_dist is None:
                         continue
 
                     # aici practic verificam vehiculul aprox stationar aproape de capetele rutei
-                    end_dist = shp["cum_dist"][-1] - pd
+                    end_dist = shape_data["cum_dist"][-1] - projected_dist
                     if filtered:
                         prev = filtered[-1]
                         if (
@@ -242,20 +247,23 @@ if __name__ == "__main__":
                             ).meters
                             < MIN_STATIONARY_DIST
                         ):
-                            if pd < STOP_ENDS_RADIUS or end_dist < STOP_ENDS_RADIUS:
+                            if (
+                                projected_dist < STOP_ENDS_RADIUS
+                                or end_dist < STOP_ENDS_RADIUS
+                            ):
                                 continue
 
-                    pt["_pd"] = pd
+                    pt["_pd"] = projected_dist
                     filtered.append(pt)
 
                 # generam date de invatare pentru ETA
                 # timpul adevarat de sosire il calculam mergand prin calatorie si cautand urmatorul punct apropiat de statia curenta
                 # scadem cateva secunde in caz ca l-a depasit
                 for pt in filtered:
-                    pd = pt["_pd"]
+                    projected_dist = pt["_pd"]
 
-                    for sid, sd in stop_dists_by_trip[trip_id].items():
-                        if sd <= pd:
+                    for sid, stop_dist in stop_dists_by_trip[trip_id].items():
+                        if stop_dist <= projected_dist:
                             continue
 
                         arr = None
@@ -275,7 +283,7 @@ if __name__ == "__main__":
                         eta = (arr - pt["ts"]).total_seconds()
 
                         if 0 < eta <= MAX_ETA_SECONDS:
-                            X.append([pd, sd - pd])
+                            X.append([projected_dist, stop_dist - projected_dist])
                             Y.append(eta)
                             adjusted_ts = pt["ts"] + timezone_offset
 
@@ -286,6 +294,7 @@ if __name__ == "__main__":
                                 adjusted_ts
                             )
                             C.append(congestion_index)
+                            T.append(adjusted_ts)
 
             # verificam daca sunt destule puncte pentru a salva modelul
             if len(X) < MIN_FEATURES_PER_TRIP:
@@ -297,18 +306,21 @@ if __name__ == "__main__":
                 )
                 continue
 
-            X, Y, C = map(np.array, (X, Y, C))
+            X, Y, C, T = map(np.array, (X, Y, C, T))
 
             # antrenam un knn, salvam
             nbrs = NearestNeighbors(n_neighbors=NEIGHBORS_CONSIDERED).fit(X)
 
             pickle.dump(
-                {"nbrs": nbrs, "X": X, "y": Y, "c": C},
+                {"nbrs": nbrs, "X": X, "y": Y, "c": C, "t": T},
                 open(f"models/agency{agency_id}_{trip_id}_knn.pkl", "wb"),
             )
 
             logger.info(
-                "saved model %s with %d pts, agency %s", trip_id, len(X), agency_id
+                "saved model %s with %d route_points, agency %s",
+                trip_id,
+                len(X),
+                agency_id,
             )
 
         # salvam datele auxiliare pt lookup-uri O(1)

@@ -31,7 +31,7 @@ from traffic_data import get_timestamp_congestion_index
 load_dotenv()
 
 current_folder = os.path.dirname(os.path.abspath(__file__))
-log_path = os.path.join(current_folder, "refresh.log")
+log_path = os.path.join(current_folder, "api.log")
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -170,23 +170,23 @@ def get_prediction(agency_id: str, trip_id: str, lat: float, lon: float, stop_id
     if not (10 <= lat <= 50 and 10 <= lon <= 50):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST)
 
-    shp = shapes.get(agency_id, {}).get(trip_id)
-    if shp is None:
+    shape_data = shapes.get(agency_id, {}).get(trip_id)
+    if shape_data is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Cannot get shapes for trip"
         )
 
     # proiectam vehiculul pe ruta, statia avem deja
-    veh_d = project_onto_route(lat, lon, shp)
-    stop_d = stop_distances.get(agency_id, {}).get(trip_id, {}).get(stop_id)
-    if veh_d is None or stop_d is None:
+    veh_dist = project_onto_route(lat, lon, shape_data)
+    stop_dist = stop_distances.get(agency_id, {}).get(trip_id, {}).get(stop_id)
+    if veh_dist is None or stop_dist is None:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Cannot project vehicle or stop onto route",
         )
 
     # distanta de-a lungul rutei pana la statie minus pana la vehicul
-    delta = stop_d - veh_d
+    delta = stop_dist - veh_dist
 
     # daca vehiculul a trecut deja statia (cu tot cu timpul de update gtfs trece si daca e la 25 metri)
     if delta < 25:
@@ -197,17 +197,17 @@ def get_prediction(agency_id: str, trip_id: str, lat: float, lon: float, stop_id
     if delta < 150:
         return 0.0, ArrivalStatus.ARRIVING.value
 
-    md = get_model(agency_id, trip_id)
-    if md is None:
+    model = get_model(agency_id, trip_id)
+    if model is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="No data to make prediction for trip",
         )
 
     # incarcam knn-ul si vecinii
-    X, y, c = md["X"], md["y"], md["c"]
-    nbrs = md["nbrs"]
-    feat = np.array([[veh_d, delta]])
+    X, y, c, t = model["X"], model["y"], model["c"], model["t"]
+    nbrs = model["nbrs"]
+    feat = np.array([[veh_dist, delta]])
     _, idxs = nbrs.kneighbors(feat)
 
     # calculam media ponderata a eta-urilor istorice apropiate
@@ -217,19 +217,39 @@ def get_prediction(agency_id: str, trip_id: str, lat: float, lon: float, stop_id
     total_eta = 0.0
 
     for i in idxs[0]:
-        hist_d = X[i, 0]
-        pdist = abs(veh_d - hist_d)
+        historical_dist = X[i, 0]
+        projected_dist = abs(veh_dist - historical_dist)
 
         # print(f"point {i}: hist_d={hist_d}, pdist={pdist}, delta={delta}")
 
         # functie de calculat ponderea, daca e la mai putin de 50m, pondere mare, intre 50 si 200m mai mica
         # peste 200m mai bine nu consideram ca e inaccurate
-        if pdist <= 50:
-            w = 0.8 + 0.2 * (1 - pdist / 50)
-        elif pdist <= 200:
-            w = 0.7 - (0.6 * ((pdist - 50) / 150))
+        if projected_dist <= 50:
+            w = 0.8 + 0.2 * (1 - projected_dist / 50)
+        elif projected_dist <= 200:
+            w = 0.7 - (0.6 * ((projected_dist - 50) / 150))
         else:
             continue
+
+        # bonus pentru puncte din perioade similare
+        # now pe server e cu 3 ore in urma
+        now = datetime.now() + timezone_offset
+        historical_time = t[i]
+
+        same_week_day = historical_time.weekday() == now.weekday()
+        same_week_period = (historical_time.weekday() < 5 and now.weekday() < 5) or (
+            historical_time.weekday() >= 5 and now.weekday() >= 5
+        )
+        same_day_period = abs(historical_time.hour - now.hour) <= 1
+
+        if same_week_day:
+            w += 0.2
+
+        if same_week_period:
+            w += 0.4
+
+        if same_day_period:
+            w += 0.7
 
         # ca sa avem cat e "totalul" de ponderi
         total_w += w
@@ -242,8 +262,6 @@ def get_prediction(agency_id: str, trip_id: str, lat: float, lon: float, stop_id
             detail="No data to make prediction for trip",
         )
 
-    # now pe server e cu 3 ore in urma
-    now = datetime.now() + timezone_offset
     congestion_index = get_timestamp_congestion_index(now)
     eta = (total_eta / total_w) * congestion_index
 
@@ -517,14 +535,10 @@ def get_trip_ids_for_route(agency_id: str, stop_id: str = Query(...)):
     if agency_id not in AGENCY_IDS:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST)
 
-    client = MongoClient(MONGO_URL)
-    db = client[DB_NAME]
-
     trip_ids = stop_to_trips.get(agency_id, {}).get(stop_id, [])
 
     result = [tid for tid in trip_ids]
 
-    client.close()
     return result
 
 
@@ -581,8 +595,13 @@ async def get_vehicles(agency_id: str):
             # pot folosi asta ca am statiile per trip in acest dictionar
             stops_ids = list(stop_distances.get(agency_id, {}).get(trip_id, {}).keys())
             if stops_ids:
-                first_stop = stop_locs[agency_id][stops_ids[0]]
-                last_stop = stop_locs[agency_id][stops_ids[-1]]
+
+                # e necesar try pentru ca s-a intamplat sa se schimbe date despre traseu
+                try:
+                    first_stop = stop_locs[agency_id][stops_ids[0]]
+                    last_stop = stop_locs[agency_id][stops_ids[-1]]
+                except KeyError:
+                    continue
 
                 vehicle["first_stop_lat"] = first_stop[0]
                 vehicle["first_stop_lon"] = first_stop[1]
@@ -593,9 +612,9 @@ async def get_vehicles(agency_id: str):
                 valid_vehicles.append(vehicle)
 
     for v in valid_vehicles:
-
         # ca sa verificam care sunt fantoma (stau afk) folosim un dictionar cu redis
-        positions = app.state.redis.lrange(v.get("label"), 0, -1)
+        redis_key = f"{agency_id}:{v.get('label')}"
+        positions = app.state.redis.lrange(redis_key, 0, -1)
         positions = [
             (float(lat), float(lon))
             for lat, lon in (pos.split(",") for pos in positions)
@@ -608,12 +627,10 @@ async def get_vehicles(agency_id: str):
             and sum(abs(a - b) for a, b in zip(positions[-1], new_position))
             > GHOST_VEHICLE_MAX_COORDINATE_CHANGE
         ):
-            app.state.redis.delete(v.get("label"))
+            app.state.redis.delete(redis_key)
 
         if len(positions) < GHOST_VEHICLE_POSITIONS_CONSIDERED:
-            app.state.redis.rpush(
-                v.get("label"), f"{new_position[0]},{new_position[1]}"
-            )
+            app.state.redis.rpush(redis_key, f"{new_position[0]},{new_position[1]}")
 
         v["is_ghost"] = len(positions) >= GHOST_VEHICLE_POSITIONS_CONSIDERED
 
