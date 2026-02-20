@@ -14,6 +14,7 @@ import httpx
 import logging
 import random
 import asyncio
+import sys
 import redis
 
 # importam functii utile si constante
@@ -30,25 +31,27 @@ from traffic_data import get_timestamp_congestion_index
 # incarcam variabilele din .env
 load_dotenv()
 
-current_folder = os.path.dirname(os.path.abspath(__file__))
-log_path = os.path.join(current_folder, "api.log")
+gunicorn_error_logger = logging.getLogger("gunicorn.error")
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
 
-fh = logging.FileHandler(log_path)
-formatter = logging.Formatter("%(asctime)s [%(levelname)s] %(message)s")
-fh.setFormatter(formatter)
+if "gunicorn" in sys.modules:
+    logger.handlers = gunicorn_error_logger.handlers
+    logger.setLevel(gunicorn_error_logger.level)
+else:
+    # local dev
+    logging.basicConfig(level=logging.INFO)
+    logger.setLevel(logging.INFO)
 
-logger.addHandler(fh)
 
 # configuri din .env
 MONGO_URL = os.getenv("MONGO_URL") or "mongo_fallback_url"
+DEV_FRONTEND_URL = os.getenv("DEV_FRONTEND_URL") or "http://localhost:3000"
 DB_NAME = os.getenv("DB_NAME") or "db_fallback_name"
 CSV_DIR = Path("csv")
 
-AGENCY_IDS = ["1", "2", "4", "6", "8"]
-EXTERNAL_TIMETABLES_AGENCY_IDS = ["1", "4", "6", "8"]
+AGENCY_IDS = ["1", "2", "4", "6"]
+EXTERNAL_TIMETABLES_AGENCY_IDS = ["1", "4", "6"]
 
 GHOST_VEHICLE_POSITIONS_CONSIDERED = 50
 GHOST_VEHICLE_MAX_COORDINATE_CHANGE = 0.0005  # aprox 40 m
@@ -91,7 +94,7 @@ app = FastAPI(lifespan=lifespan)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "http://localhost:46353",
+        DEV_FRONTEND_URL,
         "https://mapmybus.marian.homes",
     ],
     allow_credentials=False,
@@ -102,7 +105,7 @@ app.add_middleware(
 
 async def fetch_vehicles_periodically():
     while True:
-        await asyncio.sleep(90)
+        await asyncio.sleep(75)
 
         for agency_id in AGENCY_IDS:
             try:
@@ -177,12 +180,20 @@ def get_prediction(agency_id: str, trip_id: str, lat: float, lon: float, stop_id
         )
 
     # proiectam vehiculul pe ruta, statia avem deja
-    veh_dist = project_onto_route(lat, lon, shape_data)
-    stop_dist = stop_distances.get(agency_id, {}).get(trip_id, {}).get(stop_id)
-    if veh_dist is None or stop_dist is None:
+    pr = project_onto_route(lat, lon, shape_data)
+    if pr is None or pr[0] is None:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Cannot project vehicle or stop onto route",
+            detail="Cannot project vehicle onto route",
+        )
+
+    veh_dist, _ = pr
+
+    stop_dist = stop_distances.get(agency_id, {}).get(trip_id, {}).get(stop_id)
+    if stop_dist is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cannot project stop onto route",
         )
 
     # distanta de-a lungul rutei pana la statie minus pana la vehicul
@@ -242,16 +253,18 @@ def get_prediction(agency_id: str, trip_id: str, lat: float, lon: float, stop_id
         )
         same_day_period = abs(historical_time.hour - now.hour) <= 1
 
+        time_factor = 1.0
         if same_week_day:
-            w += 0.2
+            time_factor *= 1.1
 
         if same_week_period:
-            w += 0.4
+            time_factor *= 1.2
 
         if same_day_period:
-            w += 0.7
+            time_factor *= 1.4
 
         # ca sa avem cat e "totalul" de ponderi
+        w *= time_factor
         total_w += w
 
         total_eta += (y[i] / c[i]) * w
@@ -613,7 +626,7 @@ async def get_vehicles(agency_id: str):
 
     for v in valid_vehicles:
         # ca sa verificam care sunt fantoma (stau afk) folosim un dictionar cu redis
-        redis_key = f"{agency_id}:{v.get('label')}"
+        redis_key = f"{agency_id}:{v.get('label')}".strip()
         positions = app.state.redis.lrange(redis_key, 0, -1)
         positions = [
             (float(lat), float(lon))
@@ -654,12 +667,13 @@ def get_external_timetable_urls(agency_id: str, route_short_name: str, day_type:
             return [
                 f"https://www1.primariabt.ro/pdf/diverse/transport/microbus+autobus.pdf"
             ]
-        case "8":
-            # timisoara
-            return [
-                f"https://stpt.ro/{route_short_name.lower()}-2/",
-                f"https://stpt.ro/{route_short_name.lower()}/",
-            ]
+        # case "8":
+        #     # timisoara
+        #     return [
+        #         f"https://stpt.ro/{route_short_name.lower()}-2/",
+        #         f"https://stpt.ro/{route_short_name.lower()}/",
+        #     ]
+
         case _:
             return []
 

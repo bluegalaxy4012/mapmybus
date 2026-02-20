@@ -121,6 +121,7 @@ _seasonal_multipliers = {"winter": 1.1, "spring": 1.025, "summer": 0.95, "autumn
 def get_timestamp_congestion_index(timestamp: datetime.datetime) -> float:
     day = timestamp.weekday()
     hour = timestamp.hour
+    minute = timestamp.minute
     month = timestamp.month
 
     if day < 4:
@@ -132,7 +133,15 @@ def get_timestamp_congestion_index(timestamp: datetime.datetime) -> float:
     else:
         base_index_map = _sunday_index
 
-    base_congestion = base_index_map.get(hour, 1.0)
+    current_hour_val = base_index_map.get(hour, 1.0)
+    next_hour_val = base_index_map.get((hour + 1) % 24, 1.0)
+
+    minute_fraction = minute / 60.0
+
+    # interpolare liniara intre ore
+    base_congestion = (
+        current_hour_val + (next_hour_val - current_hour_val) * minute_fraction
+    )
 
     if month in [12, 1, 2]:
         season_multiplier = _seasonal_multipliers["winter"]

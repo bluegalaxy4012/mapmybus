@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-AGENCY_IDS = ["1", "2", "4", "6", "8"]
+AGENCY_IDS = ["1", "2", "4", "6"]
 
 OUTPUT_DIR = Path("csv")
 
@@ -18,7 +18,7 @@ def get_routes_file(agency_id: str):
 
 def get_timetables_url(agency_id: str, short_name: str, day_type: str):
     if agency_id == "2":
-        # cazul foarte special 39C / 39CREIC, ruta are un nume dar orarul trebuie scrape-uit cu alt nume
+        # cazul foarte special 39C / 39CREIC, ruta are un nume dar orarul trebuie scrape-uit cu alt nume (si oricum cred ca a fost anulata ruta)
         if short_name == "39C":
             return f"https://ctpcj.ro/orare/csv/orar_39CREIC_{day_type}.csv"
 
@@ -40,6 +40,9 @@ def main():
             for day in DAY_TYPES:
                 url = get_timetables_url(agency_id, short, day)
                 out_path = OUTPUT_DIR / f"agency{agency_id}_orar_{short}_{day}.csv"
+
+                if not url.strip():
+                    continue
 
                 try:
                     res = requests.get(url, timeout=10)

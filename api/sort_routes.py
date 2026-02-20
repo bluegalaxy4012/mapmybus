@@ -1,7 +1,7 @@
 import json
 import re
 
-AGENCY_IDS = ["1", "2", "4", "6", "8"]
+AGENCY_IDS = ["1", "2", "4", "6"]
 
 
 def sort_key(name):

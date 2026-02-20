@@ -14,7 +14,7 @@ HEADERS = {
     "X-API-KEY": os.getenv("DEV_API_KEY"),
 }
 
-AGENCY_IDS = ["1", "2", "4", "6", "8"]
+AGENCY_IDS = ["1", "2", "4", "6"]
 
 
 def fetch_stop_times(agency_id: str):

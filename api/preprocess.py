@@ -22,13 +22,13 @@ fh.setFormatter(formatter)
 
 logger.addHandler(fh)
 
-timezone_offset = timedelta(hours=3)  # totul e utc in datele colectate, romania are +3h
+timezone_offset = timedelta(hours=2)  # totul e utc in datele colectate, romania e utc+2
 tz = timezone(timezone_offset)
 
 # constante de configurare
-MIN_FEATURES_PER_TRIP = 250
-MAX_ETA_SECONDS = 3000
-NEIGHBORS_CONSIDERED = 25
+MIN_FEATURES_PER_TRIP = 375
+MAX_ETA_SECONDS = 5400
+NEIGHBORS_CONSIDERED = 30
 MAX_OFFROUTE_DIST = 140
 MAX_GAP_SECONDS = 125
 MIN_GAP_SECONDS = 9
@@ -37,7 +37,7 @@ STOP_ENDS_RADIUS = 120
 MIN_JOURNEY_POINTS = 8
 MIN_STATIONARY_DIST = 12
 
-AGENCY_IDS = ["1", "2", "4", "6", "8"]
+AGENCY_IDS = ["1", "2", "4", "6"]
 
 VEHICLE_TRAIN_DATA_PATHS = [
     "vehicle_jsons/set1",
@@ -56,19 +56,19 @@ class ArrivalStatus(str, Enum):
 def load_shapes(agency_id: str, path="data/agency{agency_id}_shapes.json"):
     # incarca coord punctelor de pe trasee
     route_points_by_id = defaultdict(list)
-    for p in json.load(open(path.format(agency_id=agency_id))):
-        route_points_by_id[p["shape_id"]].append(p)
+    for sp in json.load(open(path.format(agency_id=agency_id))):
+        route_points_by_id[sp["shape_id"]].append(sp)
     shapes = {}
 
-    for sid, route_points in route_points_by_id.items():
+    for shape_id, route_points in route_points_by_id.items():
         route_points.sort(key=lambda x: x["shape_pt_sequence"])
-        coords = [(p["shape_pt_lat"], p["shape_pt_lon"]) for p in route_points]
+        coords = [(sp["shape_pt_lat"], sp["shape_pt_lon"]) for sp in route_points]
         cumulative_distances = [0.0]
         for a, b in zip(coords, coords[1:]):
             cumulative_distances.append(
                 cumulative_distances[-1] + geodesic(a, b).meters
             )
-        shapes[sid] = {"pts": coords, "cum_dist": cumulative_distances}
+        shapes[shape_id] = {"pts": coords, "cum_dist": cumulative_distances}
 
     logger.info("loaded %d shapes, agency %s", len(shapes), agency_id)
     return shapes
@@ -80,30 +80,39 @@ def load_stops(
     path_stops="data/agency{agency_id}_stops.json",
 ):
     # incarca coord statiilor si legaturile lor cu rutele
-    stop_loc = {
+    stop_positions = {
         str(s["stop_id"]): (s["stop_lat"], s["stop_lon"])
         for s in json.load(open(path_stops.format(agency_id=agency_id)))
     }
+
     trips_to_stops = defaultdict(list)
-    for r in json.load(open(path_trip_stops.format(agency_id=agency_id))):
-        trips_to_stops[r["trip_id"]].append((str(r["stop_id"]), r["stop_sequence"]))
+    for ts in json.load(open(path_trip_stops.format(agency_id=agency_id))):
+        trips_to_stops[ts["trip_id"]].append((str(ts["stop_id"]), ts["stop_sequence"]))
     for tid in trips_to_stops:
-        trips_to_stops[tid].sort(key=lambda x: x[1])
+        trips_to_stops[tid].sort(key=lambda x: x[1])  # sortam dupa secventa pe ruta
+
     logger.info("loaded stops for %d trips, agency %s", len(trips_to_stops), agency_id)
-    return stop_loc, {
-        tid: [sid for sid, _ in lst] for tid, lst in trips_to_stops.items()
+    return stop_positions, {
+        tid: [sid for sid, _ in stop_sequence_list]
+        for tid, stop_sequence_list in trips_to_stops.items()
     }
 
 
-def project_route(lat, lon, shape_data):
+def project_route(lat, lon, shape_data, start_index=0):
     # proiecteaza un punct pe ruta, returnand distanta cumulata aproximativa, si daca nu e aproape de ruta, returneaza None
     # practic incearca sa-i dea snap la ruta ca de obicei gps-ul din ele nu e perfect precis, in rest merge din punct in punct
+    # start index e pentru optimizare, ca sa nu caute de la inceput tot timpul
 
     # index, distanta, proportia pe segment
     best = (None, float("inf"), 0.0)
 
     route_points, cumulative_distances = shape_data["pts"], shape_data["cum_dist"]
-    for i in range(len(route_points) - 1):
+
+    # de siguranta
+    if start_index >= len(route_points) - 1:
+        start_index = len(route_points) - 2
+
+    for i in range(start_index, len(route_points) - 1):
         p1, p2 = route_points[i], route_points[i + 1]
         dx, dy = p2[0] - p1[0], p2[1] - p1[1]
 
@@ -120,6 +129,12 @@ def project_route(lat, lon, shape_data):
         d = geodesic((lat, lon), proj).meters
         if d < best[1]:
             best = (i, d, t)
+
+        # asta optimizeaza si face, la rutele care se intorc prin aceleasi statii
+        # diferentierea (impreuna cu ideea de start index) intre ele posibila
+        if d < 10:
+            break
+
     idx, dist_off, t = best
 
     # daca nu s-a gasit un punct apropiat de ruta, returneaza None
@@ -127,9 +142,11 @@ def project_route(lat, lon, shape_data):
         return None
 
     # returneaza distanta cumulata pe ruta pana la punctul proiectat (suma partiala + proportia pe segment * lungimea segmentului)
-    return cumulative_distances[idx] + t * (
+    cum_dist = cumulative_distances[idx] + t * (
         cumulative_distances[idx + 1] - cumulative_distances[idx]
     )
+
+    return (cum_dist, idx)
 
 
 def split_journeys(history):
@@ -212,11 +229,46 @@ if __name__ == "__main__":
                 continue
 
             # calculam distantele proiectate pentru fiecare statie
+            # trebuie sa retinem cum parcurgem ruta pentru ca e posibil ca doua statii sa fie foarte
+            # apropiate ca distanta in linie dreapta, dar sa fie de fapt departe pe traseu
+            last_idx = 0
             for sid in stops:
-                d = project_route(*stop_loc[sid], shape_data)
-                if d is not None:
-                    stop_dists_by_trip[trip_id][sid] = d
+                if sid not in stop_loc:
+                    continue
+
+                # uneori apare in spate din cauza erorii gps
+                search_start_index = max(0, last_idx - 2)
+                pr = project_route(
+                    *stop_loc[sid], shape_data, start_index=search_start_index
+                )
+
+                if pr is None:
+                    continue
+
+                cum_dist, idx = pr
+                if cum_dist is None or idx is None:
+                    continue
+
+                if idx >= last_idx:
+                    last_idx = idx
+                    stop_dists_by_trip[trip_id][sid] = cum_dist
                     stop_to_trips[sid].add(trip_id)
+
+
+            # debug pentru ruta 1 iasi, ignore
+            # if agency_id == "1" and trip_id == "41_0":
+            #     print(stop_dists_by_trip[trip_id])
+            #     print("////////")
+
+            #     print(
+            #         {
+            #             sid: stop_to_trips[sid]
+            #             for sid in stops
+            #             if trip_id in stop_to_trips[sid]
+            #         }
+            #     )
+            #     print("========")
+
 
             # in X vom pune distanta proiectata pe ruta, distanta pana la statia curenta
             # in Y vom pune timpul estimat de sosire
@@ -232,9 +284,14 @@ if __name__ == "__main__":
                 # filtram punctele stationare de la capete, vehicule fantoma
 
                 for pt in journey:
-                    projected_dist = project_route(pt["lat"], pt["lon"], shape_data)
+                    pr = project_route(pt["lat"], pt["lon"], shape_data)
 
-                    if projected_dist is None:
+                    if pr is None:
+                        continue
+
+                    projected_dist, idx = pr
+
+                    if projected_dist is None or idx is None:
                         continue
 
                     # aici practic verificam vehiculul aprox stationar aproape de capetele rutei
@@ -257,8 +314,8 @@ if __name__ == "__main__":
                     filtered.append(pt)
 
                 # generam date de invatare pentru ETA
-                # timpul adevarat de sosire il calculam mergand prin calatorie si cautand urmatorul punct apropiat de statia curenta
-                # scadem cateva secunde in caz ca l-a depasit
+                # timpul adevarat de sosire il calculam mergand prin calatorie si cautand urmatorul
+                # punct apropiat de statia curenta scadem cateva secunde in caz ca l-a depasit
                 for pt in filtered:
                     projected_dist = pt["_pd"]
 

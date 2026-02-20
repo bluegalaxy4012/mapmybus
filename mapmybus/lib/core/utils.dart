@@ -8,6 +8,7 @@ import 'package:latlong2/latlong.dart';
 import 'package:logger/logger.dart';
 import 'package:mapmybus/models/city_config.dart';
 import 'package:mapmybus/models/info_dtos.dart';
+import 'package:mapmybus/models/stop.dart';
 
 final log = Logger(level: kReleaseMode ? Level.off : Level.debug);
 
@@ -25,7 +26,7 @@ class Constants {
   static const String mapTileProviderUrl =
       'https://{s}.basemaps.cartocdn.com/rastertiles/light_all/{z}/{x}/{y}.png';
 
-  static const Duration snackBarDuration = Duration(milliseconds: 2500);
+  static const Duration snackBarDuration = Duration(milliseconds: 3500);
 
   // typedef Seconds = int;
   static const int defaultRefreshInterval = 20;
@@ -73,7 +74,7 @@ class Constants {
       name: "Iasi",
       center: LatLng(47.162121, 27.587573),
       initialZoom: 14.25,
-      minZoom: 12,
+      minZoom: 11,
       maxZoom: 19,
       bounds: LatLngBounds(LatLng(47.35, 27.33), LatLng(47.00, 27.82)),
       agencyId: '1',
@@ -82,7 +83,7 @@ class Constants {
       name: "Cluj-Napoca",
       center: LatLng(46.770439, 23.591423),
       initialZoom: 14,
-      minZoom: 12,
+      minZoom: 11,
       maxZoom: 19,
       bounds: LatLngBounds(LatLng(46.91, 23.33), LatLng(46.62, 23.85)),
       agencyId: '2',
@@ -92,7 +93,7 @@ class Constants {
       name: "Chisinau",
       center: LatLng(47.023621, 28.833862),
       initialZoom: 14,
-      minZoom: 12,
+      minZoom: 11,
       maxZoom: 19,
       bounds: LatLngBounds(LatLng(47.25, 28.58), LatLng(46.80, 29.07)),
       agencyId: '4',
@@ -102,27 +103,27 @@ class Constants {
       name: "Botosani",
       center: LatLng(47.739867, 26.663183),
       initialZoom: 14,
-      minZoom: 12,
+      minZoom: 11.5,
       maxZoom: 19,
       bounds: LatLngBounds(LatLng(47.95, 26.43), LatLng(47.50, 26.87)),
       agencyId: '6',
     ),
 
-    CityConfig(
-      name: "Timisoara",
-      center: LatLng(45.756659, 21.235592),
-      initialZoom: 14,
-      minZoom: 12,
-      maxZoom: 19,
-      bounds: LatLngBounds(LatLng(45.95, 20.98), LatLng(45.55, 21.52)),
-      agencyId: '8',
-    ),
+    // CityConfig(
+    //   name: "Timisoara",
+    //   center: LatLng(45.756659, 21.235592),
+    //   initialZoom: 14,
+    //   minZoom: 11,
+    //   maxZoom: 19,
+    //   bounds: LatLngBounds(LatLng(45.95, 20.98), LatLng(45.55, 21.52)),
+    //   agencyId: '8',
+    // ),
   ];
 
   static const List<String> availableCityNames = [
     "Cluj-Napoca",
     "Iasi",
-    "Timisoara",
+    // "Timisoara",
     "Chisinau",
     "Botosani",
   ];
@@ -303,7 +304,9 @@ double calculateBearing(LatLng start, LatLng end) {
   return atan2(y, x);
 }
 
-Map<String, String?> computeClosestStops(VehicleStopsInfo infoMap) {
+Map<String, StopWithoutPosition?> computeClosestStops(
+  VehicleStopsInfo infoMap,
+) {
   final double vehLat = infoMap.latitude;
   final double vehLon = infoMap.longitude;
 
@@ -331,16 +334,31 @@ Map<String, String?> computeClosestStops(VehicleStopsInfo infoMap) {
 
   final double distToVehicle = shapeCumDistances[closestPointIndex];
 
-  String? previous, next;
+  // String? previous, next;
+  StopWithoutPosition? previous, next;
 
   // + 25 in caz ca e fix langa statie
   int nextStopIndex = stopsDistanceInfo.indexWhere(
     (info) => info.distanceAlongRoute >= distToVehicle + 25,
   );
 
-  if (nextStopIndex >= 0) next = stopsDistanceInfo[nextStopIndex].stop.stopName;
+  if (nextStopIndex >= 0) {
+    // next = stopsDistanceInfo[nextStopIndex].stop;
+    final nextStop = stopsDistanceInfo[nextStopIndex].stop;
+
+    next = StopWithoutPosition(
+      stopId: nextStop.stopId,
+      stopName: nextStop.stopName,
+    );
+  }
   if (nextStopIndex > 0) {
-    previous = stopsDistanceInfo[nextStopIndex - 1].stop.stopName;
+    // previous = stopsDistanceInfo[nextStopIndex - 1].stop.stopName;
+    final previousStop = stopsDistanceInfo[nextStopIndex - 1].stop;
+
+    previous = StopWithoutPosition(
+      stopId: previousStop.stopId,
+      stopName: previousStop.stopName,
+    );
   }
 
   return {'previous': previous, 'next': next};

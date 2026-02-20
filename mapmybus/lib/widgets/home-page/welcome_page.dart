@@ -110,10 +110,10 @@ class _WelcomePageState extends State<WelcomePage> {
                             value: "Cluj-Napoca",
                             child: Text("Cluj-Napoca"),
                           ),
-                          DropdownMenuItem(
-                            value: "Timisoara",
-                            child: Text("Timisoara"),
-                          ),
+                          // DropdownMenuItem(
+                          //   value: "Timisoara",
+                          //   child: Text("Timisoara"),
+                          // ),
                           DropdownMenuItem(value: "Iasi", child: Text("Iasi")),
                           DropdownMenuItem(
                             value: "Chisinau",

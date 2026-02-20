@@ -58,6 +58,8 @@ class _MapPageState extends State<MapPage> {
   String selectedRouteName = "";
   String? previousStopName;
   String? nextStopName;
+  StopWithoutPosition? previousStop;
+  StopWithoutPosition? nextStop;
   Vehicle? selectedVehicle;
   bool? isSelectedVehicleOnRoute;
   bool? isSelectedVehicleAtEnds;
@@ -80,6 +82,7 @@ class _MapPageState extends State<MapPage> {
   // some display state
   bool _isLoading = false;
   bool _showStopNames = true;
+  bool showOnlySelectedVehicleRoute = false;
 
   @override
   void didChangeDependencies() {
@@ -143,7 +146,7 @@ class _MapPageState extends State<MapPage> {
     if (_currentPosition != null) {
       _mapController.move(
         LatLng(_currentPosition!.latitude, _currentPosition!.longitude),
-        widget.city.initialZoom,
+        _mapController.camera.zoom,
       );
     } else {
       showSimpleSnackbar(context, "Locatia ta nu este disponibila momentan");
@@ -321,8 +324,12 @@ class _MapPageState extends State<MapPage> {
     setState(() {
       showMenu = true;
       selectedRouteName = routeShortName;
-      previousStopName = adjacentStops['previous'] ?? "-";
-      nextStopName = adjacentStops['next'] ?? "-";
+      previousStop =
+          adjacentStops['previous'] ??
+          StopWithoutPosition(stopId: "0", stopName: "-");
+      nextStop =
+          adjacentStops['next'] ??
+          StopWithoutPosition(stopId: "0", stopName: "-");
     });
   }
 
@@ -438,6 +445,7 @@ class _MapPageState extends State<MapPage> {
         previousStopName = null;
         nextStopName = null;
         selectedVehicle = null;
+        showOnlySelectedVehicleRoute = false;
         _lastVehicleLabel = null;
         isSelectedVehicleOnRoute = null;
         isSelectedVehicleAtEnds = null;
@@ -506,9 +514,19 @@ class _MapPageState extends State<MapPage> {
           data.message == ArrivalStatus.unknown.name) {
         final String etaMessage = getEtaMessage(data.predictedEtaMinutes);
 
-        etas.add(EtaDisplayInfo(stopName: stopName, etaMessage: etaMessage));
+        etas.add(
+          EtaDisplayInfo(
+            stop: StopWithoutPosition(stopId: data.stopId, stopName: stopName),
+            etaMessage: etaMessage,
+          ),
+        );
       } else if (data.message == ArrivalStatus.passed.name) {
-        etas.add(EtaDisplayInfo(stopName: stopName, etaMessage: "Trecut"));
+        etas.add(
+          EtaDisplayInfo(
+            stop: StopWithoutPosition(stopId: data.stopId, stopName: stopName),
+            etaMessage: "Trecut",
+          ),
+        );
       } else {
         log.w('Unexpected error while getting etas');
 
@@ -931,7 +949,8 @@ class _MapPageState extends State<MapPage> {
                 });
 
                 // better alternative ? sa astept vehicle fetchul
-                await Future.delayed(const Duration(milliseconds: 1200));
+                // am uitat de ce am pus delay aici
+                // await Future.delayed(const Duration(milliseconds: 1200));
 
                 if (!context.mounted) return;
 
@@ -1018,7 +1037,7 @@ class _MapPageState extends State<MapPage> {
                 builder: (context) {
                   return AlertDialog(
                     title: const Text(
-                      "Introdu doar numele liniei pentru a o adauga la favorite. Vehiculul cel mai apropiat de pe aceasta va fi selectat automat.",
+                      "Introdu numele liniei de adaugat la favorite. Vehiculul cel mai apropiat de pe aceasta va fi selectat automat.",
                     ),
                     content: TextField(
                       controller: controller,
@@ -1026,8 +1045,8 @@ class _MapPageState extends State<MapPage> {
                       decoration: const InputDecoration(
                         hintText: "Numele liniei",
                       ),
-                      maxLength: 7,
-                      autofocus: true,
+                      maxLength: 10,
+                      autofocus: false,
                     ),
 
                     actions: [
@@ -1196,8 +1215,8 @@ class _MapPageState extends State<MapPage> {
           VehicleMenu(
             agencyId: widget.city.agencyId,
             selectedRouteName: selectedRouteName,
-            previousStopName: previousStopName,
-            nextStopName: nextStopName,
+            previousStop: previousStop,
+            nextStop: nextStop,
 
             isLoading: _isLoading,
 
@@ -1237,6 +1256,12 @@ class _MapPageState extends State<MapPage> {
               );
             },
 
+            showOnlyThisRoute: () {
+              setState(() {
+                showOnlySelectedVehicleRoute = !showOnlySelectedVehicleRoute;
+              });
+            },
+
             onClose: () {
               setState(() {
                 showMenu = false;
@@ -1244,6 +1269,7 @@ class _MapPageState extends State<MapPage> {
                 previousStopName = null;
                 nextStopName = null;
                 selectedVehicle = null;
+                showOnlySelectedVehicleRoute = false;
                 isSelectedVehicleOnRoute = null;
                 isSelectedVehicleAtEnds = null;
 
@@ -1312,55 +1338,73 @@ class _MapPageState extends State<MapPage> {
   }
 
   MarkerLayer _vehiclesLayer(RoutesProvider routeProvider) {
-    return MarkerLayer(
-      markers: _visibleVehicles.map((v) {
-        final routeShortName = routeProvider.getRouteShortNameFromRouteId(
-          v.routeId!,
-          widget.city.agencyId,
-        );
+    Marker? selectedVehicleMarker;
+    final List<Marker> markers = [];
 
-        double bearing = 0.0;
-        bool isSelected =
-            selectedVehicle != null && v.label == selectedVehicle!.label;
+    for (final v in _visibleVehicles) {
+      final routeShortName = routeProvider.getRouteShortNameFromRouteId(
+        v.routeId!,
+        widget.city.agencyId,
+      );
 
-        if (isSelected && _drawnPoints.length > 1 && _drawnStops.isNotEmpty) {
-          double minDist = double.infinity;
-          int nextShapePoint = 0;
+      double bearing = 0.0;
+      bool isSelected =
+          selectedVehicle != null && v.label == selectedVehicle!.label;
 
-          for (int i = 0; i < _drawnPoints.length; i++) {
-            final dist = Geolocator.distanceBetween(
-              v.latitude!,
-              v.longitude!,
-              _drawnPoints[i].latitude,
-              _drawnPoints[i].longitude,
-            );
-            if (dist < minDist) {
-              minDist = dist;
-              nextShapePoint = i;
-            }
-          }
+      if (isSelected && _drawnPoints.length > 1 && _drawnStops.isNotEmpty) {
+        double minDist = double.infinity;
+        int nextShapePoint = 0;
 
-          if (nextShapePoint < _drawnPoints.length - 1) {
-            LatLng startPoint = _drawnPoints[nextShapePoint];
-            LatLng endPoint = _drawnPoints[nextShapePoint + 1];
-            bearing = calculateBearing(startPoint, endPoint);
+        for (int i = 0; i < _drawnPoints.length; i++) {
+          final dist = Geolocator.distanceBetween(
+            v.latitude!,
+            v.longitude!,
+            _drawnPoints[i].latitude,
+            _drawnPoints[i].longitude,
+          );
+          if (dist < minDist) {
+            minDist = dist;
+            nextShapePoint = i;
           }
         }
 
-        return Marker(
-          point: LatLng(v.latitude!, v.longitude!),
-          width: 60,
-          height: 40,
-          child: VehicleMarker(
-            v: v,
-            routeShortName: routeShortName,
-            isSelected: isSelected,
-            bearing: bearing,
-            onTap: () => _onVehicleTap(v, routeShortName),
-          ),
-        );
-      }).toList(),
-    );
+        if (nextShapePoint < _drawnPoints.length - 1) {
+          LatLng startPoint = _drawnPoints[nextShapePoint];
+          LatLng endPoint = _drawnPoints[nextShapePoint + 1];
+          bearing = calculateBearing(startPoint, endPoint);
+        }
+      }
+
+      final vehicleMarker = Marker(
+        point: LatLng(v.latitude!, v.longitude!),
+        width: 60,
+        height: 40,
+        child: VehicleMarker(
+          v: v,
+          routeShortName: routeShortName,
+          isSelected: isSelected,
+          bearing: bearing,
+          onTap: () => _onVehicleTap(v, routeShortName),
+        ),
+      );
+
+      if (isSelected) {
+        selectedVehicleMarker = vehicleMarker;
+      }
+
+      if (!showOnlySelectedVehicleRoute ||
+          (selectedVehicle != null && v.routeId! == selectedVehicle!.routeId)) {
+        markers.add(vehicleMarker);
+      }
+    }
+
+    // ca sa fie peste toate celelalte
+    if (selectedVehicleMarker != null) {
+      markers.remove(selectedVehicleMarker);
+      markers.add(selectedVehicleMarker);
+    }
+
+    return MarkerLayer(markers: markers);
   }
 
   MarkerLayer _userPositionLayer() {
