@@ -6,6 +6,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:logger/logger.dart';
+import 'package:mapmybus/core/api_config.dart';
 import 'package:mapmybus/models/city_config.dart';
 import 'package:mapmybus/models/info_dtos.dart';
 import 'package:mapmybus/models/stop.dart';
@@ -21,10 +22,13 @@ class Constants {
   // const String tripStopsAssetPath = 'data/trip_stops.json';
   // const String shapesAssetPath = 'data/shapes.json';
 
-  static const String tranzyApiBaseUrl = 'https://api.tranzy.ai/v1/opendata';
-  static const String tranzyVehiclesEndpoint = '$tranzyApiBaseUrl/vehicles';
-  static const String mapTileProviderUrl =
-      'https://{s}.basemaps.cartocdn.com/rastertiles/light_all/{z}/{x}/{y}.png';
+  // static const String tranzyApiBaseUrl = 'https://api.tranzy.ai/v1/opendata';
+  // static const String tranzyVehiclesEndpoint = '$tranzyApiBaseUrl/vehicles';
+
+  // static String mapTileProviderUrl =
+  //     'https://{s}.basemaps.cartocdn.com/rastertiles/light_all/{z}/{x}/{y}.png?key=${AppConfig.mapTileApiKey}';
+
+  static String mapboxToken = AppConfig.mapApiKey;
 
   static const Duration snackBarDuration = Duration(milliseconds: 3500);
 
@@ -37,6 +41,8 @@ class Constants {
 
   static const double nearbyStopsRadius = 400;
   static const double nearbyVehiclesRadius = 1600;
+  static const double nearbyVehiclesPickRadius = 200;
+  static const double nearbyVehiclesPickRadiusFallback = 400;
 
   static const double unknownEtaMinutes = 999;
 
@@ -46,7 +52,9 @@ class Constants {
   // const String tripDirectionOutSuffix = '_1';
 
   static const String appTitle = 'Map My Bus';
-  static const String copyrightText = '© OpenStreetMap contributors, © CARTO';
+  // static const String copyrightText = '© OpenStreetMap contributors, © CARTO';
+  static const String copyrightText =
+      '© Mapbox © OpenStreetMap Improve this map';
 
   // fontSizes candva
   static const double smallScreenBonusSize = 17.5;
@@ -73,7 +81,7 @@ class Constants {
     CityConfig(
       name: "Iasi",
       center: LatLng(47.162121, 27.587573),
-      initialZoom: 14.25,
+      initialZoom: 13.25,
       minZoom: 11,
       maxZoom: 19,
       bounds: LatLngBounds(LatLng(47.35, 27.33), LatLng(47.00, 27.82)),
@@ -82,7 +90,7 @@ class Constants {
     CityConfig(
       name: "Cluj-Napoca",
       center: LatLng(46.770439, 23.591423),
-      initialZoom: 14,
+      initialZoom: 13.25,
       minZoom: 11,
       maxZoom: 19,
       bounds: LatLngBounds(LatLng(46.91, 23.33), LatLng(46.62, 23.85)),
@@ -92,7 +100,7 @@ class Constants {
     CityConfig(
       name: "Chisinau",
       center: LatLng(47.023621, 28.833862),
-      initialZoom: 14,
+      initialZoom: 13.25,
       minZoom: 11,
       maxZoom: 19,
       bounds: LatLngBounds(LatLng(47.25, 28.58), LatLng(46.80, 29.07)),
@@ -101,8 +109,8 @@ class Constants {
 
     CityConfig(
       name: "Botosani",
-      center: LatLng(47.739867, 26.663183),
-      initialZoom: 14,
+      center: LatLng(47.746, 26.663183),
+      initialZoom: 13.25,
       minZoom: 11.5,
       maxZoom: 19,
       bounds: LatLngBounds(LatLng(47.95, 26.43), LatLng(47.50, 26.87)),
@@ -118,19 +126,35 @@ class Constants {
     //   bounds: LatLngBounds(LatLng(45.95, 20.98), LatLng(45.55, 21.52)),
     //   agencyId: '8',
     // ),
+    CityConfig(
+      name: "Constanta",
+      center: LatLng(44.183, 28.64),
+      initialZoom: 13.25,
+      minZoom: 11,
+      maxZoom: 19,
+      bounds: LatLngBounds(LatLng(44.40, 28.35), LatLng(43.90, 28.95)),
+      agencyId: '10',
+    ),
   ];
 
   static const List<String> availableCityNames = [
     "Cluj-Napoca",
     "Iasi",
-    // "Timisoara",
     "Chisinau",
     "Botosani",
+    // "Timisoara",
+    "Constanta",
   ];
 
   static const List<String> cityNamesWithVineriVerde = ["Cluj-Napoca"];
 
-  static const List<String> agencyIdsWithWorkingTimetables = ["2"];
+  static const List<String> agencyIdsWithWorkingTimetables = [
+    "1",
+    "2",
+    "4",
+    "6",
+    "10",
+  ];
 
   ///
 }
@@ -197,8 +221,8 @@ String getEtaMessage(double eta) {
 
   String etaMessage = "$minEta - $maxEta min";
 
-  if (maxEta > 25 || minEta > 20) {
-    etaMessage = ">20 min";
+  if (maxEta > 35 || minEta > 30) {
+    etaMessage = ">30 min";
   }
 
   return etaMessage;
@@ -302,6 +326,31 @@ double calculateBearing(LatLng start, LatLng end) {
       cos(lat1) * sin(lat2) - sin(lat1) * cos(lat2) * cos(lon2 - lon1);
 
   return atan2(y, x);
+}
+
+String compassDirection(double bearingRad) {
+  const labels = [
+    'N',
+    'N-NE',
+    'NE',
+    'E-NE',
+    'E',
+    'E-SE',
+    'SE',
+    'S-SE',
+    'S',
+    'S-SW',
+    'SW',
+    'W-SW',
+    'W',
+    'W-NW',
+    'NW',
+    'N-NW',
+  ];
+
+  final bearingDeg = (bearingRad * 180 / pi + 360) % 360;
+  final index = ((bearingDeg + 11.25) / 22.5).floor() % 16;
+  return labels[index];
 }
 
 Map<String, StopWithoutPosition?> computeClosestStops(

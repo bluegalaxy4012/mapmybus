@@ -1,4 +1,14 @@
 class AppConfig {
+  // static final String mapTileApiKey = const String.fromEnvironment(
+  //   'MAP_TILE_API_KEY',
+  //   defaultValue: '',
+  // );
+
+  static final String mapApiKey = const String.fromEnvironment(
+    'MAP_API_KEY',
+    defaultValue: '',
+  );
+
   static final String stopsApiUrl = const String.fromEnvironment(
     'STOPS_API_URL',
     defaultValue: '',
@@ -31,4 +41,16 @@ class AppConfig {
     'ARRIVALS_API_URL',
     defaultValue: '',
   );
+  static final String weatherApiUrl = const String.fromEnvironment(
+    'WEATHER_API_URL',
+    defaultValue: '',
+  );
+  static final String reachableApiUrl = const String.fromEnvironment(
+    'REACHABLE_API_URL',
+    defaultValue: '',
+  );
+  // static final String assistantApiUrl = const String.fromEnvironment(
+  //   'ASSISTANT_API_URL',
+  //   defaultValue: '',
+  // );
 }

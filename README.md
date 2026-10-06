@@ -3,7 +3,7 @@
 MapMyBus e o aplicatie simpla care arata in timp real detalii despre transportul public din orasul tau. Poti vedea vehiculele pe harta, cauta statii, salva vehicule favorite si verifica unde sunt si cand urmeaza sa soseasca.
 
 Hostuit live pe:  
-**https://mapmybus.marian.homes**
+**https://mapmybus.40004444.xyz**
 
 ## Ce poti face in aplicatie
 

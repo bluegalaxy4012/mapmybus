@@ -1,7 +1,7 @@
 name: mapmybus
 description: "Urmareste transportul public in timp real."
 publish_to: 'none'
-version: 1.2.0
+version: 2.0.0
 
 environment:
   sdk: ^3.10.3
@@ -10,20 +10,22 @@ dependencies:
   flutter:
     sdk: flutter
   provider: ^6.1.5
-  latlong2: ^0.9.1
-  flutter_map: ^8.2.1
-  shared_preferences: ^2.5.3
-  geolocator: ^14.0.2
+  latlong2: ^0.10.1
+  flutter_map: ^8.3.2
+  flutter_map_vector_tiles: ^2.9.0
+  shared_preferences: ^2.5.5
+  geolocator: ^14.1.1
   http: ^1.5.0-beta.2
-  csv: ^6.0.0
-  logger: ^2.6.1
+  csv: ^8.0.0
+  logger: ^2.8.0
   flutter_screenutil: ^5.9.3
   diacritic: ^0.1.6 
   retry: ^3.1.2
-  smooth_page_indicator: ^2.0.1
-  permission_handler: ^12.0.1
-  url_launcher: ^6.3.2
-  web: ^1.1.1
+  smooth_page_indicator: ^3.0.0
+  permission_handler: 13.0.2
+  url_launcher: ^6.3.3
+  universal_web: ^1.1.1+1
+  share_plus: ^13.3.1
 
 dev_dependencies:
   flutter_test:

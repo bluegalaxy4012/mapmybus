@@ -5,7 +5,7 @@ import os
 
 load_dotenv()
 
-AGENCY_IDS = ["1", "2", "4", "6"]
+AGENCY_IDS = ["1", "2", "4", "6", "10"]
 MONGO_URL = os.getenv("MONGO_URL") or "mongo_fallback_url"
 DB_NAME = os.getenv("DB_NAME") or "db_fallback_name"
 

@@ -1,23 +1,37 @@
 import 'package:flutter/material.dart';
 import 'package:mapmybus/models/result.dart';
 import 'package:mapmybus/service/api_service.dart';
+import 'package:mapmybus/providers/route_preview_provider.dart';
 import 'package:mapmybus/core/utils.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-class TimetablePage extends StatelessWidget {
+class TimetablePage extends StatefulWidget {
   final String agencyId;
   final String routeShortName;
+  final String routeIdString;
 
   const TimetablePage({
     super.key,
     required this.agencyId,
     required this.routeShortName,
+    required this.routeIdString,
   });
 
-  Future<Map<String, List<List<String>>?>> loadTimetables(
-    BuildContext context,
-  ) async {
+  @override
+  State<TimetablePage> createState() => _TimetablePageState();
+}
+
+class _TimetablePageState extends State<TimetablePage> {
+  late Future<Map<String, List<List<String>>?>> _future;
+
+  @override
+  void initState() {
+    super.initState();
+    _future = _loadTimetables();
+  }
+
+  Future<Map<String, List<List<String>>?>> _loadTimetables() async {
     final db = context.read<Server>();
 
     const days = {"Luni - Vineri": "lv", "Sambata": "s", "Duminica": "d"};
@@ -25,15 +39,16 @@ class TimetablePage extends StatelessWidget {
 
     for (final entry in days.entries) {
       final result = await db.getTimetable(
-        agencyId,
-        routeShortName,
+        widget.agencyId,
+        widget.routeShortName,
+        widget.routeIdString,
         entry.value,
       );
 
       switch (result) {
         case Success(data: final rows):
           if (rows.isEmpty) {
-            data[entry.key] = null; // nu circula
+            data[entry.key] = null;
           } else {
             data[entry.key] = rows
                 .map((r) => r.map((c) => c.toString()).toList())
@@ -42,7 +57,7 @@ class TimetablePage extends StatelessWidget {
           break;
         case Failure(exception: final e):
           log.w("Failed to fetch timetable for ${entry.key}: $e");
-          data[entry.key] = null; // nu circula
+          data[entry.key] = null;
           break;
       }
     }
@@ -50,13 +65,68 @@ class TimetablePage extends StatelessWidget {
     return data;
   }
 
+  void _showDirectionDialog() {
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        return AlertDialog(
+          title: const Text('Alege sensul'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.arrow_forward),
+                title: const Text('Sens dus'),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _requestPreview('0');
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.arrow_back),
+                title: const Text('Sens intors'),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _requestPreview('1');
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  void _requestPreview(String direction) {
+    final tripId = '${widget.routeIdString}_$direction';
+    context.read<RoutePreviewProvider>().request(tripId, widget.routeShortName);
+    Navigator.popUntil(context, (r) => r.isFirst);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text("Orar - $routeShortName")),
+      appBar: AppBar(
+        title: Text("Orar - ${widget.routeShortName}"),
+        actions: [
+          TextButton.icon(
+            icon: const Icon(Icons.map_outlined),
+            onPressed: _showDirectionDialog,
+            label: const SizedBox(
+              width: 75,
+              child: Text(
+                "Afiseaza ruta pe harta",
+                textAlign: TextAlign.center,
+                maxLines: 2,
+                style: TextStyle(fontSize: 11),
+              ),
+            ),
+          ),
+        ],
+      ),
 
       body: FutureBuilder(
-        future: loadTimetables(context),
+        future: _future,
         builder: (context, snapshot) {
           if (snapshot.connectionState != ConnectionState.done) {
             return const Center(child: CircularProgressIndicator());
@@ -94,7 +164,7 @@ class TimetablePage extends StatelessWidget {
                     if (rows == null)
                       const Text("Nu circula")
                     else
-                      ..._buildTimetable(rows, context), // fiecare
+                      ..._buildTimetable(rows, context),
                   ],
                 ),
               );

@@ -4,6 +4,7 @@ import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart' hide Route;
 import 'package:flutter_map/flutter_map.dart';
+import 'package:flutter_map_vector_tiles/flutter_map_vector_tiles.dart' as vt;
 import 'package:latlong2/latlong.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:mapmybus/models/city_config.dart';
@@ -12,11 +13,15 @@ import 'package:mapmybus/models/info_dtos.dart';
 import 'package:mapmybus/models/result.dart';
 import 'package:mapmybus/models/stop.dart';
 import 'package:mapmybus/models/vehicle.dart';
+import 'package:mapmybus/models/weather.dart';
+import 'package:mapmybus/models/reachable.dart';
 import 'package:mapmybus/service/api_service.dart';
 import 'package:mapmybus/providers/city_provider.dart';
 import 'package:mapmybus/providers/routes_provider.dart';
 import 'package:mapmybus/providers/vehicles_provider.dart';
+import 'package:mapmybus/providers/route_preview_provider.dart';
 import 'package:mapmybus/core/utils.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:mapmybus/widgets/common-page/simple_snackbar.dart';
 import 'package:mapmybus/widgets/map-page/stop_arrivals_table.dart';
 import 'package:mapmybus/widgets/map-page/stop_markers.dart';
@@ -24,6 +29,7 @@ import 'package:mapmybus/widgets/common-page/stops_page.dart';
 import 'package:mapmybus/widgets/map-page/user_location_marker.dart';
 import 'package:mapmybus/widgets/map-page/vehicle_marker.dart';
 import 'package:mapmybus/widgets/map-page/vehicle_menu.dart';
+import 'package:mapmybus/widgets/map-page/nearby_vehicles_sheet.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:provider/provider.dart';
 
@@ -39,7 +45,8 @@ class MapPage extends StatefulWidget {
 class _MapPageState extends State<MapPage> {
   // main
   final MapController _mapController = MapController();
-  late final VehiclesProvider _vehicleProvider;
+  // late final VehiclesProvider _vehicleProvider;
+  VehiclesProvider? _vehicleProvider;
   String? _currentAgencyId;
 
   // user position
@@ -47,6 +54,7 @@ class _MapPageState extends State<MapPage> {
   Position? _currentPosition;
 
   // map drawings
+  vt.Style? _mapStyle;
   List<Stop> _drawnStops = [];
   List<Stop> _drawnStopsNearby = [];
   List<LatLng> _drawnPoints = [];
@@ -66,6 +74,7 @@ class _MapPageState extends State<MapPage> {
 
   // state for etas and stop arrivals
   String? _lastVehicleLabel;
+  String? _lastTripId;
 
   DateTime? _lastEtaFetchTime;
   List<EtaDisplayInfo> _currentEtaDisplayInfo = [];
@@ -74,6 +83,8 @@ class _MapPageState extends State<MapPage> {
   Stop? _selectedStop;
   DateTime? _stopArrivalsCreateTime;
   List<String> _routeShortNamesForStop = [];
+
+  final Map<String, List<List<String>>> _timetableCache = {};
 
   // for better localization of vehicles
   List<double> _shapeCumDistances = [];
@@ -84,6 +95,21 @@ class _MapPageState extends State<MapPage> {
   bool _showStopNames = true;
   bool showOnlySelectedVehicleRoute = false;
 
+  // weather
+  WeatherInfo? _weather;
+  Timer? _weatherTimer;
+
+  // reachable stops
+  List<ReachableStop> _reachableStops = [];
+
+  // route preview
+  String? _previewTripId;
+  String? _previewRouteShortName;
+  List<LatLng> _previewPoints = [];
+  List<Stop> _previewStops = [];
+  int _handledPreviewId = 0;
+  bool _weatherStarted = false;
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
@@ -91,14 +117,52 @@ class _MapPageState extends State<MapPage> {
     final cityProvider = context.watch<CityProvider>();
     final newAgencyId = getAgencyIdForCity(cityProvider.city);
 
+    final previewProvider = context.watch<RoutePreviewProvider>();
+    if (previewProvider.requestId != _handledPreviewId) {
+      _handledPreviewId = previewProvider.requestId;
+      final pendingTripId = previewProvider.tripId;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        if (pendingTripId != null) {
+          _loadPreviewRoute(pendingTripId);
+        } else {
+          _clearPreview();
+        }
+      });
+    }
+
     if (newAgencyId != _currentAgencyId) {
       _currentAgencyId = newAgencyId;
+      _weatherStarted = false;
 
       WidgetsBinding.instance.addPostFrameCallback((_) async {
         await _initRoutes(newAgencyId);
         await _initVehicles(newAgencyId);
+        _fetchWeather();
       });
+    } else if (!_weatherStarted) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _fetchWeather());
     }
+  }
+
+  // weather related
+  void _fetchWeather() {
+    if (_currentAgencyId == null) return;
+    _weatherStarted = true;
+
+    final server = context.read<Server>();
+    server.getWeather(_currentAgencyId!).then((result) {
+      if (!mounted) return;
+      switch (result) {
+        case Success(data: final weather):
+          setState(() => _weather = weather);
+        case Failure():
+          break;
+      }
+    });
+
+    _weatherTimer?.cancel();
+    _weatherTimer = Timer(const Duration(minutes: 10), _fetchWeather);
   }
 
   // user position related
@@ -158,7 +222,23 @@ class _MapPageState extends State<MapPage> {
   void initState() {
     super.initState();
 
+    _loadMapStyle();
+
     _initUserPosition();
+  }
+
+  Future<void> _loadMapStyle() async {
+    final style = await vt.StyleReader(
+      uri: 'mapbox://styles/bluegalaxy4012/cmuto0p9900xq01sb8j69ap99',
+      apiKey: Constants.mapboxToken,
+    ).read();
+
+    if (!mounted) {
+      style.dispose();
+      return;
+    }
+
+    setState(() => _mapStyle = style);
   }
 
   void _initUserPosition() {
@@ -167,11 +247,12 @@ class _MapPageState extends State<MapPage> {
   }
 
   Future<void> _initVehicles(String agencyId) async {
-    _vehicleProvider = context.read<VehiclesProvider>();
-    _vehicleProvider.removeListener(_updateMenuOnVehicleFetch);
+    final vp = context.read<VehiclesProvider>();
+    _vehicleProvider?.removeListener(_updateMenuOnVehicleFetch);
+    _vehicleProvider = vp;
 
-    await _vehicleProvider.startVehicleFetchTimer(agencyId);
-    _vehicleProvider.addListener(_updateMenuOnVehicleFetch);
+    await vp.startVehicleFetchTimer(agencyId);
+    vp.addListener(_updateMenuOnVehicleFetch);
   }
 
   Future<void> _initRoutes(String agencyId) async {
@@ -247,6 +328,68 @@ class _MapPageState extends State<MapPage> {
         }
       });
     }
+  }
+
+  Future<void> _loadPreviewRoute(String tripId) async {
+    final server = context.read<Server>();
+    final previewProvider = context.read<RoutePreviewProvider>();
+
+    final resultStops = await server.getStopsForTrip(
+      tripId,
+      widget.city.agencyId,
+    );
+
+    if (!mounted) return;
+
+    switch (resultStops) {
+      case Success(data: final stops):
+        _previewStops = stops;
+        break;
+
+      case Failure(exception: final e):
+        log.e("Failed to fetch stops for preview trip $tripId: $e");
+        _clearPreview();
+        return;
+    }
+
+    final resultShape = await server.getShape(tripId, widget.city.agencyId);
+
+    if (!mounted) return;
+
+    switch (resultShape) {
+      case Success(data: final shapePoints):
+        _previewPoints = shapePoints
+            .map((point) => LatLng(point.latitude, point.longitude))
+            .toList();
+        break;
+
+      case Failure(exception: final e):
+        log.e("Failed to fetch shape for preview trip $tripId: $e");
+        _clearPreview();
+        return;
+    }
+
+    _previewTripId = tripId;
+    _previewRouteShortName = previewProvider.routeShortName;
+
+    if (mounted) {
+      setState(() {});
+    }
+  }
+
+  void _clearPreview() {
+    if (_previewTripId == null &&
+        _previewRouteShortName == null &&
+        _previewPoints.isEmpty &&
+        _previewStops.isEmpty) {
+      return;
+    }
+    setState(() {
+      _previewTripId = null;
+      _previewRouteShortName = null;
+      _previewPoints.clear();
+      _previewStops.clear();
+    });
   }
 
   // cateva metode de mai jos se bazeaza pe faptul ca sunt apelate doar in contextul
@@ -383,13 +526,14 @@ class _MapPageState extends State<MapPage> {
       selectedVehicle = vehicle;
     });
 
-    if (_lastVehicleLabel != vehicle.label) {
+    if (_lastVehicleLabel != vehicle.label || _lastTripId != vehicle.tripId) {
       _currentEtaDisplayInfo.clear();
       _stopsDistanceInfo.clear();
       _shapeCumDistances.clear();
 
       // sa nu dam load iar la mapDetails sau tabel de etas
       _lastVehicleLabel = vehicle.label;
+      _lastTripId = vehicle.tripId;
 
       setState(() {
         _isLoading = true;
@@ -423,7 +567,7 @@ class _MapPageState extends State<MapPage> {
     final String vehicleLabel = selectedVehicle!.label;
 
     try {
-      final vehicle = _vehicleProvider.vehicles.firstWhere(
+      final vehicle = _vehicleProvider!.vehicles.firstWhere(
         (v) => v.label == vehicleLabel,
       );
 
@@ -447,6 +591,7 @@ class _MapPageState extends State<MapPage> {
         selectedVehicle = null;
         showOnlySelectedVehicleRoute = false;
         _lastVehicleLabel = null;
+        _lastTripId = null;
         isSelectedVehicleOnRoute = null;
         isSelectedVehicleAtEnds = null;
 
@@ -458,6 +603,89 @@ class _MapPageState extends State<MapPage> {
       });
     }
   }
+
+  void _showDirectRouteDialog(ReachableStop s) {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: Text(s.stopName),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              "Poti ajunge direct cu:",
+              style: TextStyle(fontSize: 13),
+            ),
+
+            const Text(
+              "(maxim 8 linii afisate)",
+              style: TextStyle(fontSize: 11, color: Colors.grey),
+            ),
+            const SizedBox(height: 8),
+            ...s.routes
+                .take(8)
+                .map(
+                  (r) => ListTile(
+                    dense: true,
+                    leading: CircleAvatar(
+                      radius: 15,
+                      child: Text(
+                        r.routeShortName,
+                        style: const TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                    title: Text(
+                      "Linia ${r.routeShortName}",
+                      style: const TextStyle(fontSize: 16),
+                    ),
+                    subtitle: Text(
+                      "${r.stopsAway} ${r.stopsAway == 1 ? 'statie' : 'statii'}",
+                    ),
+                    onTap: () {
+                      Navigator.pop(context);
+                      context.read<RoutePreviewProvider>().request(
+                        r.tripId,
+                        r.routeShortName,
+                      );
+                    },
+                  ),
+                ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Inchide"),
+          ),
+        ],
+      ),
+    );
+  }
+
+  MarkerLayer _reachableLayer() => MarkerLayer(
+    markers: _reachableStops
+        .map(
+          (s) => Marker(
+            point: LatLng(s.lat, s.lon),
+            width: 16,
+            height: 16,
+            child: GestureDetector(
+              onTap: () => _showDirectRouteDialog(s),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: const Color.fromARGB(255, 174, 74, 202),
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.white, width: 1.5),
+                ),
+              ),
+            ),
+          ),
+        )
+        .toList(),
+  );
 
   void requestStopArrivalTimes(Vehicle vehicle) async {
     setState(() {
@@ -544,46 +772,53 @@ class _MapPageState extends State<MapPage> {
     }
   }
 
+  String _todayDayType() {
+    final d = DateTime.now().weekday;
+    if (d == DateTime.sunday) return "d";
+    if (d == DateTime.saturday) return "s";
+    return "lv";
+  }
+
   Future<double> getNextDepartureTimeDifference(
     String agencyId,
     String routeShortName,
+    String routeIdString,
     String direction,
   ) async {
-    if (!Constants.agencyIdsWithWorkingTimetables.contains(agencyId)) {
+    if (routeShortName.isEmpty || (direction != "0" && direction != "1")) {
       return 0;
     }
 
-    if (direction != "0" && direction != "1") {
-      return 0;
-    }
+    final key = "$agencyId|$routeIdString|${_todayDayType()}";
+    List<List<String>>? rows = _timetableCache[key];
 
-    final server = context.read<Server>();
-    const days = {"Luni - Vineri": "lv", "Sambata": "s", "Duminica": "d"};
-    DateTime currentTime = DateTime.now();
-    double nextDeparture;
-
-    for (final entry in days.entries) {
-      final result = await server.getTimetable(
+    if (rows == null) {
+      final result = await context.read<Server>().getTimetable(
         agencyId,
         routeShortName,
-        entry.value,
+        routeIdString,
+        _todayDayType(),
       );
-
-      switch (result) {
-        case Success(data: final rows):
-          nextDeparture = _findNextDepartureTimeDifference(
-            rows.sublist(5),
-            currentTime,
-            direction,
-          );
-
-          // scadem 10 de secunde ca de obicei pleaca mai rapid din statie decat orarul
-          return max(0, nextDeparture - 10);
-        case Failure(exception: final _):
-          break;
-      }
+      if (result is! Success<List<List<String>>, Exception>) return 0;
+      rows = result.data;
+      _timetableCache[key] = rows;
     }
-    return 0;
+
+    // orar extern (PDF/site) sau orar invalid -> nu putem calcula
+    if (rows.length < 6 ||
+        (rows.isNotEmpty &&
+            rows[0].isNotEmpty &&
+            rows[0][0] == "EXTERNAL_URL")) {
+      return 0;
+    }
+
+    final next = _findNextDepartureTimeDifference(
+      rows.sublist(5),
+      DateTime.now(),
+      direction,
+    );
+
+    return max(0, next - 10);
   }
 
   double _findNextDepartureTimeDifference(
@@ -594,6 +829,8 @@ class _MapPageState extends State<MapPage> {
     DateTime? nextDeparture;
 
     for (final row in timetableRows) {
+      if (row.length < 2) continue;
+
       String departureTimeString = direction == "0" ? row[0] : row[1];
 
       if (departureTimeString.isEmpty) continue;
@@ -657,20 +894,6 @@ class _MapPageState extends State<MapPage> {
     final routeProvider = context.read<RoutesProvider>();
     final db = context.read<Server>();
 
-    // ignoram cele fantoma
-    final positions = _validVehicles
-        .where((v) => !v.isGhost)
-        .map(
-          (v) => {
-            'trip_id': v.tripId!,
-            'lat': v.latitude!,
-            'lon': v.longitude!,
-            'label': v.label,
-            'ts': v.timestamp.toIso8601String(),
-          },
-        )
-        .toList();
-
     if (!mounted) return;
 
     // gasim si vehiculele care trec prin statie
@@ -715,7 +938,6 @@ class _MapPageState extends State<MapPage> {
     final result = await db.getSoonArrivalsForStop(
       widget.city.agencyId,
       stop.stopId,
-      positions,
     );
 
     switch (result) {
@@ -730,9 +952,19 @@ class _MapPageState extends State<MapPage> {
             widget.city.agencyId,
           );
 
-          final bool isVehicleAtFirstEnd = _isVehicleAtFirstEnd(
-            _validVehicles.firstWhere((v) => v.label == arrival.vehicleLabel),
+          final routeId = routeProvider.getRouteIdFromRouteShortName(
+            routeShortName ?? "",
           );
+
+          Vehicle? veh;
+          for (final v in _validVehicles) {
+            if (v.label == arrival.vehicleLabel) {
+              veh = v;
+              break;
+            }
+          }
+          final bool isVehicleAtFirstEnd =
+              veh != null && _isVehicleAtFirstEnd(veh);
 
           // adunam cat ia sa porneasca de la capat de linie (din orar)
           // momentan merge doar pentru cluj
@@ -741,14 +973,23 @@ class _MapPageState extends State<MapPage> {
             nextRoutingTimeDifference = await getNextDepartureTimeDifference(
               widget.city.agencyId,
               routeShortName ?? "",
+              routeId.toString(),
               arrival.tripId.endsWith("_0") ? "0" : "1",
             );
           }
 
-          final double eta =
-              arrival.etaMinutes + nextRoutingTimeDifference / 60;
+          // rectificare, nu e foarte exact cu orarul deci afisam posibilul delay in plus in loc sa l adaugam direct
 
-          final String etaMessage = getEtaMessage(eta);
+          final double eta = arrival.etaMinutes;
+          String etaMessage = getEtaMessage(eta);
+
+          if (nextRoutingTimeDifference > 0) {
+            final String possibleDelayMessage =
+                nextRoutingTimeDifference / 60.0 > 1
+                ? "${(nextRoutingTimeDifference / 60.0).toStringAsFixed(0)} min"
+                : "${nextRoutingTimeDifference.toStringAsFixed(0)} sec";
+            etaMessage = "$etaMessage (+$possibleDelayMessage)";
+          }
 
           arrivalsDisplayInfo.add(
             StopArrivalDisplayInfo(
@@ -803,8 +1044,10 @@ class _MapPageState extends State<MapPage> {
   @override
   void dispose() {
     _positionStreamSubscription?.cancel();
-    _vehicleProvider.removeListener(_updateMenuOnVehicleFetch);
-    _vehicleProvider.stopVehicleFetchTimer();
+    _vehicleProvider?.removeListener(_updateMenuOnVehicleFetch);
+    _weatherTimer?.cancel();
+    _mapStyle?.dispose();
+
     super.dispose();
   }
 
@@ -820,12 +1063,6 @@ class _MapPageState extends State<MapPage> {
     _visibleVehicles = _validVehicles
         .where((v) => visibleRoutesIds.contains(v.routeId!) && !v.isGhost)
         .toList();
-
-    /*
-    print("Skipped ${_validVehicles
-        .where((v) => visibleRoutesIds.contains(v.routeId!))
-        .length - _visibleVehicles.length} ghost vehicles");
-    */
 
     return Stack(
       children: [
@@ -851,16 +1088,48 @@ class _MapPageState extends State<MapPage> {
           ),
 
           children: [
-            TileLayer(
-              urlTemplate: Constants.mapTileProviderUrl,
-              userAgentPackageName: 'com.marian.mapmybus',
+            // TileLayer(
+            //   urlTemplate: Constants.mapTileProviderUrl,
+            //   userAgentPackageName: 'com.marian.mapmybus',
 
+            //   tileUpdateTransformer: TileUpdateTransformers.debounce(
+            //     const Duration(milliseconds: 300),
+            //   ),
+            // ),
+            TileLayer(
+              urlTemplate:
+                  'https://api.mapbox.com/styles/v1/bluegalaxy4012/cmuto0p9900xq01sb8j69ap99/tiles/512/{z}/{x}/{y}@2x.webp?access_token=${Constants.mapboxToken}',
+              userAgentPackageName: 'com.marian.mapmybus',
               tileUpdateTransformer: TileUpdateTransformers.debounce(
-                const Duration(milliseconds: 300),
+                const Duration(milliseconds: 100),
               ),
+              tileDimension: 512,
+              zoomOffset: -1,
             ),
 
+            // merge prost cu vector tiles
+            // if (_mapStyle != null)
+            //   vt.VectorTileLayer(
+            //     theme: _mapStyle!.theme,
+            //     tileProviders: _mapStyle!.providers,
+            //     rasterSources: _mapStyle!.rasterSources,
+            //     sprites: _mapStyle!.sprites,
+            //     concurrency: 2,
+            //     rasterCacheMaxBytes: 64 * 1024 * 1024,
+            //     memoryCacheMaxBytes: 16 * 1024 * 1024,
+            //     tileFadeDuration: Duration.zero,
+            //     // showLabels: false,
+            //   ),
             if (_drawnPoints.isNotEmpty) _shapePointsLayer(),
+
+            if (_previewPoints.isNotEmpty) _previewShapeLayer(),
+
+            if (_previewStops.isNotEmpty) _previewStopsLayer(),
+
+            if (_previewPoints.isNotEmpty && _previewStops.isNotEmpty)
+              _previewDirectionLayer(),
+
+            if (_reachableStops.isNotEmpty) _reachableLayer(),
 
             if (_drawnStops.isNotEmpty || _drawnStopsNearby.isNotEmpty)
               _stopsLayer(),
@@ -873,12 +1142,102 @@ class _MapPageState extends State<MapPage> {
           ],
         ),
 
+        if (_weather?.shouldWarn == true)
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            child: SafeArea(
+              child: Container(
+                margin: const EdgeInsets.fromLTRB(8, 4, 170, 0),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
+                  color: _weather!.color,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.warning_amber_rounded, size: 18),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        _weather!.message!,
+                        style: const TextStyle(
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+
+        if (_previewTripId != null)
+          Positioned(
+            bottom: 15,
+            left: 0,
+            right: 0,
+            child: Center(
+              child: Material(
+                elevation: 4,
+                borderRadius: BorderRadius.circular(20),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: const Color.fromARGB(255, 219, 206, 19),
+                      width: 2,
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(
+                        Icons.directions_bus,
+                        color: Color.fromARGB(255, 219, 206, 19),
+                        size: 32,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        "Previzualizare: $_previewRouteShortName",
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Color.fromARGB(255, 219, 206, 19),
+                          fontSize: 18,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      GestureDetector(
+                        onTap: _clearPreview,
+                        child: const Icon(
+                          Icons.close,
+                          color: Color.fromARGB(255, 219, 206, 19),
+                          size: 32,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+
         Positioned(
           bottom: 5,
           left: 5,
           child: const Text(
             Constants.copyrightText,
-            style: TextStyle(fontSize: 10, color: Colors.black),
+            style: TextStyle(fontSize: 10, color: Color.fromARGB(192, 0, 0, 0)),
           ),
         ),
 
@@ -905,12 +1264,15 @@ class _MapPageState extends State<MapPage> {
             onPressed: () {
               if (selectedVehicle != null) {
                 setState(() {
+                  // astea au sens sa se stearga si daca e selectat un vehicul
                   _drawnStopsNearby.clear();
+                  _reachableStops.clear();
+                  _clearPreview();
                 });
 
                 showSimpleSnackbar(
                   context,
-                  "Inchide meniul vehiculului inainte de a sterge traseul",
+                  "Inchide meniul vehiculului inainte de a sterge traseul sau",
                 );
 
                 return;
@@ -922,7 +1284,12 @@ class _MapPageState extends State<MapPage> {
                 _drawnPoints.clear();
                 _stopsDistanceInfo.clear();
                 _shapeCumDistances.clear();
+                _reachableStops.clear();
               });
+              _clearPreview();
+              if (_previewTripId == null) {
+                context.read<RoutePreviewProvider>().clear();
+              }
             },
           ),
         ),
@@ -948,8 +1315,6 @@ class _MapPageState extends State<MapPage> {
                   _isLoading = true;
                 });
 
-                // better alternative ? sa astept vehicle fetchul
-                // am uitat de ce am pus delay aici
                 // await Future.delayed(const Duration(milliseconds: 1200));
 
                 if (!context.mounted) return;
@@ -1026,146 +1391,40 @@ class _MapPageState extends State<MapPage> {
           right: 10,
           child: FloatingActionButton(
             heroTag: "selectRouteButton",
-            tooltip: "Selecteaza/Cauta o linie",
+            tooltip: "Cauta vehicule in apropiere",
             mini: true,
-            child: const Icon(Icons.bus_alert),
+            child: const Icon(Icons.near_me),
             onPressed: () {
-              TextEditingController controller = TextEditingController();
+              if (_currentPosition == null) {
+                showSimpleSnackbar(
+                  context,
+                  "Locatia ta nu este disponibila momentan",
+                );
+                return;
+              }
 
-              showDialog(
+              if (_validVehicles.isEmpty) {
+                showSimpleSnackbar(
+                  context,
+                  "Trebuie sa ai minim un vehicul la favorite pentru a utiliza functionalitatea",
+                );
+                return;
+              }
+
+              showNearbyVehiclesSheet(
                 context: context,
-                builder: (context) {
-                  return AlertDialog(
-                    title: const Text(
-                      "Introdu numele liniei de adaugat la favorite. Vehiculul cel mai apropiat de pe aceasta va fi selectat automat.",
-                    ),
-                    content: TextField(
-                      controller: controller,
-                      keyboardType: TextInputType.text,
-                      decoration: const InputDecoration(
-                        hintText: "Numele liniei",
-                      ),
-                      maxLength: 10,
-                      autofocus: false,
-                    ),
-
-                    actions: [
-                      TextButton(
-                        onPressed: () {
-                          Navigator.of(context).pop();
-                        },
-                        child: const Text("Anuleaza"),
-                      ),
-
-                      TextButton(
-                        onPressed: () async {
-                          if (_currentPosition == null) {
-                            showSimpleSnackbar(
-                              context,
-                              "Locatia ta nu este disponibila momentan",
-                            );
-
-                            Navigator.of(context).pop();
-                            return;
-                          }
-
-                          if (_validVehicles.isEmpty) {
-                            showSimpleSnackbar(
-                              context,
-                              "Trebuie sa ai minim un vehicul la favorite pentru a utiliza functionalitatea",
-                            );
-
-                            Navigator.of(context).pop();
-                            return;
-                          }
-
-                          String input = controller.text.trim().toUpperCase();
-                          if (input.isNotEmpty) {
-                            final int? routeId = routeProvider
-                                .getRouteIdFromRouteShortName(input);
-
-                            if (routeId == null) {
-                              showSimpleSnackbar(
-                                context,
-                                "Nu s-a gasit linia $input. Verifica daca ai omis caractere sau daca ai adaugat spatii in plus",
-                              );
-
-                              Navigator.of(context).pop();
-                              return;
-                            }
-
-                            final matchingVehicles = _validVehicles.where((v) {
-                              final routeShortName = routeProvider
-                                  .getRouteShortNameFromRouteId(
-                                    v.routeId!,
-                                    widget.city.agencyId,
-                                  );
-
-                              return routeShortName == input;
-                            }).toList();
-
-                            // gasim cele mai apropiate vehicule sortate dupa distanta
-                            final vehiclesNearby =
-                                matchingVehicles.map((v) {
-                                  final distance = Geolocator.distanceBetween(
-                                    _currentPosition!.latitude,
-                                    _currentPosition!.longitude,
-                                    v.latitude!,
-                                    v.longitude!,
-                                  );
-
-                                  return VehicleWithDistance(v, distance);
-                                }).toList()..sort(
-                                  (vd1, vd2) =>
-                                      vd1.distance.compareTo(vd2.distance),
-                                );
-
-                            // adaugam linia la favorite daca nu e deja
-                            final routeShortName = routeProvider
-                                .getRouteShortNameFromRouteId(
-                                  routeId,
-                                  widget.city.agencyId,
-                                );
-
-                            // ne asiguram ca vehiculul, ruta, sunt la favorite ca altfel nici nu-l vedem
-                            bool addRouteToFavorites = false;
-                            if (!routeProvider.isFavorite(routeId)) {
-                              await routeProvider.toggleFavorite(
-                                routeId,
-                                widget.city.agencyId,
-                              );
-                              addRouteToFavorites = true;
-                            }
-
-                            if (!context.mounted) return;
-                            if (vehiclesNearby.isEmpty) {
-                              showSimpleSnackbar(
-                                context,
-                                "Linia $input a fost adaugata la favorite, dar nu s-au gasit vehicule care o parcurg",
-                              );
-
-                              // ar fi bine sa afisam traseul liniei pe harta aici, dar e cam complicat ca trebuie sa si intrebam user-ul
-                              // daca vrea asta si sa-l intrebam daca vrea sa vada dus sau intors
-                            } else {
-                              final vd = vehiclesNearby.first;
-                              await _onVehicleTap(vd.vehicle, routeShortName);
-
-                              if (!context.mounted) return;
-                              if (addRouteToFavorites) {
-                                showSimpleSnackbar(
-                                  context,
-                                  "Linia $input a fost adaugata la favorite si cel mai apropiat vehicul a fost selectat",
-                                );
-                              }
-                            }
-                          }
-
-                          Navigator.of(context).pop();
-                        },
-                        child: const Text("Cauta"),
-                      ),
-                    ],
-                  );
+                currentPosition: _currentPosition!,
+                vehicles: _validVehicles,
+                routeProvider: routeProvider,
+                agencyId: widget.city.agencyId,
+                onVehicleSelected: (vehicle, routeShortName) async {
+                  if (!routeProvider.isFavorite(vehicle.routeId!)) {
+                    await routeProvider.toggleFavorite(
+                      vehicle.routeId!,
+                      widget.city.agencyId,
+                    );
+                  }
+                  await _onVehicleTap(vehicle, routeShortName);
                 },
               );
             },
@@ -1275,6 +1534,7 @@ class _MapPageState extends State<MapPage> {
 
                 _currentEtaDisplayInfo.clear();
                 _lastVehicleLabel = null;
+                _lastTripId = null;
                 _lastEtaFetchTime = null;
               });
             },
@@ -1282,17 +1542,41 @@ class _MapPageState extends State<MapPage> {
 
         if (_arrivalsDisplayInfo.isNotEmpty && _selectedStop != null)
           StopArrivalsTable(
+            agencyId: widget.city.agencyId,
+            stopId: _selectedStop!.stopId,
             stopName: _selectedStop!.stopName,
             routeNames: _routeShortNamesForStop,
             arrivals: _arrivalsDisplayInfo,
             tableCreateTime: _stopArrivalsCreateTime,
+            weather: _weather,
             onClose: () {
               setState(() {
                 _arrivalsDisplayInfo.clear();
                 _selectedStop = null;
                 _routeShortNamesForStop.clear();
                 _stopArrivalsCreateTime = null;
+                _reachableStops.clear();
               });
+            },
+            onShowReachable: () async {
+              final server = context.read<Server>();
+              final result = await server.getReachableStops(
+                widget.city.agencyId,
+                _selectedStop!.stopId,
+              );
+
+              if (!mounted) return;
+
+              switch (result) {
+                case Success(data: final stops):
+                  setState(() => _reachableStops = stops);
+                case Failure():
+                  if (!context.mounted) return;
+                  showSimpleSnackbar(
+                    context,
+                    "Nu s-au putut incarca destinatiile directe",
+                  );
+              }
             },
           ),
       ],
@@ -1490,6 +1774,84 @@ class _MapPageState extends State<MapPage> {
           points: _drawnPoints,
           color: const Color.fromARGB(95, 127, 125, 255),
           strokeWidth: 4.0,
+        ),
+      ],
+    );
+  }
+
+  PolylineLayer<Object> _previewShapeLayer() {
+    return PolylineLayer(
+      polylines: [
+        Polyline(
+          points: _previewPoints,
+          color: const Color.fromARGB(95, 219, 206, 19),
+          strokeWidth: 5.0,
+        ),
+      ],
+    );
+  }
+
+  MarkerLayer _previewStopsLayer() {
+    return MarkerLayer(
+      markers: _previewStops.asMap().entries.map((entry) {
+        final index = entry.key;
+        final stop = entry.value;
+        final bool isFinal = index == 0 || index == _previewStops.length - 1;
+        final double size = isFinal ? 22 : 12;
+
+        return Marker(
+          point: LatLng(stop.latitude, stop.longitude),
+          width: size,
+          height: size,
+          child: Container(
+            decoration: BoxDecoration(
+              color: const Color.fromARGB(255, 219, 206, 19),
+              shape: BoxShape.circle,
+              border: Border.all(color: Colors.white, width: 1.5),
+            ),
+          ),
+        );
+      }).toList(),
+    );
+  }
+
+  MarkerLayer _previewDirectionLayer() {
+    if (_previewPoints.length < 2) {
+      return MarkerLayer(markers: []);
+    }
+
+    final start = _previewPoints.first;
+    final end = _previewPoints.last;
+
+    // punem o sageata de la start->end fix langa start dar impinsa un pic in directia opusa lui end ca sa nu se suprapuna cu markerul de start
+
+    Offset offset = Offset(
+      start.latitude - end.latitude,
+      start.longitude - end.longitude,
+    );
+    offset = offset / offset.distance * 0.003;
+
+    final arrowPoint = LatLng(
+      (start.latitude + offset.dx),
+      (start.longitude + offset.dy),
+    );
+
+    final bearing = calculateBearing(end, start);
+
+    return MarkerLayer(
+      markers: [
+        Marker(
+          point: arrowPoint,
+          width: 50,
+          height: 50,
+          child: Transform.rotate(
+            angle: bearing,
+            child: const Icon(
+              Icons.arrow_drop_down_circle_outlined,
+              color: Color.fromARGB(255, 255, 206, 19),
+              size: 50,
+            ),
+          ),
         ),
       ],
     );

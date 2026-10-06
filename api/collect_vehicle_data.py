@@ -9,7 +9,7 @@ load_dotenv()
 
 VEHICLES_API_URL = os.getenv("BASE_URL", "") + "/vehicles"
 API_KEY = os.getenv("DEV_API_KEY", "")
-AGENCY_IDS = [1, 2, 4, 6, 8]
+AGENCY_IDS = [1, 2, 4, 6, 8, 10]
 FETCH_ALL_AGENCIES_INTERVAL_SECONDS = 20
 DELAY_BETWEEN_AGENCIES_SECONDS = 1
 

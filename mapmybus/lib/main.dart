@@ -7,6 +7,7 @@ import 'package:mapmybus/service/api_service.dart';
 import 'package:mapmybus/providers/city_provider.dart';
 import 'package:mapmybus/providers/routes_provider.dart';
 import 'package:mapmybus/providers/vehicles_provider.dart';
+import 'package:mapmybus/providers/route_preview_provider.dart';
 import 'package:mapmybus/core/utils.dart';
 import 'package:mapmybus/widgets/home-page/welcome_page.dart';
 import 'package:provider/provider.dart';
@@ -83,6 +84,8 @@ class MyApp extends StatelessWidget {
             return provider;
           },
         ),
+
+        ChangeNotifierProvider(create: (_) => RoutePreviewProvider()),
       ],
       child: MaterialApp(
         title: Constants.appTitle,

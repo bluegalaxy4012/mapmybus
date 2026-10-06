@@ -112,10 +112,8 @@ _sunday_index = {
     23: 0.75,
 }
 
-# datele folosite sunt, ca dimensiune, 50% din toamna, 50% din vara
-# si probabil ca aglomeratie vara < primavara <= toamna < iarna
-# din aceste motive probabil cam asa ar fi
-_seasonal_multipliers = {"winter": 1.1, "spring": 1.025, "summer": 0.95, "autumn": 1.05}
+# momentan mai verific daca se poate adauga un factor de sezon, cateva statistici arata ca nu prea e consistent
+_seasonal_multipliers = {"winter": 1.0, "spring": 1.0, "summer": 1.0, "autumn": 1.0}
 
 
 def get_timestamp_congestion_index(timestamp: datetime.datetime) -> float:

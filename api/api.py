@@ -1,92 +1,71 @@
 from contextlib import asynccontextmanager
-import pickle
 from datetime import datetime
-import numpy as np
-import os
-from fastapi import FastAPI, HTTPException, Query, status, Body
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, JSONResponse
+from functools import lru_cache
 from typing import List
-from dotenv import load_dotenv
-from pymongo import MongoClient
-from pathlib import Path
-import httpx
-import logging
-import random
 import asyncio
-import sys
-import redis
 
-# importam functii utile si constante
-from preprocess import (
-    load_shapes,
-    load_stops,
-    project_route as project_onto_route,
-    timezone_offset,
-    tz,
-    ArrivalStatus,
+import httpx
+import redis.asyncio as aioredis
+from fastapi import FastAPI, HTTPException, Query, status
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse, JSONResponse, Response
+from pymongo import MongoClient
+
+from preprocess import ArrivalStatus
+from weather import get_cached_weather
+
+from core import (
+    logger,
+    LOCAL_TZ,
+    MONGO_URL,
+    DB_NAME,
+    DEV_FRONTEND_URL,
+    CSV_DIR,
+    AGENCY_IDS,
+    EXTERNAL_TIMETABLES_AGENCY_IDS,
+    MIN_VALID_EXTERNAL_TIMETABLE_SIZE,
+    UNKNOWN_ETA_MINUTES,
+    models_cache,
+    stop_locs,
+    trip_stops,
+    stop_to_trips,
+    stop_names,
+    route_short_names,
+    init_data,
 )
-from traffic_data import get_timestamp_congestion_index
+from vehicles import (
+    refresh_loop,
+    refresh_agency_vehicles,
+    _cached_vehicle_positions,
+)
 
-# incarcam variabilele din .env
-load_dotenv()
-
-gunicorn_error_logger = logging.getLogger("gunicorn.error")
-
-logger = logging.getLogger(__name__)
-
-if "gunicorn" in sys.modules:
-    logger.handlers = gunicorn_error_logger.handlers
-    logger.setLevel(gunicorn_error_logger.level)
-else:
-    # local dev
-    logging.basicConfig(level=logging.INFO)
-    logger.setLevel(logging.INFO)
-
-
-# configuri din .env
-MONGO_URL = os.getenv("MONGO_URL") or "mongo_fallback_url"
-DEV_FRONTEND_URL = os.getenv("DEV_FRONTEND_URL") or "http://localhost:3000"
-DB_NAME = os.getenv("DB_NAME") or "db_fallback_name"
-CSV_DIR = Path("csv")
-
-AGENCY_IDS = ["1", "2", "4", "6"]
-EXTERNAL_TIMETABLES_AGENCY_IDS = ["1", "4", "6"]
-
-GHOST_VEHICLE_POSITIONS_CONSIDERED = 50
-GHOST_VEHICLE_MAX_COORDINATE_CHANGE = 0.0005  # aprox 40 m
-
-MIN_VALID_EXTERNAL_TIMETABLE_SIZE = 100  # bytes
-
-UNKNOWN_ETA_MINUTES = 999
-
-# cache local pt modele, statii, rute, distante
-models_cache = {}
-shapes = {}
-stop_locs = {}
-trip_stops = {}
-stop_to_trips = {}
-stop_dists_by_trip = {}
-stop_distances = {}
+from predictions import get_prediction, compute_arrivals, get_eta_message
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # pentru distribuire la toti workerii
-    app.state.redis = redis.Redis(host="localhost", port=6379, decode_responses=True)
+    app.state.redis = aioredis.Redis(host="localhost", port=6379, decode_responses=True)
+    app.state.mongo = MongoClient(MONGO_URL, maxPoolSize=20)
+    app.state.db = app.state.mongo[DB_NAME]
 
     logger.info("Application startup: Initializing data...")
     init_data()
 
-    # ca sa fie pe faza serverul si sa aiba date despre vehicule fantoma
-    task = asyncio.create_task(fetch_vehicles_periodically())
-
+    task = asyncio.create_task(refresh_loop(app.state.redis))
     yield
-    logger.info("Application shutdown: Clearing models cache...")
-    models_cache.clear()
 
     task.cancel()
-    await task
+    try:
+        await task
+    except asyncio.CancelledError:
+        pass
+
+    logger.info("Application shutdown: Clearing models cache...")
+
+    models_cache.clear()
+    app.state.mongo.close()
+    await app.state.redis.aclose()
 
 
 app = FastAPI(lifespan=lifespan)
@@ -95,7 +74,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         DEV_FRONTEND_URL,
-        "https://mapmybus.marian.homes",
+        "https://mapmybus.40004444.xyz",
     ],
     allow_credentials=False,
     allow_methods=["GET", "OPTIONS", "POST"],
@@ -103,263 +82,128 @@ app.add_middleware(
 )
 
 
-async def fetch_vehicles_periodically():
-    while True:
-        await asyncio.sleep(75)
-
-        for agency_id in AGENCY_IDS:
-            try:
-                await get_vehicles(agency_id)
-            except Exception as e:
-                logger.error(
-                    f"Error fetching vehicles (periodically) for agency {agency_id}: {e}"
-                )
-
-
-def init_data():
-    # incarcam formele, statiile si fisierele .pkl
-
-    global shapes, stop_locs, trip_stops, stop_to_trips, stop_dists_by_trip, stop_distances
-
-    for agency_id in AGENCY_IDS:
-        logger.info("Loading shapes for agency %s...", agency_id)
-        shapes[agency_id] = load_shapes(agency_id)
-
-        logger.info("Loading stops & trip sequences for agency %s...", agency_id)
-        stop_locs[agency_id], trip_stops[agency_id] = load_stops(agency_id)
-
-        logger.info("Loading stop_to_trips.pkl for agency %s...", agency_id)
-        with open(f"models/agency{agency_id}_stop_to_trips.pkl", "rb") as f:
-            stop_to_trips[agency_id] = pickle.load(f)
-
-        logger.info("Loading stop_dists_by_trip.pkl for agency %s...", agency_id)
-        with open(f"models/agency{agency_id}_stop_dists_by_trip.pkl", "rb") as f:
-            stop_dists_by_trip[agency_id] = pickle.load(f)
-
-        stop_distances[agency_id] = stop_dists_by_trip[agency_id]
-
-        logger.info(
-            "Data ready for agency %s: %s shapes, %s stops, %s trips, %s stop->trip mappings",
-            agency_id,
-            len(shapes[agency_id]),
-            len(stop_locs[agency_id]),
-            len(trip_stops[agency_id]),
-            len(stop_to_trips[agency_id]),
-        )
-
-
-def get_model(agency_id: str, trip_id: str):
-    # intoarce modelul kNN pt un anumit trip_id (din cache sau il incarca)
-
-    if (agency_id, trip_id) in models_cache:
-        return models_cache[(agency_id, trip_id)]
-
-    path = f"models/agency{agency_id}_{trip_id}_knn.pkl"
-    try:
-        with open(path, "rb") as f:
-            m = pickle.load(f)
-            models_cache[(agency_id, trip_id)] = m
-            return m
-    except FileNotFoundError:
-        return None
-
-
-def get_prediction(agency_id: str, trip_id: str, lat: float, lon: float, stop_id: str):
-    # face efectiv predictia ETA pt un vehicul aflat pe ruta
-
-    # validam formatul trip_id si lat/lon
-    if trip_id.count("_") != 1:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST)
-    if not (10 <= lat <= 50 and 10 <= lon <= 50):
+@app.get("/weather/{agency_id}")
+async def get_weather(agency_id: str):
+    if agency_id not in AGENCY_IDS:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST)
 
-    shape_data = shapes.get(agency_id, {}).get(trip_id)
-    if shape_data is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Cannot get shapes for trip"
-        )
+    return await get_cached_weather(agency_id)
 
-    # proiectam vehiculul pe ruta, statia avem deja
-    pr = project_onto_route(lat, lon, shape_data)
-    if pr is None or pr[0] is None:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Cannot project vehicle onto route",
-        )
 
-    veh_dist, _ = pr
+@app.get("/vehicles/{agency_id}")
+async def get_vehicles(agency_id: str):
+    if agency_id not in AGENCY_IDS:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST)
 
-    stop_dist = stop_distances.get(agency_id, {}).get(trip_id, {}).get(stop_id)
-    if stop_dist is None:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Cannot project stop onto route",
-        )
+    cached = await app.state.redis.get(f"vehicles:{agency_id}")
 
-    # distanta de-a lungul rutei pana la statie minus pana la vehicul
-    delta = stop_dist - veh_dist
+    if cached is None:
+        await refresh_agency_vehicles(app.state.redis, agency_id)
+        cached = await app.state.redis.get(f"vehicles:{agency_id}")
 
-    # daca vehiculul a trecut deja statia (cu tot cu timpul de update gtfs trece si daca e la 25 metri)
-    if delta < 25:
-        return 0.0, ArrivalStatus.PASSED.value
-
-    # daca e aproape, o sa aproximam ca ajunge in urmatorul minut
-    # poate 150 pare mult dar cum nu e "fresh" pozitia, are un avantaj si probabil ajunge
-    if delta < 150:
-        return 0.0, ArrivalStatus.ARRIVING.value
-
-    model = get_model(agency_id, trip_id)
-    if model is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="No data to make prediction for trip",
-        )
-
-    # incarcam knn-ul si vecinii
-    X, y, c, t = model["X"], model["y"], model["c"], model["t"]
-    nbrs = model["nbrs"]
-    feat = np.array([[veh_dist, delta]])
-    _, idxs = nbrs.kneighbors(feat)
-
-    # calculam media ponderata a eta-urilor istorice apropiate
-    # cele mai apropiate de vehicul au o influenta mai mare, ca poate se schimba cum e drumul
-    # imparte cu congestion index ca sa avem un fel de normalizare, si la final o sa inmultim cu congestion index-ul curent
-    total_w = 0.0
-    total_eta = 0.0
-
-    for i in idxs[0]:
-        historical_dist = X[i, 0]
-        projected_dist = abs(veh_dist - historical_dist)
-
-        # print(f"point {i}: hist_d={hist_d}, pdist={pdist}, delta={delta}")
-
-        # functie de calculat ponderea, daca e la mai putin de 50m, pondere mare, intre 50 si 200m mai mica
-        # peste 200m mai bine nu consideram ca e inaccurate
-        if projected_dist <= 50:
-            w = 0.8 + 0.2 * (1 - projected_dist / 50)
-        elif projected_dist <= 200:
-            w = 0.7 - (0.6 * ((projected_dist - 50) / 150))
-        else:
-            continue
-
-        # bonus pentru puncte din perioade similare
-        # now pe server e cu 3 ore in urma
-        now = datetime.now() + timezone_offset
-        historical_time = t[i]
-
-        same_week_day = historical_time.weekday() == now.weekday()
-        same_week_period = (historical_time.weekday() < 5 and now.weekday() < 5) or (
-            historical_time.weekday() >= 5 and now.weekday() >= 5
-        )
-        same_day_period = abs(historical_time.hour - now.hour) <= 1
-
-        time_factor = 1.0
-        if same_week_day:
-            time_factor *= 1.1
-
-        if same_week_period:
-            time_factor *= 1.2
-
-        if same_day_period:
-            time_factor *= 1.4
-
-        # ca sa avem cat e "totalul" de ponderi
-        w *= time_factor
-        total_w += w
-
-        total_eta += (y[i] / c[i]) * w
-
-    if total_w == 0:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="No data to make prediction for trip",
-        )
-
-    congestion_index = get_timestamp_congestion_index(now)
-    eta = (total_eta / total_w) * congestion_index
-
-    return float(eta), ArrivalStatus.ARRIVING.value
+    return Response(content=cached or "[]", media_type="application/json")
 
 
 # pentru aproximat urmatoarele sosiri la o statie
-@app.post("/predict/{agency_id}/arrivals/{stop_id}")
-def get_arrivals_for_stop(
-    agency_id: str, stop_id: str, vehicle_positions: List[dict] = Body(...)
+@app.get("/arrivals/{agency_id}")
+async def get_arrivals_for_stop(agency_id: str, stop_id: str):
+    logger.info("fetching arrivals for agency %s, stop %s", agency_id, stop_id)
+
+    if agency_id not in AGENCY_IDS:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST)
+
+    positions = await _cached_vehicle_positions(
+        app.state.redis, agency_id
+    )  # deja exclude fantomele
+    return await compute_arrivals(agency_id, stop_id, positions)
+
+
+@app.get("/widgets/{agency_id}")
+async def get_widget_stops(agency_id: str, stop_id: str):
+    if agency_id not in AGENCY_IDS:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST)
+
+    # nu supraincarcam widgetul
+    predictions = await get_arrivals_for_stop(agency_id, stop_id)
+    next_five_arrivals = predictions[:5]
+
+    formatted_arrivals = []
+
+    for arrival in next_five_arrivals:
+        formatted_arrivals.append(
+            {
+                "route_short_name": route_short_names.get(agency_id, {}).get(
+                    arrival["trip_id"].split("_")[0], ""
+                ),
+                "eta_message": get_eta_message(arrival["predicted_eta_minutes"]),
+            }
+        )
+
+    return {
+        "stop_name": stop_names.get(agency_id, {}).get(stop_id, ""),
+        "arrivals": formatted_arrivals,
+        "ts": datetime.now(LOCAL_TZ).isoformat(),
+    }
+
+
+@app.get("/widgets/{agency_id}/apiwidget/{stop_id}")
+async def get_apiwidget(
+    agency_id: str,
+    stop_id: str,
 ):
     if agency_id not in AGENCY_IDS:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST)
 
-    trips = stop_to_trips.get(agency_id, {}).get(stop_id, [])
-    if not trips:
-        return []
+    predictions = await get_arrivals_for_stop(
+        agency_id,
+        stop_id,
+    )
 
-    relevant = [v for v in vehicle_positions if v["trip_id"] in trips]
+    next_five_arrivals = predictions[:5]
 
-    predictions = []
+    stop_name = stop_names.get(agency_id, {}).get(stop_id, "")
 
-    for v in relevant:
-        try:
-            eta_s, msg = get_prediction(
-                agency_id, v["trip_id"], v["lat"], v["lon"], stop_id
-            )
-        except HTTPException as e:
-            if (
-                e.status_code == status.HTTP_404_NOT_FOUND
-                and e.detail == "No data to make prediction for trip"
-            ):
-                predictions.append(
-                    {
-                        "trip_id": v["trip_id"],
-                        "vehicle_label": v.get("label"),
-                        "predicted_eta_minutes": UNKNOWN_ETA_MINUTES,  # valoare mare ca sa fie la final de lista sortata
-                        "message": ArrivalStatus.UNKNOWN.value,
-                    }
-                )
+    rows = [
+        {
+            "key": stop_name or stop_id,
+            "color": "main",
+        }
+    ]
 
-                continue
+    for arrival in next_five_arrivals:
+        route = route_short_names.get(agency_id, {}).get(
+            arrival["trip_id"].split("_")[0],
+            "",
+        )
 
-            else:
-                continue
+        eta = get_eta_message(arrival["predicted_eta_minutes"])
 
-        # fixare la timp pentru ca vehiculele au fost actualizate doar acum ceva timp
-        # nu e chiar vehicul, e alta structura deci e ts primit ca Iso8601String nu timestamp
-        ts = v.get("ts")
+        rows.append(
+            {
+                "key": route or "?",
+                "value": eta or "?",
+            }
+        )
 
-        if ts:
-            vehicle_timestamp = datetime.fromisoformat(ts)
-            if vehicle_timestamp.tzinfo is None:
-                vehicle_timestamp = vehicle_timestamp.replace(tzinfo=tz)
-            else:
-                vehicle_timestamp = vehicle_timestamp.astimezone(tz)
-        else:
-            vehicle_timestamp = datetime.now(tz)
+    rows.append(
+        {
+            "key": "",
+        }
+    )
 
-        current_time = datetime.now(tz)
-        time_difference_seconds = (current_time - vehicle_timestamp).total_seconds()
+    rows.append(
+        {
+            "key": "Actualizat",
+            "value": datetime.now(LOCAL_TZ).strftime("%H:%M"),
+        }
+    )
 
-        if time_difference_seconds >= 180:
-            # daca datele sunt mai vechi de 3 minute, nu le ajustam ca probabil e eroare
-            updated_eta = eta_s / 60
-        else:
-            updated_eta = (eta_s - time_difference_seconds) / 60
-
-        if msg == ArrivalStatus.ARRIVING.value:
-            predictions.append(
-                {
-                    "trip_id": v["trip_id"],
-                    "vehicle_label": v.get("label"),
-                    "predicted_eta_minutes": round(updated_eta, 2),
-                    "message": msg,
-                }
-            )
-
-    predictions.sort(key=lambda x: x["predicted_eta_minutes"])
-    return predictions
+    return rows
 
 
 # aproximari eta pentru o locatie de vehicul primita si statiile, normal, de pe ruta sa
 @app.get("/predict/{agency_id}")
-def predict_endpoint(
+async def predict_endpoint(
     agency_id: str,
     trip_id: str,
     ts: str,
@@ -375,44 +219,61 @@ def predict_endpoint(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST)
 
     results = []
-    for stop_id in stop_ids:
-        try:
-            eta_s, msg = get_prediction(agency_id, trip_id, lat, lon, stop_id)
-        except HTTPException as e:
-            if (
-                e.status_code == status.HTTP_404_NOT_FOUND
-                and e.detail == "No data to make prediction for trip"
-            ):
-                results.append(
-                    {
-                        "trip_id": trip_id,
-                        "stop_id": stop_id,
-                        "predicted_eta_minutes": UNKNOWN_ETA_MINUTES,
-                        "message": ArrivalStatus.UNKNOWN.value,
-                    }
-                )
-                continue
 
-            else:
-                raise e
+    # unele trasee trec prin aceeasi statie de mai multe ori (de ex rute ciclice), deci ca sa transmitem la a cata trecere printr-o
+    # anumita statie suntem ,altfel o sa suprascriem timpii pentru o statie cu a doua trecere prin ea
+    seen_stop_counts = {}
+
+    for stop_id in stop_ids:
+        appearance_index = seen_stop_counts.get(stop_id, 0)
+        seen_stop_counts[stop_id] = appearance_index + 1
+
+        try:
+            eta_s, msg = await get_prediction(
+                agency_id,
+                trip_id,
+                lat,
+                lon,
+                stop_id,
+                appearance_index,
+            )
+        except HTTPException as e:
+            results.append(
+                {
+                    "trip_id": trip_id,
+                    "stop_id": stop_id,
+                    "predicted_eta_minutes": UNKNOWN_ETA_MINUTES,
+                    "message": ArrivalStatus.UNKNOWN.value,
+                }
+            )
+            continue
+        except Exception as e:
+            logger.error("get_prediction failed for %s/%s: %s", trip_id, stop_id, e)
+            results.append(
+                {
+                    "trip_id": trip_id,
+                    "stop_id": stop_id,
+                    "predicted_eta_minutes": UNKNOWN_ETA_MINUTES,
+                    "message": ArrivalStatus.UNKNOWN.value,
+                }
+            )
+            continue
 
         if ts:
-            vehicle_timestamp = datetime.fromisoformat(ts)
-            if vehicle_timestamp.tzinfo is None:
-                vehicle_timestamp = vehicle_timestamp.replace(tzinfo=tz)
-            else:
-                vehicle_timestamp = vehicle_timestamp.astimezone(tz)
+            vehicle_timestamp = datetime.fromisoformat(
+                ts.replace("Z", "+00:00")
+            ).astimezone(LOCAL_TZ)
         else:
-            vehicle_timestamp = datetime.now(tz)
+            vehicle_timestamp = datetime.now(LOCAL_TZ)
 
-        current_time = datetime.now(tz)
+        current_time = datetime.now(LOCAL_TZ)
         time_difference_seconds = (current_time - vehicle_timestamp).total_seconds()
 
         if time_difference_seconds >= 180:
             # daca datele sunt mai vechi de 3 minute, nu le ajustam ca probabil e eroare
             updated_eta = eta_s / 60
         else:
-            updated_eta = (eta_s - time_difference_seconds) / 60
+            updated_eta = max(0.0, eta_s - time_difference_seconds) / 60
 
         results.append(
             {
@@ -432,8 +293,9 @@ def get_routes(agency_id: str):
     if agency_id not in AGENCY_IDS:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST)
 
-    client = MongoClient(MONGO_URL)
-    db = client[DB_NAME]
+    # client = MongoClient(MONGO_URL)
+    # db = client[DB_NAME]
+    db = app.state.db
 
     routes = list(db[f"agency{agency_id}_routes"].find({}))
     if not routes:
@@ -454,7 +316,7 @@ def get_routes(agency_id: str):
                 "route_desc": route.get("route_desc", ""),
             }
         )
-    client.close()
+    # client.close()
     return result
 
 
@@ -465,8 +327,9 @@ def get_stops_for_trip(agency_id: str, trip_id: str = Query(default="")):
     if agency_id not in AGENCY_IDS:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST)
 
-    client = MongoClient(MONGO_URL)
-    db = client[DB_NAME]
+    # client = MongoClient(MONGO_URL)
+    # db = client[DB_NAME]
+    db = app.state.db
 
     if not trip_id:
         # returnam toate statiile
@@ -483,7 +346,7 @@ def get_stops_for_trip(agency_id: str, trip_id: str = Query(default="")):
             for stop in stops
         ]
 
-        client.close()
+        # client.close()
         return result
 
     # returnam statiile in ordinea aparitiei pe ruta
@@ -509,7 +372,7 @@ def get_stops_for_trip(agency_id: str, trip_id: str = Query(default="")):
                     "stop_sequence": ts["stop_sequence"],
                 }
             )
-    client.close()
+    # client.close()
     return result
 
 
@@ -520,8 +383,9 @@ def get_shapes_for_trip(agency_id: str, shape_id: str):
     if agency_id not in AGENCY_IDS:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST)
 
-    client = MongoClient(MONGO_URL)
-    db = client[DB_NAME]
+    # client = MongoClient(MONGO_URL)
+    # db = client[DB_NAME]
+    db = app.state.db
 
     shapes = (
         db[f"agency{agency_id}_shapes"]
@@ -537,7 +401,7 @@ def get_shapes_for_trip(agency_id: str, shape_id: str):
         }
         for s in shapes
     ]
-    client.close()
+    # client.close()
     return result
 
 
@@ -555,99 +419,55 @@ def get_trip_ids_for_route(agency_id: str, stop_id: str = Query(...)):
     return result
 
 
-def get_random_api_key():
-    idx = random.randint(1, 5)
-    return os.getenv(f"API_KEY_{idx}")
+MAX_DIRECT_STOPS = 45
 
 
-@app.get("/vehicles/{agency_id}")
-async def get_vehicles(agency_id: str):
-    logger.info("fetching vehicles for agency %s", agency_id)
+@lru_cache(maxsize=4096)
+def _reachable(agency_id: str, stop_id: str):
+    trips = stop_to_trips.get(agency_id, {}).get(stop_id, [])
+    acc = {}
 
+    for trip_id in trips:
+        seq = trip_stops.get(agency_id, {}).get(trip_id)
+        if not seq or stop_id not in seq:
+            continue
+        idx = seq.index(stop_id)
+        short = route_short_names.get(agency_id, {}).get(trip_id.split("_")[0], "?")
+
+        for offset, sid in enumerate(seq[idx + 1 :], start=1):
+            if offset > MAX_DIRECT_STOPS or sid == stop_id:
+                break
+            entry = acc.setdefault(sid, {})
+            prev = entry.get(short)
+            if prev is None or prev["stops_away"] > offset:
+                entry[short] = {"stops_away": offset, "trip_id": trip_id}
+
+    out = []
+    for sid, routes in acc.items():
+        loc = stop_locs.get(agency_id, {}).get(sid)
+        if not loc:
+            continue
+        out.append(
+            {
+                "stop_id": sid,
+                "stop_name": stop_names.get(agency_id, {}).get(sid, sid),
+                "stop_lat": loc[0],
+                "stop_lon": loc[1],
+                "routes": sorted(
+                    ({"route_short_name": k, **v} for k, v in routes.items()),
+                    key=lambda r: r["stops_away"],
+                ),
+            }
+        )
+    out.sort(key=lambda s: s["routes"][0]["stops_away"])
+    return out[:80]
+
+
+@app.get("/reachable/{agency_id}/{stop_id}")
+def get_reachable_stops(agency_id: str, stop_id: str):
     if agency_id not in AGENCY_IDS:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST)
-
-    headers = {
-        "X-Agency-Id": agency_id,
-        "Accept": "application/json",
-        "X-API-KEY": get_random_api_key(),
-    }
-    async with httpx.AsyncClient() as client:
-        response = await client.get(
-            f"{os.getenv('BASE_URL')}/vehicles", headers=headers, timeout=10
-        )
-
-    if response.status_code != status.HTTP_200_OK:
-        raise HTTPException(status_code=response.status_code, detail=response.text)
-
-    vehicles = response.json()
-    valid_vehicles = []
-
-    # filtram vehiculele inutile si adaugam coord primei si ultimei statii pentru calcule mai rapide in frontend
-    for vehicle in vehicles:
-        trip_id = vehicle.get("trip_id")
-        latitude = vehicle.get("latitude")
-        longitude = vehicle.get("longitude")
-        label = vehicle.get("label")
-        ts = vehicle.get("timestamp")
-        vehicle["is_ghost"] = False
-
-        if trip_id and latitude and longitude and label and ts:
-            vehicle_timestamp = datetime.fromisoformat(ts)
-            if vehicle_timestamp.tzinfo is None:
-                vehicle_timestamp = vehicle_timestamp.replace(tzinfo=tz)
-            else:
-                vehicle_timestamp = vehicle_timestamp.astimezone(tz)
-
-            current_time = datetime.now(tz)
-            time_difference_seconds = (current_time - vehicle_timestamp).total_seconds()
-
-            if time_difference_seconds > 180:
-                continue
-
-            # pot folosi asta ca am statiile per trip in acest dictionar
-            stops_ids = list(stop_distances.get(agency_id, {}).get(trip_id, {}).keys())
-            if stops_ids:
-
-                # e necesar try pentru ca s-a intamplat sa se schimbe date despre traseu
-                try:
-                    first_stop = stop_locs[agency_id][stops_ids[0]]
-                    last_stop = stop_locs[agency_id][stops_ids[-1]]
-                except KeyError:
-                    continue
-
-                vehicle["first_stop_lat"] = first_stop[0]
-                vehicle["first_stop_lon"] = first_stop[1]
-
-                vehicle["last_stop_lat"] = last_stop[0]
-                vehicle["last_stop_lon"] = last_stop[1]
-
-                valid_vehicles.append(vehicle)
-
-    for v in valid_vehicles:
-        # ca sa verificam care sunt fantoma (stau afk) folosim un dictionar cu redis
-        redis_key = f"{agency_id}:{v.get('label')}".strip()
-        positions = app.state.redis.lrange(redis_key, 0, -1)
-        positions = [
-            (float(lat), float(lon))
-            for lat, lon in (pos.split(",") for pos in positions)
-        ]
-
-        new_position = (v.get("latitude"), v.get("longitude"))
-
-        if (
-            positions
-            and sum(abs(a - b) for a, b in zip(positions[-1], new_position))
-            > GHOST_VEHICLE_MAX_COORDINATE_CHANGE
-        ):
-            app.state.redis.delete(redis_key)
-
-        if len(positions) < GHOST_VEHICLE_POSITIONS_CONSIDERED:
-            app.state.redis.rpush(redis_key, f"{new_position[0]},{new_position[1]}")
-
-        v["is_ghost"] = len(positions) >= GHOST_VEHICLE_POSITIONS_CONSIDERED
-
-    return valid_vehicles
+    return _reachable(agency_id, stop_id)
 
 
 def get_external_timetable_urls(agency_id: str, route_short_name: str, day_type: str):
@@ -673,6 +493,9 @@ def get_external_timetable_urls(agency_id: str, route_short_name: str, day_type:
         #         f"https://stpt.ro/{route_short_name.lower()}-2/",
         #         f"https://stpt.ro/{route_short_name.lower()}/",
         #     ]
+        case "10":
+            # constanta
+            return [f"https://www.ctbus.ro/#ProgramCurse"]
 
         case _:
             return []
@@ -683,12 +506,14 @@ def get_external_timetable_urls(agency_id: str, route_short_name: str, day_type:
 async def get_timetable(
     agency_id: str,
     route_short_name: str = Query(...),
+    route_id: str = Query(...),
     day_type: str = Query(..., enum=["lv", "s", "d"]),
 ):
     logger.info(
-        "fetching timetable for agency %s, route %s, day type %s",
+        "fetching timetable for agency %s, route %s (%s), day type %s",
         agency_id,
         route_short_name,
+        route_id,
         day_type,
     )
 
@@ -698,17 +523,22 @@ async def get_timetable(
     if day_type not in ["lv", "s", "d"]:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST)
 
-    if agency_id not in EXTERNAL_TIMETABLES_AGENCY_IDS:
-        file_path = (
-            CSV_DIR / f"agency{agency_id}_orar_{route_short_name}_{day_type}.csv"
-        )
+    if "/" in route_short_name or "/" in route_id:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST)
+
+    file_paths = [
+        CSV_DIR
+        / f"agency{agency_id}_route{route_id}_orar_{route_short_name}_{day_type}.csv",
+        CSV_DIR / f"agency{agency_id}_orar_{route_short_name}_{day_type}.csv",
+    ]
+
+    for file_path in file_paths:
         if not file_path.exists():
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail="Timetable not found"
-            )
+            continue
 
         return FileResponse(file_path, media_type="text/csv", filename=file_path.name)
-    else:
+
+    if agency_id in EXTERNAL_TIMETABLES_AGENCY_IDS:
         urls = get_external_timetable_urls(
             agency_id=agency_id, route_short_name=route_short_name, day_type=day_type
         )
@@ -723,6 +553,6 @@ async def get_timetable(
                 ):
                     return JSONResponse({"url": url})
 
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Timetable not found"
-        )
+    raise HTTPException(
+        status_code=status.HTTP_404_NOT_FOUND, detail="Timetable not found"
+    )

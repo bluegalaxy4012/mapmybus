@@ -110,10 +110,6 @@ class _WelcomePageState extends State<WelcomePage> {
                             value: "Cluj-Napoca",
                             child: Text("Cluj-Napoca"),
                           ),
-                          // DropdownMenuItem(
-                          //   value: "Timisoara",
-                          //   child: Text("Timisoara"),
-                          // ),
                           DropdownMenuItem(value: "Iasi", child: Text("Iasi")),
                           DropdownMenuItem(
                             value: "Chisinau",
@@ -122,6 +118,14 @@ class _WelcomePageState extends State<WelcomePage> {
                           DropdownMenuItem(
                             value: "Botosani",
                             child: Text("Botosani"),
+                          ),
+                          // DropdownMenuItem(
+                          //   value: "Timisoara",
+                          //   child: Text("Timisoara"),
+                          // ),
+                          DropdownMenuItem(
+                            value: "Constanta",
+                            child: Text("Constanta"),
                           ),
                         ],
                         onChanged: (v) {

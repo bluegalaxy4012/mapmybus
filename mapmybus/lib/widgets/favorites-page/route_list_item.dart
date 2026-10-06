@@ -69,6 +69,7 @@ class RouteListItem extends StatelessWidget {
               builder: (context) => TimetablePage(
                 agencyId: agencyId,
                 routeShortName: route.routeShortName,
+                routeIdString: route.routeId.toString(),
               ),
             ),
           );

@@ -7,19 +7,27 @@ import 'package:mapmybus/core/api_config.dart';
 import 'package:mapmybus/core/utils.dart';
 import 'package:http/http.dart' as http;
 import 'package:mapmybus/models/eta.dart';
+import 'package:mapmybus/models/info_dtos.dart';
 import 'package:mapmybus/models/result.dart';
 import 'package:mapmybus/models/route.dart';
 import 'package:mapmybus/models/shape_point.dart';
 import 'package:mapmybus/models/stop.dart';
 import 'package:mapmybus/models/vehicle.dart';
+import 'package:mapmybus/models/weather.dart';
+import 'package:mapmybus/models/reachable.dart';
 import 'package:retry/retry.dart';
 
 class Server {
   // in caz de timeout-uri
   static const retryOptions = RetryOptions(
     maxAttempts: 3,
-    delayFactor: Duration(seconds: 5),
+    delayFactor: Duration(seconds: 1),
   );
+
+  static const Duration _httpTimeout = Duration(seconds: 12);
+  Future<http.Response> _get(Uri uri) {
+    return http.get(uri).timeout(_httpTimeout);
+  }
 
   // acum stim sigur ca vehiculele sunt valide si au campurile necesare din backend
   Future<Result<List<Vehicle>, Exception>> fetchVehicles(
@@ -29,7 +37,7 @@ class Server {
 
     try {
       final response = await retryOptions.retry(
-        () => http.get(uri),
+        () => _get(uri),
         retryIf: (e) => e is http.ClientException || e is TimeoutException,
       );
 
@@ -61,7 +69,7 @@ class Server {
 
     try {
       final response = await retryOptions.retry(
-        () => http.get(uri),
+        () => _get(uri),
         retryIf: (e) => e is http.ClientException || e is TimeoutException,
       );
 
@@ -91,7 +99,7 @@ class Server {
 
     try {
       final response = await retryOptions.retry(
-        () => http.get(uri),
+        () => _get(uri),
         retryIf: (e) => e is http.ClientException || e is TimeoutException,
       );
 
@@ -124,7 +132,7 @@ class Server {
 
     try {
       final response = await retryOptions.retry(
-        () => http.get(uri),
+        () => _get(uri),
         retryIf: (e) => e is http.ClientException || e is TimeoutException,
       );
 
@@ -152,7 +160,7 @@ class Server {
 
     try {
       final response = await retryOptions.retry(
-        () => http.get(uri),
+        () => _get(uri),
         retryIf: (e) => e is http.ClientException || e is TimeoutException,
       );
 
@@ -218,7 +226,7 @@ class Server {
 
     try {
       final response = await retryOptions.retry(
-        () => http.get(uri),
+        () => _get(uri),
         retryIf: (e) => e is http.ClientException || e is TimeoutException,
       );
 
@@ -258,7 +266,7 @@ class Server {
 
     try {
       final response = await retryOptions.retry(
-        () => http.get(uri),
+        () => _get(uri),
         retryIf: (e) => e is http.ClientException || e is TimeoutException,
       );
 
@@ -280,16 +288,18 @@ class Server {
   Future<Result<List<List<String>>, Exception>> getTimetable(
     String agencyId,
     String routeShortName,
+    String routeIdString,
     String dayType,
   ) async {
     final uri = '${AppConfig.timetablesApiUrl}/$agencyId';
 
     try {
       final response = await retryOptions.retry(
-        () => http.get(
+        () => _get(
           Uri.parse(uri).replace(
             queryParameters: {
               'route_short_name': routeShortName,
+              'route_id': routeIdString,
               'day_type': dayType,
             },
           ),
@@ -303,12 +313,15 @@ class Server {
         final contentType = response.headers['content-type'] ?? '';
 
         if (contentType.contains('text/csv')) {
-          return Success(
-            const CsvToListConverter(
-              eol: "\n",
-              shouldParseNumbers: false,
-            ).convert(utf8.decode(response.bodyBytes)),
-          );
+          final csvRows = Csv(
+            dynamicTyping: false,
+          ).decode(utf8.decode(response.bodyBytes));
+
+          final List<List<String>> csv = csvRows
+              .map((row) => row.map((cell) => cell.toString()).toList())
+              .toList();
+
+          return Success(csv);
         } else if (contentType.contains('application/json')) {
           final jsonData = jsonDecode(response.body);
           final url = jsonData['url'] as String;
@@ -332,19 +345,14 @@ class Server {
   Future<Result<List<Arrival>, Exception>> getSoonArrivalsForStop(
     String agencyId,
     String stopId,
-    List<Map<String, dynamic>> vehiclePositions,
   ) async {
     final uri = Uri.parse(
-      '${AppConfig.arrivalsApiUrl}/$agencyId/arrivals/$stopId',
+      '${AppConfig.arrivalsApiUrl}/$agencyId?stop_id=$stopId',
     );
 
     try {
       final response = await retryOptions.retry(
-        () => http.post(
-          uri,
-          headers: {'Content-Type': 'application/json'},
-          body: jsonEncode(vehiclePositions),
-        ),
+        () => http.get(uri).timeout(_httpTimeout),
         retryIf: (e) => e is http.ClientException || e is TimeoutException,
       );
 
@@ -366,6 +374,47 @@ class Server {
       }
     } catch (e) {
       return Failure(Exception("Unexpected error: $e"));
+    }
+  }
+
+  Future<Result<WeatherInfo, Exception>> getWeather(String agencyId) async {
+    final uri = Uri.parse('${AppConfig.weatherApiUrl}/$agencyId');
+
+    try {
+      final response = await retryOptions.retry(
+        () => _get(uri),
+        retryIf: (e) => e is http.ClientException || e is TimeoutException,
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return Success(WeatherInfo.fromJson(data));
+      }
+      return Failure(ApiException("weather", response.statusCode));
+    } catch (e) {
+      return Failure(Exception("$e"));
+    }
+  }
+
+  Future<Result<List<ReachableStop>, Exception>> getReachableStops(
+    String agencyId,
+    String stopId,
+  ) async {
+    final uri = Uri.parse('${AppConfig.reachableApiUrl}/$agencyId/$stopId');
+
+    try {
+      final response = await retryOptions.retry(
+        () => _get(uri),
+        retryIf: (e) => e is http.ClientException || e is TimeoutException,
+      );
+
+      if (response.statusCode == 200) {
+        final d = jsonDecode(response.body) as List;
+        return Success(d.map((e) => ReachableStop.fromJson(e)).toList());
+      }
+      return Failure(ApiException("reachable", response.statusCode));
+    } catch (e) {
+      return Failure(Exception("$e"));
     }
   }
 }

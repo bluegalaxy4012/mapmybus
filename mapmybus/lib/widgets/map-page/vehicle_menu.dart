@@ -9,8 +9,6 @@ import 'package:mapmybus/widgets/common-page/timetable_page.dart';
 class VehicleMenu extends StatefulWidget {
   final String agencyId;
   final String selectedRouteName;
-  // final String? previousStopName;
-  // final String? nextStopName;
   final StopWithoutPosition? previousStop;
   final StopWithoutPosition? nextStop;
 
@@ -31,8 +29,6 @@ class VehicleMenu extends StatefulWidget {
     super.key,
     required this.agencyId,
     required this.selectedRouteName,
-    // required this.previousStopName,
-    // required this.nextStopName,
     required this.previousStop,
     required this.nextStop,
     required this.isLoading,
@@ -215,7 +211,12 @@ class _VehicleMenuState extends State<VehicleMenu> {
                         ? Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              const Icon(Icons.directions_bus, size: 48),
+                              Icon(
+                                getIconForVehicleType(
+                                  widget.selectedVehicle?.vehicleType ?? 3,
+                                ),
+                                size: 48,
+                              ),
                               const SizedBox(width: 8),
                               Text(
                                 "Linia ${widget.selectedRouteName}",
@@ -225,6 +226,10 @@ class _VehicleMenuState extends State<VehicleMenu> {
                               IconButton(
                                 icon: const Icon(Icons.expand_more, size: 34),
                                 onPressed: _toggleMinimize,
+
+                                style: IconButton.styleFrom(
+                                  minimumSize: const Size(60, 28),
+                                ),
                               ),
                             ],
                           )
@@ -238,6 +243,11 @@ class _VehicleMenuState extends State<VehicleMenu> {
                                   IconButton(
                                     icon: Icon(Icons.expand_less, size: 72.sp),
                                     onPressed: _toggleMinimize,
+
+                                    style: IconButton.styleFrom(
+                                      padding: EdgeInsets.zero,
+                                      minimumSize: const Size(60, 28),
+                                    ),
                                   ),
 
                                   Icon(
@@ -375,6 +385,10 @@ class _VehicleMenuState extends State<VehicleMenu> {
                                                     agencyId: widget.agencyId,
                                                     routeShortName: widget
                                                         .selectedRouteName,
+                                                    routeIdString: widget
+                                                        .selectedVehicle!
+                                                        .routeId
+                                                        .toString(),
                                                   ),
                                             ),
                                           );

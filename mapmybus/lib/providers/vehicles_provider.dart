@@ -1,12 +1,10 @@
 import 'dart:async';
-import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:mapmybus/models/result.dart';
 import 'package:mapmybus/models/vehicle.dart';
 import 'package:mapmybus/service/api_service.dart';
 import 'package:mapmybus/core/utils.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 class VehiclesProvider extends ChangeNotifier {
   final Server server;
@@ -22,15 +20,6 @@ class VehiclesProvider extends ChangeNotifier {
   VehiclesProvider({required this.server});
 
   Future<void> fetchVehiclesAndNotify(String agencyId) async {
-    final isAnyToDraw = await isAnyVehicleToDraw();
-
-    if (!isAnyToDraw) {
-      _vehicles = [];
-      notifyListeners();
-      stopVehicleFetchTimer();
-      return;
-    }
-
     final result = await server.fetchVehicles(agencyId);
 
     switch (result) {
@@ -55,9 +44,6 @@ class VehiclesProvider extends ChangeNotifier {
 
     _currentAgencyId = agencyId;
 
-    final isAnyToDraw = await isAnyVehicleToDraw();
-    if (!isAnyToDraw) return;
-
     await fetchVehiclesAndNotify(agencyId);
 
     _vehicleFetchTimer = Timer.periodic(const Duration(seconds: 20), (
@@ -71,18 +57,6 @@ class VehiclesProvider extends ChangeNotifier {
   void stopVehicleFetchTimer() {
     _vehicleFetchTimer?.cancel();
     isTimerActive = false;
-  }
-
-  Future<bool> isAnyVehicleToDraw() async {
-    final prefs = await SharedPreferences.getInstance();
-    final jsonString = prefs.getString('favoriteRouteMap_$_currentAgencyId');
-
-    if (jsonString != null) {
-      final decoded = jsonDecode(jsonString) as Map<String, dynamic>;
-      return decoded.values.any((v) => v == true);
-    }
-
-    return false;
   }
 
   @override
