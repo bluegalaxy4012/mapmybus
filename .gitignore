@@ -1,4 +1,5 @@
 /temp/
+/venv/
 /vps/
 /api/csv/
 /api/__pycache__/
@@ -12,6 +13,7 @@
 /mapmybus/build.sh
 
 .vscode/
+.idea/
 
 __pycache__/
 *.pyc
